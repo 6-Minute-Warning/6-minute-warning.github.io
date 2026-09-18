@@ -30,7 +30,7 @@ import groupSeated from "../assets/photos/group-studio-seated.jpg";
         <div class:list={["wrap", "bio__grid", { "bio__grid--flip": i % 2 === 1 }]}>
           <Image src={m.suit} alt={`${m.name} of 6 Minute Warning`} widths={[480, 800, 1100]} sizes="(min-width: 900px) 45vw, 100vw" class="bio__img" />
           <div>
-            <span class="eyebrow">{m.role}</span>
+            {m.role && <span class="eyebrow">{m.role}</span>}
             <h2>{m.name}</h2>
             {m.bio.map((p) => <p>{p}</p>)}
           </div>

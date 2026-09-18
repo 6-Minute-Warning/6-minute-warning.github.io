@@ -15,9 +15,14 @@ npm run dev
 |---|---|
 | Email, socials, videos, credits, testimonials | `src/data/site.ts` |
 | Members, bios, alumni | `src/data/members.ts` |
-| Event pages (awards, corporate, Christmas, festivals) | `src/data/services.ts` |
+| Event pages (concert series, awards, corporate, Christmas, weddings, festivals, school workshops) | `src/data/services.ts` |
 | Colours, fonts, spacing | `src/styles/theme.css` |
+| Upcoming shows | `src/data/shows.ts` |
 | Photos | `src/assets/` |
+
+Shows appear only when `public: true` and stop showing the day after they happen (the deploy workflow rebuilds daily). `SHOW_DRAFT_SHOWS=1 npm run build` includes non-public shows for a local preview.
+
+Theme variants live in `src/styles/theme.css` as `[data-theme="..."]` blocks. Add `?themes` to any URL to show a theme picker (it sticks for that browser), or `?theme=gold` to open one variant directly. Visitors see the default theme.
 
 Adding an entry to `services` in `src/data/services.ts` creates a new event page, adds it to the nav and footer, and puts it in the sitemap.
 
@@ -31,7 +36,7 @@ The form posts to a Google Apps Script web app that emails `manager@6minutewarni
 4. Deploy → New deployment → Web app. Execute as: Me. Who has access: Anyone.
 5. Copy the `/exec` URL into `bookingEndpoint` and push.
 
-Spam handling: a hidden honeypot field and a 3-second minimum fill time. Both drop submissions silently.
+Spam handling: a hidden honeypot field and a 3-second minimum fill time, measured in the visitor's browser. Suspected spam sends no email; with `SHEET_ID` set it is still logged to the sheet, marked `spam`, so a misjudged real inquiry can be recovered.
 
 ## DNS (Namecheap)
 
@@ -43,7 +48,7 @@ GitHub Pages settings: source "GitHub Actions", custom domain `6minutewarning.co
 | A | @ | 185.199.109.153 |
 | A | @ | 185.199.110.153 |
 | A | @ | 185.199.111.153 |
-| CNAME | www | `<org>.github.io` |
+| CNAME | www | `6-minute-warning.github.io` |
 
 Leave the MX records alone; mail stays on Google Workspace.
 

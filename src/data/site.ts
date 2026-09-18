@@ -1,9 +1,8 @@
 export const site = {
   name: "6 Minute Warning",
   url: "https://6minutewarning.com",
-  tagline: "Edmonton a cappella for corporate events, awards galas and festivals",
   description:
-    "6 Minute Warning is a six-voice a cappella group from Edmonton, Alberta. Pop and R&B for awards galas, corporate events, holiday parties and festivals. Small stage footprint, minimal tech, on and off stage in seconds.",
+    "6 Minute Warning is a six-voice a cappella group from Edmonton, Alberta, singing pop and R&B with no instruments. Book them for awards ceremonies, corporate parties, weddings, festivals and school workshops.",
   email: "manager@6minutewarning.com",
   city: "Edmonton",
   region: "Alberta",
@@ -24,14 +23,14 @@ export const videos = [
 ];
 
 export const stages = [
-  "Ben Folds with the Edmonton Symphony Orchestra",
-  "David Foster's Star Search, top five",
-  "Lite 95.7 Christmas Concert with Glass Tiger",
-  "Mayor's Celebration of the Arts",
-  "Alberta Chamber of Resources banquet",
-  "Kaleido Festival main stage",
-  "Festival Place Patio Series",
-  "Edmonton Singing Christmas Tree",
+  { title: "Ben Folds", detail: "Backing vocals with the Edmonton Symphony Orchestra" },
+  { title: "David Foster", detail: "Top five, Star Search" },
+  { title: "Glass Tiger", detail: "Lite 95.7 Christmas Concert" },
+  { title: "Mayor's Celebration of the Arts", detail: "City of Edmonton" },
+  { title: "Alberta Chamber of Resources", detail: "Annual banquet" },
+  { title: "Kaleido Festival", detail: "Main stage" },
+  { title: "Festival Place", detail: "Patio Series" },
+  { title: "Singing Christmas Tree", detail: "Jubilee Auditorium, Edmonton" },
 ];
 
 export const highlights = [
@@ -65,10 +64,12 @@ export const testimonials = [
 ];
 
 export const eventTypes = [
+  "Concert series or presenter",
   "Awards gala",
   "Corporate event",
   "Holiday party",
   "Festival or community event",
   "Wedding",
+  "School workshop",
   "Other",
 ];

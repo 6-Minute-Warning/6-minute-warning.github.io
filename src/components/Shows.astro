@@ -1,0 +1,111 @@
+---
+import { upcomingShows } from "../data/shows";
+
+const shows = upcomingShows();
+const dateFormat = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "America/Edmonton" });
+const yearFormat = new Intl.DateTimeFormat("en-CA", { year: "numeric", timeZone: "America/Edmonton" });
+const timeFormat = new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit", timeZone: "America/Edmonton" });
+const parse = (start: string) => new Date(start.length === 10 ? `${start}T12:00:00-06:00` : start);
+---
+
+{
+  shows.length > 0 && (
+    <section class="section" id="shows" aria-labelledby="shows-heading">
+      <div class="wrap">
+        <span class="eyebrow">Live</span>
+        <h2 id="shows-heading">Upcoming shows</h2>
+        <ul class="shows">
+          {shows.map((s) => {
+            const d = parse(s.start);
+            return (
+              <li>
+                <time datetime={s.start}>
+                  <strong>{dateFormat.format(d)}</strong>
+                  <span>{yearFormat.format(d)}</span>
+                </time>
+                <div class="shows__info">
+                  <p class="shows__title">
+                    {s.title}
+                    {!s.public && <em> (draft, not public)</em>}
+                  </p>
+                  <p class="shows__where">
+                    {[s.venue, s.city, s.start.length > 10 ? timeFormat.format(d) : null].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+                {s.url && <a class="btn btn--ghost" href={s.url}>Tickets</a>}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .shows {
+    list-style: none;
+    margin: 24px 0 0;
+    padding: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .shows li {
+    display: grid;
+    grid-template-columns: 76px 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  time {
+    display: grid;
+  }
+
+  time strong {
+    font-weight: 800;
+    font-stretch: 125%;
+    text-transform: uppercase;
+    font-size: 1.05rem;
+    white-space: nowrap;
+    color: var(--color-accent-strong);
+  }
+
+  @media (min-width: 700px) {
+    .shows li {
+      grid-template-columns: 110px 1fr auto;
+      gap: 24px;
+    }
+
+    time strong {
+      font-size: 1.25rem;
+    }
+  }
+
+  time span {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+  }
+
+  .shows__info p {
+    margin: 0;
+  }
+
+  .shows__title {
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+
+  .shows__title em {
+    font-style: normal;
+    font-weight: 400;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+  }
+
+  .shows__where {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+  }
+</style>

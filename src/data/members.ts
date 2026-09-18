@@ -15,7 +15,7 @@ import joCasual from "../assets/members/jo-casual.jpg";
 export interface Member {
   slug: string;
   name: string;
-  role: string;
+  role?: string;
   suit: ImageMetadata;
   casual: ImageMetadata;
   bio: string[];
@@ -30,7 +30,7 @@ export const members: Member[] = [
     casual: bryanCasual,
     bio: [
       "Every group needs someone to tell them when to shut up and work, and Bryan tells us to put down our beers and sing with such grace and civility that the Dalai Lama would be jealous.",
-      "Of course, being a pretty face and patient isn’t enough to make it into 6 Minute Warning. Bryan’s vocal range crosses the entire spectrum, with a beautiful low end to make you weep and a delicate high end that is the cherry on top of any good a cappella cake.",
+      "Of course, being pretty and patient isn’t enough to make it into 6 Minute Warning. Bryan’s vocal range crosses the entire spectrum, with a beautiful low end to make you weep and a delicate high end that is the cherry on top of any good a cappella cake.",
       "With his arrangements, razor-sharp musical insights and his “do it all” vocal stylings, we are over the moon to have Bryan singing and leading us as our musical director.",
     ],
   },
@@ -49,7 +49,6 @@ export const members: Member[] = [
   {
     slug: "bernard-quilala",
     name: "Bernard Quilala",
-    role: "Lead vocals",
     suit: bernardSuit,
     casual: bernardCasual,
     bio: [
@@ -61,7 +60,6 @@ export const members: Member[] = [
   {
     slug: "brayden-foo",
     name: "Brayden Foo",
-    role: "Lead vocals",
     suit: braydenSuit,
     casual: braydenCasual,
     bio: [
@@ -93,4 +91,14 @@ export const members: Member[] = [
   },
 ];
 
-export const alumni = ["Andrew Malcolm", "Tim Noel", "Tyson Kerr", "Nathan Willis", "Matt Raven"];
+export const alumni = [
+  "Andrew Malcolm",
+  "Caleb Nelson",
+  "Kyle Carter",
+  "Luc Tellier",
+  "Nathan Willis",
+  "Sean Sonego",
+  "Tim Noel",
+  "Tyler Smith",
+  "Tyson Kerr",
+];
