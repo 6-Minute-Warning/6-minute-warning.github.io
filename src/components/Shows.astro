@@ -1,11 +1,7 @@
 ---
-import { upcomingShows } from "../data/shows";
+import { upcomingShows, formatShowDay, formatShowTime } from "../data/shows";
 
 const shows = upcomingShows();
-const dateFormat = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "America/Edmonton" });
-const yearFormat = new Intl.DateTimeFormat("en-CA", { year: "numeric", timeZone: "America/Edmonton" });
-const timeFormat = new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit", timeZone: "America/Edmonton" });
-const parse = (start: string) => new Date(start.length === 10 ? `${start}T12:00:00-06:00` : start);
 ---
 
 {
@@ -15,13 +11,11 @@ const parse = (start: string) => new Date(start.length === 10 ? `${start}T12:00:
         <span class="eyebrow">Live</span>
         <h2 id="shows-heading">Upcoming shows</h2>
         <ul class="shows">
-          {shows.map((s) => {
-            const d = parse(s.start);
-            return (
+          {shows.map((s) => (
               <li>
                 <time datetime={s.start}>
-                  <strong>{dateFormat.format(d)}</strong>
-                  <span>{yearFormat.format(d)}</span>
+                  <strong>{formatShowDay(s.start, { month: "short", day: "numeric" })}</strong>
+                  <span>{formatShowDay(s.start, { year: "numeric" })}</span>
                 </time>
                 <div class="shows__info">
                   <p class="shows__title">
@@ -29,13 +23,12 @@ const parse = (start: string) => new Date(start.length === 10 ? `${start}T12:00:
                     {!s.public && <em> (draft, not public)</em>}
                   </p>
                   <p class="shows__where">
-                    {[s.venue, s.city, s.start.length > 10 ? timeFormat.format(d) : null].filter(Boolean).join(" · ")}
+                    {[s.venue, s.city, formatShowTime(s.start)].filter(Boolean).join(" · ")}
                   </p>
                 </div>
                 {s.url && <a class="btn btn--ghost" href={s.url}>Tickets</a>}
               </li>
-            );
-          })}
+          ))}
         </ul>
       </div>
     </section>
