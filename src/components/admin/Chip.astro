@@ -1,0 +1,13 @@
+---
+interface Props {
+  tone?: "ok" | "warn" | "bad" | "info" | "plain";
+}
+
+const { tone = "plain" } = Astro.props;
+const icon = { ok: "✓", warn: "!", bad: "✕", info: "•", plain: "" }[tone];
+---
+
+<span class:list={["chip", tone !== "plain" && `chip--${tone}`]}>
+  {icon && <span aria-hidden="true">{icon}</span>}
+  <slot />
+</span>

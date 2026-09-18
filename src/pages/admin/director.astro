@@ -1,0 +1,237 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import Chip from "../../components/admin/Chip.astro";
+import { songs, members, setlists, rehearsals, readinessLabels, songById, gigById, firstName, day, today } from "../../data/admin/sample";
+
+const singers = members.filter((m) => m.status === "Active");
+const ready = songs.filter((s) => s.status === "Ready");
+const learningSongs = songs.filter((s) => s.status === "Learning");
+const gig = gigById("riverbend")!;
+const set = setlists.riverbend.map((id) => songById(id)!);
+const setMinutes = set.reduce((sum, s) => sum + s.minutes, 0);
+const slotMinutes = 100;
+const readyCount = (id: string) => singers.filter((m) => (songById(id)!.readiness[m.id] ?? 1) === 3).length;
+const shaky = songs
+  .filter((s) => s.status !== "Retired")
+  .map((s) => ({ song: s, ready: readyCount(s.id) }))
+  .filter((x) => x.ready < singers.length)
+  .sort((a, b) => a.ready - b.ready);
+const nextRehearsal = rehearsals.find((r) => r.date >= today)!;
+const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
+---
+
+<Admin title="Music director" role="director">
+  <h1>Music director</h1>
+  <p class="sub">Repertoire, set lists and rehearsal focus. Sample data.</p>
+
+  <div class="stats card">
+    <div class="stat"><span class="muted">Performance ready</span><strong>{ready.length} songs</strong></div>
+    <div class="stat"><span class="muted">In progress</span><strong>{learningSongs.length} songs</strong></div>
+    <div class="stat"><span class="muted">Next set ({gig.name})</span><strong>{setMinutes} / {slotMinutes} min</strong><span class="muted">{gig.format}</span></div>
+    <div class="stat"><span class="muted">Next rehearsal</span><strong>{day(nextRehearsal.date)}</strong><span class="muted">{nextRehearsal.time}</span></div>
+  </div>
+
+  <div class="grid">
+    <section class="card span-7" aria-labelledby="rep">
+      <div class="row">
+        <h2 id="rep">Repertoire</h2>
+        <a class="mini-btn" href="#" data-toast="Would add a song: title, key, arranger, sheet music and learning tracks from the shared Drive.">+ Add song</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Song</th><th>Key</th><th>Min</th><th>Status</th><th>Soloist</th><th>Ready</th></tr>
+          </thead>
+          <tbody>
+            {
+              songs.map((s) => (
+                <tr>
+                  <td>
+                    <strong>{s.title}</strong>
+                    <br />
+                    <span class="muted small">{s.tags.join(", ")}</span>
+                  </td>
+                  <td>{s.key}</td>
+                  <td>{s.minutes}</td>
+                  <td>
+                    <Chip tone={s.status === "Ready" ? "ok" : "warn"}>{s.status}</Chip>
+                  </td>
+                  <td>{s.soloist ? firstName(s.soloist) : <span class="muted">Group</span>}</td>
+                  <td>
+                    {readyCount(s.id)}/{singers.length}
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card span-5" aria-labelledby="set">
+      <h2 id="set">Set list: {gig.name}</h2>
+      <p class="muted small">
+        {day(gig.date)} · slot {slotMinutes} min · currently {setMinutes} min, {slotMinutes - setMinutes} min to fill
+      </p>
+      <ol class="builder">
+        {
+          set.map((s) => (
+            <li>
+              <span>
+                <strong>{s.title}</strong> <span class="muted small">{s.minutes} min</span>
+              </span>
+              <span class="row">
+                <button type="button" class="mini-btn up" aria-label={`Move ${s.title} up`}>↑</button>
+                <button type="button" class="mini-btn down" aria-label={`Move ${s.title} down`}>↓</button>
+              </span>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="row start">
+        <a class="mini-btn" href="#" data-toast="Would pick from songs marked Ready, showing each one's length.">+ Add from repertoire</a>
+        <a class="mini-btn" href="#" data-toast="Would publish this set list to every performer's singer view.">Publish to singers</a>
+      </div>
+    </section>
+
+    <section class="card span-12" aria-labelledby="matrix">
+      <h2 id="matrix">Who's ready on what</h2>
+      <div class="table-wrap">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th>Song</th>
+              {singers.map((m) => <th>{firstName(m.id)}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {
+              songs.map((s) => (
+                <tr>
+                  <td>
+                    <strong>{s.title}</strong>
+                  </td>
+                  {singers.map((m) => {
+                    const r = s.readiness[m.id] ?? 1;
+                    return (
+                      <td class:list={["cell", `r${r}`]} title={readinessLabels[r]}>
+                        {mark[r]}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="muted small">● performance ready · ◐ off book but shaky · ○ still learning notes. Singers update their own row from the singer view.</p>
+    </section>
+
+    <section class="card span-6" aria-labelledby="plan">
+      <h2 id="plan">Rehearsal focus</h2>
+      <p class="muted small">Songs with the fewest ready singers come first.</p>
+      <ul class="list">
+        {
+          shaky.map((x) => (
+            <li class="row">
+              <span>
+                <strong>{x.song.title}</strong> <span class="muted small">{x.song.status}</span>
+              </span>
+              <span>
+                {x.ready}/{singers.length} ready
+              </span>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="card span-6" aria-labelledby="reh">
+      <div class="row">
+        <h2 id="reh">Rehearsals</h2>
+        <a class="mini-btn" href="#" data-toast="Would add “Rehearsal: songs” to the 6MW Gigs Google Calendar and notify the band.">+ Schedule</a>
+      </div>
+      <ul class="list">
+        {
+          rehearsals.map((r) => (
+            <li>
+              <div class="row">
+                <strong>
+                  {day(r.date)} · {r.time}
+                </strong>
+                <span class="muted small">{r.place}</span>
+              </div>
+              <p class="small">{r.focus.map((f) => songById(f)?.title ?? f).join(", ")}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </div>
+</Admin>
+
+<script>
+  for (const list of document.querySelectorAll<HTMLOListElement>(".builder")) {
+    list.addEventListener("click", (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
+      if (!button) return;
+      const item = button.closest("li")!;
+      if (button.classList.contains("up") && item.previousElementSibling) item.previousElementSibling.before(item);
+      if (button.classList.contains("down") && item.nextElementSibling) item.nextElementSibling.after(item);
+      button.focus();
+    });
+  }
+</script>
+
+<style>
+  .stats {
+    margin-bottom: 16px;
+  }
+
+  .small {
+    font-size: 0.85rem;
+    margin: 0 0 8px;
+  }
+
+  .start {
+    justify-content: flex-start;
+  }
+
+  .builder {
+    margin: 0 0 14px;
+    padding-left: 1.4em;
+  }
+
+  .builder li {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .builder li > span:first-child {
+    display: inline-block;
+    min-width: 60%;
+  }
+
+  .builder li > .row {
+    display: inline-flex;
+    gap: 4px;
+    float: right;
+  }
+
+  .matrix td.cell {
+    white-space: nowrap;
+  }
+
+  .matrix td.r3 {
+    color: var(--color-success);
+  }
+
+  .matrix td.r2 {
+    color: var(--color-warning);
+  }
+
+  .matrix td.r1 {
+    color: var(--color-danger);
+  }
+</style>

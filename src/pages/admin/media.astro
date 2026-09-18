@@ -1,0 +1,171 @@
+---
+import { Image } from "astro:assets";
+import Admin from "../../layouts/Admin.astro";
+import Chip from "../../components/admin/Chip.astro";
+import { members } from "../../data/members";
+import groupStudio from "../../assets/photos/group-studio.jpg";
+import groupSeated from "../../assets/photos/group-studio-seated.jpg";
+import groupPortrait from "../../assets/photos/group-portrait.jpg";
+import groupBw from "../../assets/photos/group-bw-mics.jpg";
+import threeMics from "../../assets/photos/three-mics.jpg";
+import outdoorMic from "../../assets/photos/outdoor-mic.jpg";
+import liveOutdoor from "../../assets/photos/live-outdoor.jpg";
+
+const albums = [
+  {
+    name: "Group shoot",
+    folder: "6MW › Media › Group shoot",
+    credit: "Photographer to confirm",
+    note: "Old lineup",
+    photos: [
+      { src: groupStudio, alt: "Group singing into vintage mics", onSite: true },
+      { src: groupSeated, alt: "Group posed in a studio", onSite: true },
+      { src: groupPortrait, alt: "Group portrait, seated", onSite: true },
+      { src: groupBw, alt: "Black and white, singing", onSite: true },
+      { src: threeMics, alt: "Three singers, black and white", onSite: true },
+    ],
+  },
+  {
+    name: "Headshots",
+    folder: "6MW › Media › Headshots",
+    credit: "Photographer to confirm",
+    note: "",
+    photos: members.map((m) => ({ src: m.suit, alt: m.name, onSite: true })),
+  },
+  {
+    name: "Live",
+    folder: "6MW › Media › Live",
+    credit: "Various",
+    note: "",
+    photos: [
+      { src: outdoorMic, alt: "Outdoors in suits", onSite: true },
+      { src: liveOutdoor, alt: "Outdoor show under a tent", onSite: false },
+    ],
+  },
+];
+
+const total = albums.reduce((sum, a) => sum + a.photos.length, 0);
+const onSite = albums.reduce((sum, a) => sum + a.photos.filter((p) => p.onSite).length, 0);
+---
+
+<Admin title="Media" role="media">
+  <h1>Media</h1>
+  <p class="sub">Band photos live in the shared Google Drive. The site copies the ones marked for the press kit. Sample view.</p>
+
+  <section class="card sync" aria-labelledby="sync">
+    <div class="row">
+      <div>
+        <h2 id="sync">Google Drive sync</h2>
+        <p class="small">
+          Shared drive folder <strong>6MW › Media</strong> · {total} photos · {onSite} on the press kit · last synced today, 6:00 a.m.
+        </p>
+      </div>
+      <a class="mini-btn" href="#" data-toast="Would pull new and changed photos from the shared Drive, resize them, and redeploy the press kit.">Sync now</a>
+    </div>
+    <ol class="how">
+      <li>Drop photos into a folder under <strong>6MW › Media</strong> in the shared Drive. Put the photographer's name in the file's Drive description.</li>
+      <li>Photos show up here within a day, or right away with Sync now.</li>
+      <li>Switch on <strong>Press kit</strong> for the ones the public can use. Drive stays the original; the site keeps web-sized copies.</li>
+    </ol>
+  </section>
+
+  <section class="card waiting" aria-labelledby="new">
+    <div class="row">
+      <h2 id="new">Melissa's photos</h2>
+      <Chip tone="warn">Waiting for upload</Chip>
+    </div>
+    <p class="small muted">Folder <strong>6MW › Media › 2026 Melissa</strong> is empty. Photos appear here after they're added to Drive.</p>
+  </section>
+
+  {
+    albums.map((album) => (
+      <section class="card album" aria-label={album.name}>
+        <div class="row">
+          <div>
+            <h2>
+              {album.name} <span class="muted small">{album.photos.length} photos</span>
+            </h2>
+            <p class="small muted">
+              {album.folder} · credit: {album.credit}
+            </p>
+          </div>
+          {album.note && <Chip tone="warn">{album.note}</Chip>}
+        </div>
+        <ul class="photos">
+          {album.photos.map((p) => (
+            <li>
+              <Image src={p.src} alt={p.alt} widths={[240, 400]} sizes="200px" />
+              <button type="button" class="mini-btn press" aria-pressed={p.onSite ? "true" : "false"}>
+                Press kit
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))
+  }
+</Admin>
+
+<script>
+  document.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".press");
+    if (!button) return;
+    button.setAttribute("aria-pressed", String(button.getAttribute("aria-pressed") !== "true"));
+  });
+</script>
+
+<style>
+  .card {
+    margin-bottom: 16px;
+  }
+
+  .small {
+    font-size: 0.85rem;
+    margin: 0 0 8px;
+  }
+
+  .how {
+    margin: 12px 0 0;
+    padding-left: 1.3em;
+    color: var(--color-text-muted);
+  }
+
+  .how li {
+    padding: 3px 0;
+  }
+
+  .photos {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .photos li {
+    position: relative;
+  }
+
+  .photos :global(img) {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    object-position: center 25%;
+    border-radius: var(--radius);
+  }
+
+  .press {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+  }
+
+  .press[aria-pressed="true"]::before {
+    content: "✓ ";
+  }
+
+  .press[aria-pressed="false"]::before {
+    content: "○ ";
+  }
+</style>
