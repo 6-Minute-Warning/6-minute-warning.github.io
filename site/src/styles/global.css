@@ -1,6 +1,6 @@
 @import "@fontsource-variable/archivo/wdth.css";
 @import "@fontsource/raleway/latin-300.css";
-@import "./theme.css";
+@import "@6mw/theme/theme.css";
 
 *,
 *::before,
