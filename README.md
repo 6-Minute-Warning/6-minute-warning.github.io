@@ -19,6 +19,8 @@ npm run dev
 | Colours, fonts, spacing | `src/styles/theme.css` |
 | Photos | `src/assets/` |
 
+Theme variants live in `src/styles/theme.css` as `[data-theme="..."]` blocks. Add `?themes` to any URL to show a theme picker (it sticks for that browser), or `?theme=gold` to open one variant directly. Visitors see the default theme.
+
 Adding an entry to `services` in `src/data/services.ts` creates a new event page, adds it to the nav and footer, and puts it in the sitemap.
 
 ## Booking form

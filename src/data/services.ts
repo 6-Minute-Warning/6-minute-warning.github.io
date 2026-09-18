@@ -4,7 +4,6 @@ import groupSeated from "../assets/photos/group-studio-seated.jpg";
 import threeMics from "../assets/photos/three-mics.jpg";
 import outdoorMic from "../assets/photos/outdoor-mic.jpg";
 import liveOutdoor from "../assets/photos/live-outdoor.jpg";
-import walking from "../assets/photos/walking.jpg";
 import groupPortrait from "../assets/photos/group-portrait.jpg";
 import groupBw from "../assets/photos/group-bw-mics.jpg";
 
@@ -145,8 +144,8 @@ export const services: Service[] = [
     h1: "Christmas party music in six-part harmony",
     intro:
       "Christmas classics and pop holiday hits, sung by six voices and nothing else. We fit into a boardroom, a ballroom or the corner of a restaurant, and we can move from room to room between sets.",
-    hero: walking,
-    heroPosition: "center 40%",
+    hero: threeMics,
+    heroPosition: "center 30%",
     photo: groupStudio,
     points: [
       {
@@ -258,7 +257,7 @@ export const services: Service[] = [
       "Students learn from and perform with a professional vocal group. Workshops run one or two days, follow the Alberta music curriculum, and end with a concert where your students share the stage with 6 Minute Warning.",
     hero: groupBw,
     heroPosition: "center 20%",
-    photo: walking,
+    photo: liveOutdoor,
     points: [
       {
         title: "Choirs, bands and classes",

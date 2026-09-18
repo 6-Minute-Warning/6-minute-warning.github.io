@@ -3,6 +3,7 @@ import "../styles/global.css";
 import { getImage } from "astro:assets";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import ThemePicker from "../components/ThemePicker.astro";
 import { site } from "../data/site";
 import { members } from "../data/members";
 import groupStudio from "../assets/photos/group-studio.jpg";
@@ -66,6 +67,12 @@ const band = {
     <meta property="og:locale" content="en_CA" />
     <meta name="twitter:card" content="summary_large_image" />
     <script type="application/ld+json" set:html={JSON.stringify([band, ...schema])} />
+    <script is:inline>
+      try {
+        const t = new URLSearchParams(location.search).get("theme") ?? localStorage.getItem("theme");
+        if (t) document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -74,5 +81,6 @@ const band = {
       <slot />
     </main>
     <Footer />
+    <ThemePicker />
   </body>
 </html>

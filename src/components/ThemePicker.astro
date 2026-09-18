@@ -1,0 +1,68 @@
+---
+const themes = [
+  { id: "", label: "Blue (logo)" },
+  { id: "gold", label: "Mustard / gold" },
+  { id: "maroon", label: "Maroon" },
+  { id: "navy", label: "Navy" },
+  { id: "classic", label: "Classic black and white" },
+];
+---
+
+<label class="picker" hidden>
+  <span>Theme</span>
+  <select>
+    {themes.map((t) => <option value={t.id}>{t.label}</option>)}
+  </select>
+</label>
+
+<script>
+  const picker = document.querySelector<HTMLLabelElement>(".picker")!;
+  const select = picker.querySelector("select")!;
+  let enabled = new URLSearchParams(location.search).has("themes");
+  try {
+    if (enabled) localStorage.setItem("themePicker", "1");
+    enabled ||= localStorage.getItem("themePicker") === "1";
+  } catch {}
+  if (enabled) {
+    picker.hidden = false;
+    select.value = document.documentElement.dataset.theme ?? "";
+    select.addEventListener("change", () => {
+      if (select.value) document.documentElement.dataset.theme = select.value;
+      else delete document.documentElement.dataset.theme;
+      try {
+        localStorage.setItem("theme", select.value);
+      } catch {}
+    });
+  }
+</script>
+
+<style>
+  .picker {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .picker[hidden] {
+    display: none;
+  }
+
+  select {
+    font: inherit;
+    color: var(--color-text);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 6px 8px;
+  }
+</style>

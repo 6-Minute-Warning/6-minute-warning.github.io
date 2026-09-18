@@ -15,7 +15,7 @@ import joCasual from "../assets/members/jo-casual.jpg";
 export interface Member {
   slug: string;
   name: string;
-  role: string;
+  role?: string;
   suit: ImageMetadata;
   casual: ImageMetadata;
   bio: string[];
@@ -49,7 +49,6 @@ export const members: Member[] = [
   {
     slug: "bernard-quilala",
     name: "Bernard Quilala",
-    role: "Lead vocals",
     suit: bernardSuit,
     casual: bernardCasual,
     bio: [
@@ -61,7 +60,6 @@ export const members: Member[] = [
   {
     slug: "brayden-foo",
     name: "Brayden Foo",
-    role: "Lead vocals",
     suit: braydenSuit,
     casual: braydenCasual,
     bio: [
@@ -93,4 +91,14 @@ export const members: Member[] = [
   },
 ];
 
-export const alumni = ["Andrew Malcolm", "Tim Noel", "Tyson Kerr", "Nathan Willis", "Matt Raven"];
+export const alumni = [
+  "Andrew Malcolm",
+  "Caleb Nelson",
+  "Kyle Carter",
+  "Luc Tellier",
+  "Nathan Willis",
+  "Sean Sonego",
+  "Tim Noel",
+  "Tyler Smith",
+  "Tyson Kerr",
+];
