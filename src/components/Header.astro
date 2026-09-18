@@ -13,11 +13,15 @@ import { services } from "../data/services";
     <div class="menu">
       <button class="menu__toggle" type="button" aria-expanded="false" aria-controls="menu-panel">Menu</button>
       <nav class="menu__panel" id="menu-panel" aria-label="Main">
-        <ul class="menu__events">
-          {services.map((s) => <li><a href={`/${s.slug}/`}>{s.nav}</a></li>)}
-        </ul>
         <ul class="menu__main">
+          <li><a href="/#watch">Watch</a></li>
           <li><a href="/about/">The band</a></li>
+          <li class="menu__group">
+            <a class="menu__group-link" href="/events/">Events</a>
+            <ul class="menu__events">
+              {services.map((s) => <li><a href={`/${s.slug}/`}>{s.nav}</a></li>)}
+            </ul>
+          </li>
           <li><a href="/epk/">Press kit</a></li>
           <li><a class="btn menu__cta" href="/book/">Book us</a></li>
         </ul>
@@ -70,6 +74,7 @@ import { services } from "../data/services";
     text-transform: uppercase;
     letter-spacing: 0.02em;
     font-size: 1.05rem;
+    white-space: nowrap;
   }
 
   .menu__toggle {
@@ -113,23 +118,29 @@ import { services } from "../data/services";
     color: var(--color-text);
     text-decoration: none;
     font-weight: 600;
+    white-space: nowrap;
   }
 
   .menu a:not(.btn):hover {
     color: var(--color-accent-strong);
   }
 
-  .menu__events {
-    border-bottom: 1px solid var(--color-border);
-    padding-bottom: 8px;
+  .menu .menu__events {
+    padding-left: 16px;
+    border-left: 1px solid var(--color-border);
     margin-bottom: 8px;
+  }
+
+  .menu .menu__events a {
+    font-weight: 400;
+    color: var(--color-text-muted);
   }
 
   .menu__cta {
     margin-top: 12px;
   }
 
-  @media (min-width: 1100px) {
+  @media (min-width: 900px) {
     .menu__toggle {
       display: none;
     }
@@ -138,28 +149,46 @@ import { services } from "../data/services";
     .menu__toggle[aria-expanded="true"] + .menu__panel {
       position: static;
       display: flex;
-      align-items: center;
-      gap: 28px;
       background: none;
       border: 0;
       padding: 0;
     }
 
-    .menu ul {
+    .menu__main {
       display: flex;
       align-items: center;
-      gap: 22px;
-    }
-
-    .menu__events {
-      border: 0;
-      margin: 0;
-      padding: 0 28px 0 0;
-      border-right: 1px solid var(--color-border);
+      gap: 26px;
     }
 
     .menu a:not(.btn) {
       font-size: 0.95rem;
+    }
+
+    .menu__group {
+      position: relative;
+    }
+
+    .menu__group-link::after {
+      content: " ▾";
+      color: var(--color-accent-strong);
+    }
+
+    .menu .menu__events {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: -20px;
+      min-width: 220px;
+      padding: 8px 20px;
+      margin: 0;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+    }
+
+    .menu__group:hover .menu__events,
+    .menu__group:focus-within .menu__events {
+      display: block;
     }
 
     .menu__cta {

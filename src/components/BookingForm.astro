@@ -14,7 +14,7 @@ const { eventType = "", heading = "Check your date" } = Astro.props;
     <div class="booking__intro">
       <span class="eyebrow">Booking</span>
       <h2 id="book-heading">{heading}</h2>
-      <p class="lede">Tell us about your event and we will reply within two business days with availability and a quote.</p>
+      <p class="lede">Tell us about your event and we will reply with availability and a quote.</p>
       <p>Prefer email? <a href={`mailto:${site.email}`}>{site.email}</a></p>
     </div>
 
@@ -105,7 +105,7 @@ const { eventType = "", heading = "Check your date" } = Astro.props;
         form.reset();
         loadedAt = Date.now();
         status.dataset.state = "ok";
-        status.textContent = "✓ Sent. We will be in touch within two business days.";
+        status.textContent = "✓ Sent. We will reply by email.";
       } catch {
         status.dataset.state = "error";
         status.textContent = `✕ That did not send. Email us at ${form.dataset.email} and we will reply from there.`;

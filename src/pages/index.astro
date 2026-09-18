@@ -1,69 +1,27 @@
 ---
-import { Image } from "astro:assets";
 import Base from "../layouts/Base.astro";
 import Hero from "../components/Hero.astro";
 import Stages from "../components/Stages.astro";
-import EventGrid from "../components/EventGrid.astro";
 import Video from "../components/Video.astro";
 import MemberCard from "../components/MemberCard.astro";
 import Testimonials from "../components/Testimonials.astro";
-import BookingForm from "../components/BookingForm.astro";
-import { videos } from "../data/site";
+import { site, videos } from "../data/site";
 import { members } from "../data/members";
+import { services } from "../data/services";
 import groupStudio from "../assets/photos/group-studio.jpg";
-import threeMics from "../assets/photos/three-mics.jpg";
-
-const reasons = [
-  { n: "01", title: "On and off in seconds", body: "No instruments, no changeover. We walk on, sing, and walk off before your emcee reaches the podium." },
-  { n: "02", title: "Six people wide", body: "Our whole stage plot is six singers standing in a row. Ballroom, boardroom or beer tent, we fit." },
-  { n: "03", title: "Minimal tech", body: "No drums, no amps, no backline. Your AV team plugs in a few mics and goes back to their coffee." },
-  { n: "04", title: "Suits and ties", body: "Black suits and blue ties as standard. We look the part at a black-tie gala and sound it too." },
-];
 ---
 
-<Base title="6 Minute Warning | Edmonton A Cappella Group for Corporate Events, Galas & Festivals">
-  <Hero image={groupStudio} alt="The six members of 6 Minute Warning in black suits and blue ties, singing into vintage microphones" position="center 30%" eyebrow="Edmonton a cappella" tall>
-    <h1>Six voices. No band. No fuss.</h1>
-    <p class="lede">Pop and R&B for awards ceremonies, corporate parties and festivals. On stage in seconds, off in seconds, and nothing for your crew to set up.</p>
+<Base title="6 Minute Warning | A Cappella Group from Edmonton, Alberta">
+  <Hero image={groupStudio} alt="The six members of 6 Minute Warning in black suits and blue ties, singing into vintage microphones" position="center 30%" eyebrow="A cappella from Edmonton" tall>
+    <h1>Six voices. No instruments.</h1>
+    <p class="lede">6 Minute Warning sings pop and R&B with nothing but their voices, with influences from Take 6, Boyz II Men and NSYNC. Every show is loud, loose and a little unpredictable.</p>
     <div class="actions">
-      <a class="btn" href="#book">Check your date</a>
-      <a class="btn btn--ghost" href="#watch">Watch us</a>
+      <a class="btn" href="#watch">Watch us</a>
+      <a class="btn btn--ghost" href="/book/">Book us</a>
     </div>
   </Hero>
 
   <Stages />
-
-  <section class="section">
-    <div class="wrap split">
-      <div>
-        <span class="eyebrow">Why planners book us</span>
-        <h2>All the show, none of the load-in</h2>
-        <ol class="reasons">
-          {
-            reasons.map((r) => (
-              <li>
-                <span class="reasons__n">{r.n}</span>
-                <div>
-                  <h3>{r.title}</h3>
-                  <p>{r.body}</p>
-                </div>
-              </li>
-            ))
-          }
-        </ol>
-      </div>
-      <Image class="split__img" src={threeMics} alt="Three members of 6 Minute Warning singing in black suits, black and white" widths={[480, 800, 1200]} sizes="(min-width: 900px) 45vw, 100vw" />
-    </div>
-  </section>
-
-  <section class="section section--raised">
-    <div class="wrap">
-      <span class="eyebrow">Book us for</span>
-      <h2>Built for your event</h2>
-      <EventGrid />
-      <p class="more"><a href="/events/">All event types →</a></p>
-    </div>
-  </section>
 
   <section class="section" id="watch">
     <div class="wrap">
@@ -72,16 +30,13 @@ const reasons = [
       <div class="videos">
         {videos.map((v) => <Video id={v.id} title={v.title} />)}
       </div>
+      <p class="more">
+        {site.socials.map((s) => <a href={s.url} rel="me noopener" target="_blank">{s.label} →</a>)}
+      </p>
     </div>
   </section>
 
   <section class="section section--raised">
-    <div class="wrap">
-      <Testimonials />
-    </div>
-  </section>
-
-  <section class="section">
     <div class="wrap">
       <span class="eyebrow">The band</span>
       <h2>Meet the six</h2>
@@ -92,7 +47,25 @@ const reasons = [
     </div>
   </section>
 
-  <BookingForm />
+  <section class="section">
+    <div class="wrap">
+      <Testimonials />
+    </div>
+  </section>
+
+  <section class="section section--raised">
+    <div class="wrap booking">
+      <div>
+        <span class="eyebrow">Booking</span>
+        <h2>Bring us to your event</h2>
+        <p class="lede">No instruments means no load-in: on stage in seconds, off in seconds, and room for six people is all we need.</p>
+        <a class="btn" href="/book/">Check your date</a>
+      </div>
+      <ul class="booking__types">
+        {services.map((s) => <li><a href={`/${s.slug}/`}>{s.nav}<span aria-hidden="true">→</span></a></li>)}
+      </ul>
+    </div>
+  </section>
 </Base>
 
 <style>
@@ -101,56 +74,6 @@ const reasons = [
     flex-wrap: wrap;
     gap: 12px;
     margin-top: 28px;
-  }
-
-  .split {
-    display: grid;
-    gap: 48px;
-    align-items: center;
-  }
-
-  @media (min-width: 900px) {
-    .split {
-      grid-template-columns: 1.1fr 0.9fr;
-    }
-  }
-
-  .split :global(.split__img) {
-    border-radius: var(--radius);
-    aspect-ratio: 1;
-    object-fit: cover;
-    width: 100%;
-  }
-
-  .reasons {
-    list-style: none;
-    margin: 32px 0 0;
-    padding: 0;
-    display: grid;
-    gap: 28px;
-  }
-
-  .reasons li {
-    display: grid;
-    grid-template-columns: 56px 1fr;
-    gap: 16px;
-  }
-
-  .reasons__n {
-    font-weight: 800;
-    font-stretch: 125%;
-    font-size: 1.6rem;
-    color: var(--color-accent);
-    line-height: 1;
-  }
-
-  .reasons h3 {
-    margin-bottom: 0.3em;
-  }
-
-  .reasons p {
-    color: var(--color-text-muted);
-    margin: 0;
   }
 
   .videos {
@@ -176,7 +99,57 @@ const reasons = [
     font-weight: 700;
   }
 
+  .more {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+
   .more a {
     text-decoration: none;
+  }
+
+  .booking {
+    display: grid;
+    gap: 40px;
+    align-items: center;
+  }
+
+  @media (min-width: 900px) {
+    .booking {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .booking .lede {
+    margin-bottom: 28px;
+  }
+
+  .booking__types {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .booking__types a {
+    display: flex;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+    text-decoration: none;
+    font-weight: 700;
+    font-stretch: 112%;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .booking__types a:hover {
+    color: var(--color-accent-strong);
+  }
+
+  .booking__types span {
+    color: var(--color-accent-strong);
   }
 </style>
