@@ -25,7 +25,7 @@ const set = setlists[gig.id].map((id) => {
     soloist: s.soloist ? firstName(s.soloist) : "",
     notes: s.notes ?? "",
     formation: f.label,
-    spots: Object.entries(f.spots).map(([id, [x, y]]) => ({ name: firstName(id), photo: headshots[id], x, y })),
+    spots: Object.entries(f.spots).map(([id, [x, y]]) => ({ name: firstName(id), photo: headshots[id], x, y: 100 - y })),
   };
 });
 ---
@@ -49,8 +49,8 @@ const set = setlists[gig.id].map((id) => {
     </div>
 
     <div class="floor" aria-label="Stage formation">
-      <span class="floor__back">Back of stage</span>
       <span class="floor__front">Audience</span>
+      <span class="floor__back">Back of stage</span>
       <span class="floor__name"></span>
     </div>
 
@@ -207,7 +207,7 @@ const set = setlists[gig.id].map((id) => {
     position: relative;
     aspect-ratio: 16 / 7;
     border: 1px solid var(--color-border);
-    border-bottom: 3px solid var(--color-accent);
+    border-top: 3px solid var(--color-accent);
     border-radius: var(--radius);
     background: var(--color-surface);
     overflow: hidden;
@@ -224,19 +224,19 @@ const set = setlists[gig.id].map((id) => {
   }
 
   .floor__back {
-    top: 8px;
-    left: 50%;
-    translate: -50% 0;
-  }
-
-  .floor__front {
     bottom: 6px;
     left: 50%;
     translate: -50% 0;
   }
 
-  .floor__name {
+  .floor__front {
     top: 8px;
+    left: 50%;
+    translate: -50% 0;
+  }
+
+  .floor__name {
+    bottom: 6px;
     left: 12px;
     color: var(--color-accent-strong);
     font-weight: 700;
