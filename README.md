@@ -22,7 +22,7 @@ npm run dev
 
 Shows appear only when `public: true` and stop showing the day after they happen (the deploy workflow rebuilds daily). `SHOW_DRAFT_SHOWS=1 npm run build` includes non-public shows for a local preview.
 
-Theme variants live in `src/styles/theme.css` as `[data-theme="..."]` blocks. Add `?themes` to any URL to show a theme picker (it sticks for that browser), or `?theme=gold` to open one variant directly. Visitors see the default theme.
+`src/styles/theme.css` names every hex once as a `--palette-*` colour; the `--color-*` tokens components use point at those names. Theme variants are `[data-theme="..."]` blocks that repoint `--color-*` tokens. Add `?themes` to any URL to show a theme picker (it sticks for that browser), or `?theme=gold` to open one variant directly. Visitors see the default theme.
 
 Adding an entry to `services` in `src/data/services.ts` creates a new event page, adds it to the nav and footer, and puts it in the sitemap.
 
