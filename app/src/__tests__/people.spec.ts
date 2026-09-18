@@ -62,4 +62,22 @@ describe('people import', () => {
   it('skips rows with no name', () => {
     expect(planImport([row({ name: '  ' })], {}).skipped).toEqual(['A row with no name'])
   })
+
+  it('skips a second person whose name slugifies to an id already taken', () => {
+    const plan = planImport([row({ name: 'Jo Ann Smith', email: 'joann@gmail.com' }), row({ name: 'Jo-Ann Smith', email: 'other@gmail.com' })], {})
+    expect(plan.people).toHaveLength(1)
+    expect(plan.skipped).toEqual(['Jo-Ann Smith has the same id as Jo Ann Smith (both become "jo-ann-smith"); rename one of them in Notion.'])
+  })
+
+  it('treats non-string fields in the JSON as empty instead of throwing', () => {
+    const bad = { name: 'Bad Row', status: 42, part: null, email: ['not-a-string'], phone: {} } as unknown as ImportedPerson
+    expect(() => planImport([bad], {})).not.toThrow()
+    const plan = planImport([bad], {})
+    expect(plan.people[0]?.record).toMatchObject({ status: 'alumni', part: '', phone: '', emails: [] })
+  })
+
+  it('ignores a row that is not an object', () => {
+    expect(() => planImport([null, undefined, 'oops'] as unknown[], {})).not.toThrow()
+    expect(planImport([null, undefined, 'oops'] as unknown[], {}).skipped).toEqual(['A row with no name', 'A row with no name', 'A row with no name'])
+  })
 })

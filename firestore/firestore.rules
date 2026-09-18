@@ -55,8 +55,19 @@ service cloud.firestore {
       allow read, write: if isMember();
     }
 
+    function validPerson() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'status', 'part', 'phone', 'emails'])
+        && d.name is string && d.name.size() <= 120
+        && d.status in ['active', 'sub', 'alumni']
+        && d.part is string && d.part.size() <= 120
+        && d.phone is string && d.phone.size() <= 40
+        && d.emails is list && d.emails.size() <= 10;
+    }
+
     match /people/{id} {
-      allow read, write: if isMember();
+      allow read, delete: if isMember();
+      allow create, update: if isMember() && validPerson();
     }
 
     match /venues/{id} {

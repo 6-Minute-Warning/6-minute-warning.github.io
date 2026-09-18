@@ -95,6 +95,14 @@ describe('linked addresses', () => {
     await assertFails(setDoc(doc(db, 'users/a@example.com'), { name: 'A', role: 'member', person: 'x'.repeat(81) }))
     await assertFails(setDoc(doc(db, 'users/b@example.com'), { name: 'B', role: 'member', person: 42 }))
   })
+
+  it('a person record must match the roster shape', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(setDoc(doc(db, 'people/jo-tong'), { name: 'Jo Tong', status: 'active', part: 'Alto', phone: '', emails: ['jo@6minutewarning.com'] }))
+    await assertFails(setDoc(doc(db, 'people/bad'), { name: 'Bad', status: 'retired', part: '', phone: '', emails: [] }))
+    await assertFails(setDoc(doc(db, 'people/bad2'), { name: 'Bad', status: 'active', part: '', phone: '', emails: [], isAdmin: true }))
+    await assertFails(setDoc(doc(db, 'people/bad3'), { name: 'x'.repeat(121), status: 'active', part: '', phone: '', emails: [] }))
+  })
 })
 
 describe('admins', () => {

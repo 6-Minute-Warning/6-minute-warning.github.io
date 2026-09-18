@@ -61,28 +61,42 @@ export function strongestRole(existing: (Role | undefined)[]): Role {
   return rank.find((r) => existing.includes(r)) ?? 'member'
 }
 
-export function planImport(imported: ImportedPerson[], existingRoles: Record<string, Role>): ImportPlan {
+const MAX_FIELD_LENGTH = 120
+
+function str(value: unknown): string {
+  return typeof value === 'string' ? value.slice(0, MAX_FIELD_LENGTH) : ''
+}
+
+export function planImport(imported: unknown[], existingRoles: Record<string, Role>): ImportPlan {
   const people: ImportPlan['people'] = []
   const access: PlannedAccess[] = []
   const skipped: string[] = []
-  const claimed = new Set<string>()
+  const claimedEmails = new Set<string>()
+  const claimedPeople = new Map<string, string>()
 
-  for (const p of imported) {
-    const name = p.name.trim()
+  for (const entry of imported) {
+    const raw = (entry ?? {}) as Record<string, unknown>
+    const name = str(raw.name).trim()
     const id = personId(name)
     if (!id) {
       skipped.push('A row with no name')
       continue
     }
-    const status = toStatus(p.status)
+    const claimedName = claimedPeople.get(id)
+    if (claimedName && claimedName !== name) {
+      skipped.push(`${name} has the same id as ${claimedName} (both become "${id}"); rename one of them in Notion.`)
+      continue
+    }
+    claimedPeople.set(id, name)
+    const status = toStatus(str(raw.status))
     const workspace = status === 'active' ? workspaceEmail(name) : ''
-    if (workspace && claimed.has(workspace)) skipped.push(`${workspace} already belongs to another person, so it isn't linked to ${name}`)
-    const candidates = [p.email, workspace]
+    if (workspace && claimedEmails.has(workspace)) skipped.push(`${workspace} already belongs to another person, so it isn't linked to ${name}`)
+    const candidates = [str(raw.email), workspace]
       .map((e) => normalizeEmail(e))
-      .filter((e) => e && !claimed.has(e))
+      .filter((e) => e && !claimedEmails.has(e))
     const emails = [...new Set(candidates)]
-    emails.forEach((e) => claimed.add(e))
-    people.push({ id, record: { name, status, part: p.part.trim(), phone: p.phone.trim(), emails } })
+    emails.forEach((e) => claimedEmails.add(e))
+    people.push({ id, record: { name, status, part: str(raw.part).trim(), phone: str(raw.phone).trim(), emails } })
     if (status !== 'active') continue
     const role = strongestRole(emails.map((e) => existingRoles[e]))
     for (const email of emails) {
