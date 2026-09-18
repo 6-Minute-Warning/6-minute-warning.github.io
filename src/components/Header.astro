@@ -8,7 +8,7 @@ import { services } from "../data/services";
   <div class="wrap header__inner">
     <a class="brand" href="/" aria-label="6 Minute Warning home">
       <Image src={mark} alt="" width={44} height={44} loading="eager" />
-      <span class="brand__name">6 Minute Warning</span>
+      <span class="brand__name"><span>Minute</span><span>Warning</span></span>
     </a>
     <div class="menu">
       <button class="menu__toggle" type="button" aria-expanded="false" aria-controls="menu-panel">Menu</button>
@@ -58,23 +58,30 @@ import { services } from "../data/services";
   .brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 4px;
     color: var(--color-text);
     text-decoration: none;
   }
 
   .brand img {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
   }
 
   .brand__name {
-    font-weight: 800;
-    font-stretch: 125%;
+    display: grid;
+    font-family: var(--font-wordmark);
+    font-weight: 300;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
     font-size: 1.05rem;
+    line-height: 1.05;
+    letter-spacing: 0.02em;
+    color: var(--color-accent-strong);
     white-space: nowrap;
+  }
+
+  .brand__name span + span {
+    padding-left: 0.45em;
   }
 
   .menu__toggle {
