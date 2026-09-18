@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest'
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore'
 
 const OWNER = 'brett@6minutewarning.com'
 let env: RulesTestEnvironment
@@ -45,6 +45,14 @@ describe('outsiders', () => {
     await assertFails(setDoc(doc(db, 'users/stranger@example.com'), { name: 'Me', role: 'admin' }))
   })
 
+  it('strangers cannot list the users collection', async () => {
+    await assertFails(getDocs(collection(as('stranger@example.com'), 'users')))
+  })
+
+  it('strangers cannot delete a gig', async () => {
+    await assertFails(deleteDoc(doc(as('stranger@example.com'), 'gigs/g1')))
+  })
+
   it('an unverified owner email gets nothing', async () => {
     await assertFails(getDoc(doc(as(OWNER, false), 'gigs/g1')))
   })
@@ -59,6 +67,14 @@ describe('members', () => {
 
   it('cannot grant access', async () => {
     await assertFails(setDoc(doc(as('member@example.com'), 'users/new@example.com'), { name: 'New', role: 'member' }))
+  })
+
+  it('cannot list the users collection', async () => {
+    await assertFails(getDocs(collection(as('member@example.com'), 'users')))
+  })
+
+  it('can delete a gig', async () => {
+    await assertSucceeds(deleteDoc(doc(as('member@example.com'), 'gigs/g1')))
   })
 
   it('can add to the event log but not rewrite it', async () => {
@@ -87,5 +103,20 @@ describe('admins', () => {
   it('admins cannot remove their own access', async () => {
     await assertFails(deleteDoc(doc(as('admin@example.com'), 'users/admin@example.com')))
     await assertSucceeds(deleteDoc(doc(as('admin@example.com'), 'users/member@example.com')))
+  })
+
+  it('admins can list the users collection', async () => {
+    await assertSucceeds(getDocs(collection(as('admin@example.com'), 'users')))
+  })
+
+  it('admins cannot demote themselves but can demote another admin', async () => {
+    await assertFails(updateDoc(doc(as('admin@example.com'), 'users/admin@example.com'), { role: 'member' }))
+    await assertSucceeds(updateDoc(doc(as(OWNER), 'users/admin@example.com'), { role: 'member' }))
+  })
+
+  it('an owner with a mixed-case Google email still bootstraps as admin', async () => {
+    const db = as('Brett@6MinuteWarning.com')
+    await assertSucceeds(getDoc(doc(db, 'gigs/g1')))
+    await assertSucceeds(setDoc(doc(db, 'users/new2@example.com'), { name: 'New', role: 'member' }))
   })
 })
