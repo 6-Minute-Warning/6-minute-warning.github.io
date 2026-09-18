@@ -7,7 +7,7 @@ Static Astro site for 6 Minute Warning. A push to `main` builds and deploys to G
 From the repo root:
 
 ```
-npx npm@11 install
+npx -y npm@11.19.1 install
 npm run dev:site
 ```
 

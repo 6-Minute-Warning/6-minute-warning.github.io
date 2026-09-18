@@ -14,7 +14,7 @@ Monorepo for 6 Minute Warning's website and Backstage, the band's management app
 The repo uses npm 11 workspaces (npm 10 fails to resolve the site's and the app's different Vite versions).
 
 ```
-npx npm@11 install
+npx -y npm@11.19.1 install
 npm run dev:site     # website
 npm run dev:app      # Backstage
 npm run check        # type checks
