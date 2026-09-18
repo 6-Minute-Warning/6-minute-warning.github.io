@@ -1,6 +1,7 @@
 ---
 import Admin from "../../layouts/Admin.astro";
 import Chip from "../../components/admin/Chip.astro";
+import SubsRoster from "../../components/admin/SubsRoster.astro";
 import {
   gigs,
   stages,
@@ -232,6 +233,11 @@ const symbol = { yes: "✓", maybe: "?", no: "✕" } as const;
           ))
         }
       </ul>
+    </section>
+
+    <section class="card span-12" aria-labelledby="subs">
+      <h2 id="subs">Subs</h2>
+      <SubsRoster />
     </section>
 
     <section class="card span-12" aria-labelledby="cal">
