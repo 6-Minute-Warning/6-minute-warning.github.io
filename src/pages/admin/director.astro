@@ -35,7 +35,7 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
     <section class="card span-7" aria-labelledby="rep">
       <div class="row">
         <h2 id="rep">Repertoire</h2>
-        <a class="mini-btn" href="#" data-toast="Would add a song: title, key, arranger, sheet music and learning tracks from the shared Drive.">+ Add song</a>
+        <button type="button" class="mini-btn" data-toast="Would add a song: title, key, arranger, sheet music and learning tracks from the shared Drive.">+ Add song</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -71,7 +71,7 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
     <section class="card span-5" aria-labelledby="set">
       <h2 id="set">Set list: {gig.name}</h2>
       <p class="muted small">
-        {day(gig.date)} · slot {slotMinutes} min · currently {setMinutes} min, {slotMinutes - setMinutes} min to fill
+        {day(gig.date)} · slot {slotMinutes} min · set list is {setMinutes} min, {slotMinutes - setMinutes} min to fill
       </p>
       <ol class="builder">
         {
@@ -89,8 +89,8 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
         }
       </ol>
       <div class="row start">
-        <a class="mini-btn" href="#" data-toast="Would pick from songs marked Ready, showing each one's length.">+ Add from repertoire</a>
-        <a class="mini-btn" href="#" data-toast="Would publish this set list to every performer's singer view.">Publish to singers</a>
+        <button type="button" class="mini-btn" data-toast="Would pick from songs marked Ready, showing each one's length.">+ Add from repertoire</button>
+        <button type="button" class="mini-btn" data-toast="Would publish this set list to every performer's singer view.">Publish to singers</button>
       </div>
     </section>
 
@@ -150,7 +150,7 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
     <section class="card span-6" aria-labelledby="reh">
       <div class="row">
         <h2 id="reh">Rehearsals</h2>
-        <a class="mini-btn" href="#" data-toast="Would add “Rehearsal: songs” to the 6MW Gigs Google Calendar and notify the band.">+ Schedule</a>
+        <button type="button" class="mini-btn" data-toast="Would add “Rehearsal: songs” to the 6MW Gigs Google Calendar and notify the band.">+ Schedule</button>
       </div>
       <ul class="list">
         {

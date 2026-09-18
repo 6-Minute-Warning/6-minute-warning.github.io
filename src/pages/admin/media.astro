@@ -60,7 +60,7 @@ const onSite = albums.reduce((sum, a) => sum + a.photos.filter((p) => p.onSite).
           Shared drive folder <strong>6MW › Media</strong> · {total} photos · {onSite} on the press kit · last synced today, 6:00 a.m.
         </p>
       </div>
-      <a class="mini-btn" href="#" data-toast="Would pull new and changed photos from the shared Drive, resize them, and redeploy the press kit.">Sync now</a>
+      <button type="button" class="mini-btn" data-toast="Would pull new and changed photos from the shared Drive, resize them, and redeploy the press kit.">Sync now</button>
     </div>
     <ol class="how">
       <li>Drop photos into a folder under <strong>6MW › Media</strong> in the shared Drive. Put the photographer's name in the file's Drive description.</li>
@@ -71,10 +71,10 @@ const onSite = albums.reduce((sum, a) => sum + a.photos.filter((p) => p.onSite).
 
   <section class="card waiting" aria-labelledby="new">
     <div class="row">
-      <h2 id="new">Melissa's photos</h2>
+      <h2 id="new">New photos</h2>
       <Chip tone="warn">Waiting for upload</Chip>
     </div>
-    <p class="small muted">Folder <strong>6MW › Media › 2026 Melissa</strong> is empty. Photos appear here after they're added to Drive.</p>
+    <p class="small muted">Folder <strong>6MW › Media › 2026 new photos</strong> is empty. Photos appear here after they're added to Drive.</p>
   </section>
 
   {

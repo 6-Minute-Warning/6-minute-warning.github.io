@@ -70,8 +70,8 @@ const nextRehearsals = rehearsals.filter((r) => r.date >= today);
         }
       </ol>
       <div class="row actions">
-        <a class="mini-btn" href="#" data-toast="Would add this gig to your Google Calendar.">Add to my calendar</a>
-        <a class="mini-btn" href="#" data-toast="Would open directions to the venue.">Directions</a>
+        <button type="button" class="mini-btn" data-toast="Would add this gig to your Google Calendar.">Add to my calendar</button>
+        <button type="button" class="mini-btn" data-toast="Would open directions to the venue.">Directions</button>
       </div>
     </section>
 
@@ -134,12 +134,12 @@ const nextRehearsals = rehearsals.filter((r) => r.date >= today);
               <p class="line">{s.title}</p>
               <p class="muted small">{readinessLabels[s.readiness[me] ?? 1]}</p>
               <div class="row start">
-                <a class="mini-btn" href="#" data-toast={`Would play your part's learning track for ${s.title}.`}>
+                <button type="button" class="mini-btn" data-toast={`Would play your part's learning track for ${s.title}.`}>
                   ▶ My part
-                </a>
-                <a class="mini-btn" href="#" data-toast={`Would open the sheet music for ${s.title} from the shared Drive.`}>
+                </button>
+                <button type="button" class="mini-btn" data-toast={`Would open the sheet music for ${s.title} from the shared Drive.`}>
                   Sheet music
-                </a>
+                </button>
               </div>
             </li>
           ))
@@ -150,7 +150,7 @@ const nextRehearsals = rehearsals.filter((r) => r.date >= today);
     <section class="card span-12" aria-labelledby="money">
       <div class="row">
         <h2 id="money">Expenses</h2>
-        <a class="mini-btn" href="#" data-toast="Would open a form: amount, what it was for, photo of the receipt.">+ Submit an expense</a>
+        <button type="button" class="mini-btn" data-toast="Would open a form: amount, what it was for, photo of the receipt.">+ Submit an expense</button>
       </div>
       <div class="table-wrap">
         <table>

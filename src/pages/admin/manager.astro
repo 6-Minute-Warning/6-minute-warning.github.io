@@ -66,13 +66,13 @@ const symbol = { yes: "✓", maybe: "?", no: "✕" } as const;
                     <Chip tone={g.contract === "Signed" ? "ok" : "plain"}>Contract: {g.contract}</Chip>
                   </div>
                   {nextStage(g) && (
-                    <a
+                    <button
+                      type="button"
                       class="mini-btn move"
-                      href="#"
                       data-toast={`Moved to ${nextStage(g)}. Would add “${calendarLabel[nextStage(g)] ?? nextStage(g)}: ${g.name}” to the 6MW Gigs Google Calendar.`}
                     >
                       Move to {nextStage(g)} →
-                    </a>
+                    </button>
                   )}
                 </article>
               ))}
@@ -139,9 +139,9 @@ const symbol = { yes: "✓", maybe: "?", no: "✕" } as const;
           <p class="small">
             Fee {money(focus.fee)} · paid {money(focus.paid)} · <strong>balance {money(focus.fee - focus.paid)}</strong>
           </p>
-          <a class="mini-btn" href="#" data-toast="Would email the invoice for the balance and add “Invoice sent” to the gig's timeline.">
+          <button type="button" class="mini-btn" data-toast="Would email the invoice for the balance and add “Invoice sent” to the gig's timeline.">
             Send balance invoice
-          </a>
+          </button>
         </div>
       </div>
     </section>
@@ -192,12 +192,12 @@ const symbol = { yes: "✓", maybe: "?", no: "✕" } as const;
                 {q.from}: “{q.message}”
               </p>
               <div class="row start">
-                <a class="mini-btn" href="#" data-toast={`Would create a gig in Enquiry and add “New tentative gig: ${q.type}, ${q.where}” to the 6MW Gigs Google Calendar.`}>
+                <button type="button" class="mini-btn" data-toast={`Would create a gig in Enquiry and add “New tentative gig: ${q.type}, ${q.where}” to the 6MW Gigs Google Calendar.`}>
                   Create tentative gig
-                </a>
-                <a class="mini-btn" href="#" data-toast="Would open a reply email with availability for that date filled in.">
+                </button>
+                <button type="button" class="mini-btn" data-toast="Would open a reply email with availability for that date filled in.">
                   Reply
-                </a>
+                </button>
               </div>
             </li>
           ))
@@ -225,9 +225,9 @@ const symbol = { yes: "✓", maybe: "?", no: "✕" } as const;
               <span>
                 {memberName(e.who)}: {e.what}
               </span>
-              <a class="mini-btn" href="#" data-toast={`Would approve ${money(e.amount)} for ${memberName(e.who)} and log it for reimbursement.`}>
+              <button type="button" class="mini-btn" data-toast={`Would approve ${money(e.amount)} for ${memberName(e.who)} and log it for reimbursement.`}>
                 Approve {money(e.amount)}
-              </a>
+              </button>
             </li>
           ))
         }
