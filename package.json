@@ -4,14 +4,16 @@
   "workspaces": [
     "theme",
     "site",
-    "app"
+    "app",
+    "firestore"
   ],
   "scripts": {
     "dev:site": "npm run dev -w @6mw/site",
     "dev:app": "npm run dev -w @6mw/app",
     "build": "npm run build --workspaces --if-present",
     "check": "npm run check -w @6mw/site && npm run type-check -w @6mw/app",
-    "test": "npm run test:unit -w @6mw/app -- --run"
+    "test": "npm run test:unit -w @6mw/app -- --run",
+    "test:rules": "npm test -w @6mw/firestore"
   },
   "engines": {
     "node": ">=22.18.0"
