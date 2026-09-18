@@ -5,7 +5,7 @@ import mark from "../assets/brand/Six2Transparent.png";
 
 interface Props {
   title: string;
-  role: "home" | "singer" | "manager" | "director" | "media";
+  role: "home" | "singer" | "manager" | "director" | "stage" | "media";
 }
 
 const { title, role } = Astro.props;
@@ -14,6 +14,7 @@ const nav = [
   { id: "singer", label: "Singer", href: "/admin/singer/" },
   { id: "manager", label: "Manager", href: "/admin/manager/" },
   { id: "director", label: "Music director", href: "/admin/director/" },
+  { id: "stage", label: "Stage", href: "/admin/stage/" },
   { id: "media", label: "Media", href: "/admin/media/" },
 ];
 ---

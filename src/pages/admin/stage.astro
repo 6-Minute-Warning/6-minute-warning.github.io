@@ -1,0 +1,311 @@
+---
+import { getImage } from "astro:assets";
+import Admin from "../../layouts/Admin.astro";
+import { members as siteMembers } from "../../data/members";
+import { setlists, songById, gigById, formations, firstName, day } from "../../data/admin/sample";
+
+const gig = gigById("riverbend")!;
+
+const headshots = Object.fromEntries(
+  await Promise.all(
+    siteMembers.map(async (m) => {
+      const img = await getImage({ src: m.suit, width: 160, height: 160, fit: "cover", format: "webp" });
+      return [m.name.split(" ")[0].toLowerCase(), img.src];
+    }),
+  ),
+);
+
+const set = setlists[gig.id].map((id) => {
+  const s = songById(id)!;
+  const f = formations[s.formation ?? "line"];
+  return {
+    title: s.title,
+    key: s.key,
+    minutes: s.minutes,
+    soloist: s.soloist ? firstName(s.soloist) : "",
+    notes: s.notes ?? "",
+    formation: f.label,
+    spots: Object.entries(f.spots).map(([id, [x, y]]) => ({ name: firstName(id), photo: headshots[id], x, y })),
+  };
+});
+---
+
+<Admin title="Stage" role="stage">
+  <div class="stage-app" data-set={JSON.stringify(set)}>
+    <div class="top row">
+      <p class="muted">
+        {gig.name} · {day(gig.date)} · <span class="pos"></span>
+      </p>
+      <label class="auto">
+        <input type="checkbox" class="autopitch" checked /> Play pitch when advancing
+      </label>
+    </div>
+
+    <div class="now">
+      <p class="label">Now</p>
+      <h1 class="title"></h1>
+      <p class="meta"></p>
+      <p class="notes"></p>
+    </div>
+
+    <div class="floor" aria-label="Stage formation">
+      <span class="floor__back">Back of stage</span>
+      <span class="floor__front">Audience</span>
+      <span class="floor__name"></span>
+    </div>
+
+    <div class="next">
+      <span class="label">Next</span>
+      <span class="next__title"></span>
+    </div>
+
+    <div class="controls">
+      <button type="button" class="ctl prev" aria-label="Previous song">◀ Prev</button>
+      <button type="button" class="ctl pitch">♪ Pitch</button>
+      <button type="button" class="ctl go" aria-label="Next song">Next ▶</button>
+    </div>
+    <p class="muted hint">Arrow keys, space or a Bluetooth page-turner pedal also advance. The real app plays the band's intro track and follows the leader's device on every phone.</p>
+  </div>
+</Admin>
+
+<script>
+  type Spot = { name: string; photo: string; x: number; y: number };
+  type Song = { title: string; key: string; minutes: number; soloist: string; notes: string; formation: string; spots: Spot[] };
+
+  const root = document.querySelector<HTMLElement>(".stage-app")!;
+  const set: Song[] = JSON.parse(root.dataset.set!);
+  const $ = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
+  const floor = $(".floor");
+  const auto = $<HTMLInputElement>(".autopitch");
+  let index = 0;
+  let audio: AudioContext | undefined;
+
+  const names = ["C", "D", "E", "F", "G", "A", "B"];
+  const steps = [0, 2, 4, 5, 7, 9, 11];
+
+  function rootSemitone(key: string) {
+    const letter = names.indexOf(key[0]);
+    if (letter < 0) return null;
+    const accidental = key[1] === "♭" || key[1] === "b" ? -1 : key[1] === "♯" || key[1] === "#" ? 1 : 0;
+    return steps[letter] + accidental;
+  }
+
+  function playPitch(key: string) {
+    const semitone = rootSemitone(key);
+    if (semitone === null) return;
+    audio ??= new AudioContext();
+    const minor = key.includes("minor");
+    const base = 220 * Math.pow(2, (semitone - 9) / 12);
+    const chord = [0, minor ? 3 : 4, 7, 12].map((n) => base * Math.pow(2, n / 12));
+    const start = audio.currentTime + 0.05;
+    chord.forEach((freq, i) => {
+      const osc = audio!.createOscillator();
+      const gain = audio!.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+      const t = start + i * 0.35;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.03);
+      gain.gain.setValueAtTime(0.18, start + 1.8);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 2.6);
+      osc.connect(gain).connect(audio!.destination);
+      osc.start(t);
+      osc.stop(start + 2.7);
+    });
+  }
+
+  function render() {
+    const song = set[index];
+    const next = set[index + 1];
+    $(".pos").textContent = `Song ${index + 1} of ${set.length}`;
+    $(".title").textContent = song.title;
+    $(".meta").textContent = [`Key: ${song.key}`, song.soloist && `Solo: ${song.soloist}`, `${song.minutes} min`].filter(Boolean).join(" · ");
+    $(".notes").textContent = song.notes;
+    $(".floor__name").textContent = song.formation;
+    $(".next__title").textContent = next ? `${next.title} (${next.key})` : "End of set";
+    floor.querySelectorAll(".spot").forEach((el) => el.remove());
+    for (const spot of song.spots) {
+      const el = document.createElement("figure");
+      el.className = "spot";
+      el.style.left = `${spot.x}%`;
+      el.style.top = `${spot.y}%`;
+      el.innerHTML = `<img src="${spot.photo}" alt="" width="64" height="64" /><figcaption>${spot.name}</figcaption>`;
+      floor.append(el);
+    }
+  }
+
+  function move(delta: number) {
+    const target = Math.min(set.length - 1, Math.max(0, index + delta));
+    if (target === index) return;
+    index = target;
+    render();
+    if (delta > 0 && auto.checked) playPitch(set[index].key);
+  }
+
+  $(".prev").addEventListener("click", () => move(-1));
+  $(".go").addEventListener("click", () => move(1));
+  $(".pitch").addEventListener("click", () => playPitch(set[index].key));
+  document.addEventListener("keydown", (event) => {
+    if (["ArrowRight", "PageDown", " "].includes(event.key)) {
+      event.preventDefault();
+      move(1);
+    }
+    if (["ArrowLeft", "PageUp"].includes(event.key)) {
+      event.preventDefault();
+      move(-1);
+    }
+  });
+  render();
+</script>
+
+<style>
+  .stage-app {
+    display: grid;
+    gap: 16px;
+  }
+
+  .top p {
+    margin: 0;
+  }
+
+  .auto {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+  }
+
+  .label {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-accent-strong);
+  }
+
+  .now .title {
+    font-size: clamp(2.4rem, 7vw, 5rem);
+    margin: 4px 0 6px;
+  }
+
+  .meta {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+
+  .notes {
+    font-size: 1.15rem;
+    color: var(--color-text-muted);
+    max-width: 70ch;
+    margin: 0;
+  }
+
+  .floor {
+    position: relative;
+    aspect-ratio: 16 / 7;
+    border: 1px solid var(--color-border);
+    border-bottom: 3px solid var(--color-accent);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    overflow: hidden;
+  }
+
+  .floor__back,
+  .floor__front,
+  .floor__name {
+    position: absolute;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .floor__back {
+    top: 8px;
+    left: 50%;
+    translate: -50% 0;
+  }
+
+  .floor__front {
+    bottom: 6px;
+    left: 50%;
+    translate: -50% 0;
+  }
+
+  .floor__name {
+    top: 8px;
+    left: 12px;
+    color: var(--color-accent-strong);
+    font-weight: 700;
+  }
+
+  .floor :global(.spot) {
+    position: absolute;
+    translate: -50% -50%;
+    margin: 0;
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+    transition: left 0.4s, top 0.4s;
+  }
+
+  .floor :global(.spot img) {
+    width: clamp(40px, 6vw, 64px);
+    height: clamp(40px, 6vw, 64px);
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--color-accent);
+  }
+
+  .floor :global(.spot figcaption) {
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .next {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: baseline;
+    padding: 14px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+  }
+
+  .next__title {
+    font-size: 1.3rem;
+    font-weight: 700;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr 2fr;
+    gap: 12px;
+  }
+
+  .ctl {
+    font: inherit;
+    font-size: 1.2rem;
+    font-weight: 800;
+    padding: 18px;
+    border-radius: var(--radius);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    cursor: pointer;
+  }
+
+  .ctl.go {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-accent-ink);
+  }
+
+  .hint {
+    font-size: 0.85rem;
+    margin: 0;
+  }
+</style>
