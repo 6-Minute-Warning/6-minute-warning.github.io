@@ -17,7 +17,10 @@ npm run dev
 | Members, bios, alumni | `src/data/members.ts` |
 | Event pages (awards, corporate, Christmas, festivals) | `src/data/services.ts` |
 | Colours, fonts, spacing | `src/styles/theme.css` |
+| Upcoming shows | `src/data/shows.ts` |
 | Photos | `src/assets/` |
+
+Shows appear only when `public: true` and stop showing the day after they happen (the deploy workflow rebuilds daily). `SHOW_DRAFT_SHOWS=1 npm run build` includes non-public shows for a local preview.
 
 Theme variants live in `src/styles/theme.css` as `[data-theme="..."]` blocks. Add `?themes` to any URL to show a theme picker (it sticks for that browser), or `?theme=gold` to open one variant directly. Visitors see the default theme.
 

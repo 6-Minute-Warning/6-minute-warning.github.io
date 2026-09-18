@@ -8,9 +8,11 @@ import EventGrid from "../components/EventGrid.astro";
 import Testimonials from "../components/Testimonials.astro";
 import BookingForm from "../components/BookingForm.astro";
 import { services, type Service } from "../data/services";
-import { site } from "../data/site";
+import { site, eventTypes } from "../data/site";
 
 export function getStaticPaths() {
+  const missing = services.filter((s) => !eventTypes.includes(s.eventType)).map((s) => s.eventType);
+  if (missing.length) throw new Error(`eventTypes in src/data/site.ts is missing: ${missing.join(", ")}`);
   return services.map((service) => ({ params: { service: service.slug }, props: { service } }));
 }
 
@@ -92,6 +94,20 @@ const schema = [
       </div>
     </div>
   </section>
+
+  {
+    service.presenters && (
+      <section class="section">
+        <div class="wrap">
+          <span class="eyebrow">Presenters</span>
+          <h2>Who has booked us</h2>
+          <ul class="presenters">
+            {service.presenters.map((p) => <li>{p}</li>)}
+          </ul>
+        </div>
+      </section>
+    )
+  }
 
   <section class="section">
     <div class="wrap">
@@ -186,6 +202,21 @@ const schema = [
     font-stretch: 125%;
     font-size: 1.6rem;
     color: var(--color-accent);
+  }
+
+  .presenters {
+    list-style: none;
+    margin: 24px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 0 32px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+
+  .presenters li {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--color-border);
+    font-weight: 700;
   }
 
   .faq-wrap {

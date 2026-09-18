@@ -5,13 +5,29 @@ import Stages from "../components/Stages.astro";
 import Video from "../components/Video.astro";
 import MemberCard from "../components/MemberCard.astro";
 import Testimonials from "../components/Testimonials.astro";
+import Shows from "../components/Shows.astro";
+import { upcomingShows } from "../data/shows";
 import { site, videos } from "../data/site";
 import { members } from "../data/members";
 import { services } from "../data/services";
 import groupStudio from "../assets/photos/group-studio.jpg";
+
+const showSchema = upcomingShows()
+  .filter((s) => s.public)
+  .map((s) => ({
+    "@context": "https://schema.org",
+    "@type": "MusicEvent",
+    name: s.title,
+    startDate: s.start,
+    eventStatus: "https://schema.org/EventScheduled",
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    location: { "@type": "Place", name: s.venue ?? s.city, address: s.city },
+    performer: { "@id": `${site.url}/#band` },
+    ...(s.url ? { offers: { "@type": "Offer", url: s.url } } : {}),
+  }));
 ---
 
-<Base title="6 Minute Warning | A Cappella Group from Edmonton, Alberta">
+<Base title="6 Minute Warning | A Cappella Group from Edmonton, Alberta" schema={showSchema}>
   <Hero image={groupStudio} alt="The six members of 6 Minute Warning in black suits and blue ties, singing into vintage microphones" position="center 30%" eyebrow="A cappella from Edmonton" tall>
     <h1>Six voices. No instruments.</h1>
     <p class="lede">6 Minute Warning sings pop and R&B with nothing but their voices, with influences from Take 6, Boyz II Men and NSYNC. Every show is loud, loose and a little unpredictable.</p>
@@ -22,6 +38,8 @@ import groupStudio from "../assets/photos/group-studio.jpg";
   </Hero>
 
   <Stages />
+
+  <Shows />
 
   <section class="section" id="watch">
     <div class="wrap">

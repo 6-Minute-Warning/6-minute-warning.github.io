@@ -23,14 +23,14 @@ export const videos = [
 ];
 
 export const stages = [
-  "Ben Folds with the Edmonton Symphony Orchestra",
-  "David Foster's Star Search, top five",
-  "Lite 95.7 Christmas Concert with Glass Tiger",
-  "Mayor's Celebration of the Arts",
-  "Alberta Chamber of Resources banquet",
-  "Kaleido Festival main stage",
-  "Festival Place Patio Series",
-  "Edmonton Singing Christmas Tree",
+  { title: "Ben Folds", detail: "Backing vocals with the Edmonton Symphony Orchestra" },
+  { title: "David Foster", detail: "Top five, Star Search" },
+  { title: "Glass Tiger", detail: "Lite 95.7 Christmas Concert" },
+  { title: "Mayor's Celebration of the Arts", detail: "City of Edmonton" },
+  { title: "Alberta Chamber of Resources", detail: "Annual banquet" },
+  { title: "Kaleido Festival", detail: "Main stage" },
+  { title: "Festival Place", detail: "Patio Series" },
+  { title: "Singing Christmas Tree", detail: "Jubilee Auditorium, Edmonton" },
 ];
 
 export const highlights = [
@@ -64,6 +64,7 @@ export const testimonials = [
 ];
 
 export const eventTypes = [
+  "Concert series or presenter",
   "Awards gala",
   "Corporate event",
   "Holiday party",

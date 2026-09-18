@@ -26,6 +26,7 @@ export interface Service {
   points: { title: string; body: string }[];
   steps: string[];
   faqs: Faq[];
+  presenters?: string[];
 }
 
 const anthemFaq: Faq = {
@@ -53,6 +54,73 @@ const sharedFaqs: Faq[] = [
 ];
 
 export const services: Service[] = [
+  {
+    slug: "concert-series",
+    nav: "Concert series",
+    eventType: "Concert series or presenter",
+    title: "A Cappella Touring Show for Concert Series & Arts Councils | 6 Minute Warning",
+    description:
+      "6 Minute Warning tours a full evening a cappella show for concert series, arts councils and theatres in Alberta, British Columbia and Saskatchewan. Pop and R&B for six voices, easy to host.",
+    h1: "A touring a cappella show for concert series and arts councils",
+    intro:
+      "A full evening of pop and R&B for six voices, built for theatres, concert series and arts councils. We toured it across Alberta and into British Columbia in 2026, and we bring it to OSAC in Saskatchewan this fall.",
+    hero: groupStudio,
+    heroPosition: "center 30%",
+    photo: threeMics,
+    points: [
+      {
+        title: "A full evening",
+        body: "Two sets with an intermission: tight harmonies, beatbox and the spontaneity our shows are known for.",
+      },
+      {
+        title: "Easy to host",
+        body: "Six singers, a small stage footprint and a short tech list. Your crew will have an easy night.",
+      },
+      {
+        title: "Tour ready",
+        body: "We tour Alberta, British Columbia and Saskatchewan. Tell us about presenters near you and we can plan a route.",
+      },
+      {
+        title: "Presenter materials",
+        body: "Bio, press photos, videos and logos are in our press kit. The tech rider goes out once the date is confirmed.",
+      },
+    ],
+    steps: [
+      "Send us your season dates and venue.",
+      "We confirm availability, fee and routing, and send the rider and press materials.",
+      "We arrive, check sound, and put on the show.",
+    ],
+    faqs: [
+      {
+        q: "How long is the show?",
+        a: "Two sets of about 50 minutes with an intermission.",
+      },
+      {
+        q: "Do you tour outside Alberta?",
+        a: "Yes. We toured British Columbia in 2026, including Terrace and Kitimat, and we are showcasing at OSAC in Saskatchewan in October 2026.",
+      },
+      {
+        q: "Can you add a school workshop to a tour date?",
+        a: "Ask us when you get in touch.",
+      },
+      {
+        q: "Where do we get promo materials?",
+        a: "Our press kit has a bio, highlights, press photos, logos and videos, free to use when promoting a 6 Minute Warning show.",
+      },
+    ],
+    presenters: [
+      "Horizon Stage Performing Arts Centre",
+      "Terrace Concert Society",
+      "Lloydminster Concert Series Association",
+      "Newell Concert Association",
+      "Wainwright Encore",
+      "Stettler Performing Arts Centre",
+      "Eleanor Pickup Arts Centre",
+      "DaysArts",
+      "Chautauqua Edson Arts Council",
+      "Vermilion Allied Arts Council",
+    ],
+  },
   {
     slug: "awards-ceremony-music",
     nav: "Awards ceremonies",
