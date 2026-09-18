@@ -5,7 +5,7 @@ import sitemap from "@astrojs/sitemap";
 export default defineConfig({
   site: "https://6minutewarning.com",
   trailingSlash: "always",
-  integrations: [sitemap({ filter: (page) => !page.endsWith("/404/") })],
+  integrations: [sitemap({ filter: (page) => !page.endsWith("/404/") && !page.includes("/admin/") })],
   redirects: {
     "/2015-run-for-music": "/",
     "/6-minute-warning-big-band": "/",

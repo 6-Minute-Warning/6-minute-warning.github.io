@@ -1,0 +1,42 @@
+---
+import type { Answer } from "../../data/admin/sample";
+
+interface Props {
+  gig: string;
+  answer?: Answer;
+}
+
+const { gig, answer } = Astro.props;
+const options: { value: Answer; label: string }[] = [
+  { value: "yes", label: "✓ In" },
+  { value: "maybe", label: "? Maybe" },
+  { value: "no", label: "✕ Out" },
+];
+---
+
+<div class="avail" role="group" aria-label="My availability">
+  {
+    options.map((o) => (
+      <button type="button" class="mini-btn" data-gig={gig} data-answer={o.value} aria-pressed={answer === o.value ? "true" : "false"}>
+        {o.label}
+      </button>
+    ))
+  }
+</div>
+
+<script>
+  for (const group of document.querySelectorAll<HTMLElement>(".avail")) {
+    group.addEventListener("click", (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>("button");
+      if (!button) return;
+      for (const b of group.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b === button));
+    });
+  }
+</script>
+
+<style>
+  .avail {
+    display: flex;
+    gap: 6px;
+  }
+</style>

@@ -1,0 +1,232 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import Chip from "../../components/admin/Chip.astro";
+import Availability from "../../components/admin/Availability.astro";
+import {
+  upcomingGigs,
+  availability,
+  setlists,
+  songById,
+  rehearsals,
+  tasks,
+  songs,
+  expenses,
+  readinessLabels,
+  gigById,
+  memberName,
+  money,
+  day,
+  today,
+} from "../../data/admin/sample";
+
+const me = "brett";
+const upcoming = upcomingGigs();
+const mine = upcoming.filter((g) => g.performers.includes(me));
+const next = mine[0];
+const set = (setlists[next.id] ?? []).map((id) => songById(id)!);
+const setMinutes = set.reduce((sum, s) => sum + s.minutes, 0);
+const share = Math.round(next.fee / next.performers.length);
+const myTasks = tasks.filter((t) => t.owner === me && t.status !== "Done");
+const learning = songs.filter((s) => s.status !== "Retired" && (s.readiness[me] ?? 1) < 3);
+const myExpenses = expenses.filter((e) => e.who === me);
+const nextRehearsals = rehearsals.filter((r) => r.date >= today);
+---
+
+<Admin title="Singer" role="singer">
+  <h1>Hi Brett</h1>
+  <p class="sub">Viewing as {memberName(me)}. Everything below is sample data.</p>
+
+  <div class="grid">
+    <section class="card span-7" aria-labelledby="next">
+      <div class="row">
+        <h2 id="next">Next up: {next.name}</h2>
+        <Chip tone="ok">{next.stage}</Chip>
+      </div>
+      <dl class="facts">
+        <dt>When</dt>
+        <dd>{day(next.date, { weekday: "long", month: "long", day: "numeric" })}, {next.time}</dd>
+        <dt>Call</dt>
+        <dd>{next.callTime}</dd>
+        <dt>Where</dt>
+        <dd>{next.venue}, {next.city}</dd>
+        <dt>Wear</dt>
+        <dd>{next.outfit}</dd>
+        <dt>Format</dt>
+        <dd>{next.format}</dd>
+        <dt>Your share</dt>
+        <dd>{money(share)} (fee split {next.performers.length} ways)</dd>
+      </dl>
+      <h3 class="h3">Set list · {setMinutes} min</h3>
+      <ol class="setlist">
+        {
+          set.map((s) => (
+            <li>
+              <span>{s.title}</span>
+              <span class="muted">
+                {s.key} · {s.minutes} min{s.soloist && ` · solo: ${memberName(s.soloist).split(" ")[0]}`}
+              </span>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="row actions">
+        <button type="button" class="mini-btn" data-toast="Would add this gig to your Google Calendar.">Add to my calendar</button>
+        <button type="button" class="mini-btn" data-toast="Would open directions to the venue.">Directions</button>
+      </div>
+    </section>
+
+    <section class="card span-5" aria-labelledby="avail">
+      <h2 id="avail">Can you make it?</h2>
+      <ul class="list">
+        {
+          upcoming.map((g) => (
+            <li>
+              <p class="line">
+                <strong>{day(g.date)}</strong> {g.name}
+              </p>
+              <Availability gig={g.id} answer={availability[g.id]?.[me]} />
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="card span-4" aria-labelledby="todo">
+      <h2 id="todo">Your tasks</h2>
+      <ul class="list">
+        {
+          myTasks.map((t) => (
+            <li>
+              <p class="line">{t.task}</p>
+              <p class="muted small">
+                {gigById(t.gig)?.name} · due {day(t.due)} · {t.status}
+              </p>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="card span-4" aria-labelledby="reh">
+      <h2 id="reh">Rehearsals</h2>
+      <ul class="list">
+        {
+          nextRehearsals.map((r) => (
+            <li>
+              <p class="line">
+                <strong>{day(r.date)}</strong> {r.time}
+              </p>
+              <p class="muted small">
+                {r.place} · {r.focus.map((f) => songById(f)?.title ?? f).join(", ")}
+              </p>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="card span-4" aria-labelledby="learn">
+      <h2 id="learn">Songs to learn</h2>
+      <ul class="list">
+        {
+          learning.map((s) => (
+            <li>
+              <p class="line">{s.title}</p>
+              <p class="muted small">{readinessLabels[s.readiness[me] ?? 1]}</p>
+              <div class="row start">
+                <button type="button" class="mini-btn" data-toast={`Would play your part's learning track for ${s.title}.`}>
+                  ▶ My part
+                </button>
+                <button type="button" class="mini-btn" data-toast={`Would open the sheet music for ${s.title} from the shared Drive.`}>
+                  Sheet music
+                </button>
+              </div>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="card span-12" aria-labelledby="money">
+      <div class="row">
+        <h2 id="money">Expenses</h2>
+        <button type="button" class="mini-btn" data-toast="Would open a form: amount, what it was for, photo of the receipt.">+ Submit an expense</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Date</th><th>What</th><th>Amount</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            {
+              myExpenses.map((e) => (
+                <tr>
+                  <td>{day(e.date)}</td>
+                  <td>{e.what}</td>
+                  <td>{money(e.amount)}</td>
+                  <td>
+                    <Chip tone={e.status === "Reimbursed" ? "ok" : "warn"}>{e.status}</Chip>
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</Admin>
+
+<style>
+  .facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 16px;
+    margin: 0 0 18px;
+  }
+
+  .facts dt {
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
+  .facts dd {
+    margin: 0;
+  }
+
+  .h3 {
+    font-size: 0.9rem;
+    margin: 0 0 8px;
+  }
+
+  .setlist {
+    margin: 0 0 16px;
+    padding-left: 1.4em;
+  }
+
+  .setlist li {
+    padding: 4px 0;
+  }
+
+  .setlist li span:first-child {
+    font-weight: 600;
+    margin-right: 8px;
+  }
+
+  .line {
+    margin: 0 0 6px;
+  }
+
+  .small {
+    font-size: 0.85rem;
+    margin: 0 0 6px;
+  }
+
+  .start {
+    justify-content: flex-start;
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+</style>

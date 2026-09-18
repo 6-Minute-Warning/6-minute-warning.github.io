@@ -1,0 +1,40 @@
+---
+import Admin from "../../layouts/Admin.astro";
+
+const cards = [
+  { href: "/admin/singer/", title: "Singer", body: "Your next gig, call time and outfit, set list, availability, rehearsals, the songs you're learning, your pay and expenses." },
+  { href: "/admin/manager/", title: "Manager", body: "Booking pipeline, what needs action, contracts and payments, who's available, website inquiries, deadlines, and the Google Calendar events each gig step creates." },
+  { href: "/admin/director/", title: "Music director", body: "Repertoire, set lists that fit the slot, who's ready on which song, soloists, and rehearsal plans." },
+  { href: "/admin/media/", title: "Media", body: "Band photos synced from the shared Google Drive, with photographer credits and a switch to publish each one to the press kit." },
+];
+---
+
+<Admin title="Backstage" role="home">
+  <h1>6MW Backstage</h1>
+  <p class="sub">What a members-only area of 6minutewarning.com could look like, built from what the band tracks in Notion today. Pick a view.</p>
+  <div class="grid">
+    {
+      cards.map((c) => (
+        <a class="card span-6 pick" href={c.href}>
+          <h2>{c.title} →</h2>
+          <p class="muted">{c.body}</p>
+        </a>
+      ))
+    }
+  </div>
+</Admin>
+
+<style>
+  .pick {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .pick:hover {
+    border-color: var(--color-accent);
+  }
+
+  .pick p {
+    margin: 0;
+  }
+</style>

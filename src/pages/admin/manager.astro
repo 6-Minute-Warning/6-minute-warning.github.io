@@ -1,0 +1,377 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import Chip from "../../components/admin/Chip.astro";
+import {
+  gigs,
+  stages,
+  actionLabels,
+  checklist,
+  calendarSteps,
+  availability,
+  members,
+  inquiries,
+  expenses,
+  deadlines,
+  memberName,
+  firstName,
+  money,
+  day,
+  today,
+  type Gig,
+} from "../../data/admin/sample";
+
+const active = gigs.filter((g) => g.stage !== "Completed" || g.paid < g.fee);
+const booked = gigs.filter((g) => g.stage === "Confirmed" && g.date >= today);
+const bookedValue = booked.reduce((sum, g) => sum + g.fee, 0);
+const owed = gigs.filter((g) => g.stage === "Confirmed" || g.stage === "Completed").reduce((sum, g) => sum + (g.fee - g.paid), 0);
+const needsAction = gigs.filter((g) => g.action !== "ok").sort((a, b) => a.date.localeCompare(b.date));
+const focus = gigs.find((g) => g.id === "riverbend")!;
+const toApprove = expenses.filter((e) => e.status === "Submitted");
+const nextStage = (g: Gig) => stages[stages.indexOf(g.stage) + 1];
+const calendarLabel: Record<string, string> = { Booking: "New tentative gig", Confirmed: "Gig confirmed", Completed: "Thank-you sent" };
+const upcoming = gigs.filter((g) => g.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+const symbol = { yes: "✓", maybe: "?", no: "✕" } as const;
+---
+
+<Admin title="Manager" role="manager">
+  <h1>Manager</h1>
+  <p class="sub">Bookings, money and the band's calendar in one place. Sample data.</p>
+
+  <div class="stats card">
+    <div class="stat"><span class="muted">Confirmed and upcoming</span><strong>{booked.length} gigs</strong><span class="muted">{money(bookedValue)} in fees</span></div>
+    <div class="stat"><span class="muted">Still owed to the band</span><strong>{money(owed)}</strong><span class="muted">balances and deposits</span></div>
+    <div class="stat"><span class="muted">Needs action</span><strong>{needsAction.length}</strong><span class="muted">gigs</span></div>
+    <div class="stat"><span class="muted">New website inquiries</span><strong>{inquiries.length}</strong><span class="muted">this week</span></div>
+  </div>
+
+  <section class="card board-card" aria-labelledby="pipe">
+    <h2 id="pipe">Booking pipeline</h2>
+    <div class="board">
+      {
+        stages.map((stage) => (
+          <div class="col">
+            <h3>
+              {stage} <span class="muted">{active.filter((g) => g.stage === stage).length}</span>
+            </h3>
+            {active
+              .filter((g) => g.stage === stage)
+              .map((g) => (
+                <article class="gig">
+                  <p class="gig__name">{g.name}</p>
+                  <p class="muted small">
+                    {day(g.date)} · {g.city} · {money(g.fee)}
+                  </p>
+                  <div class="row start">
+                    <Chip tone={g.action === "ok" ? "ok" : "warn"}>{actionLabels[g.action]}</Chip>
+                    <Chip tone={g.contract === "Signed" ? "ok" : "plain"}>Contract: {g.contract}</Chip>
+                  </div>
+                  {nextStage(g) && (
+                    <button
+                      type="button"
+                      class="mini-btn move"
+                      data-toast={`Moved to ${nextStage(g)}. Would add “${calendarLabel[nextStage(g)] ?? nextStage(g)}: ${g.name}” to the 6MW Gigs Google Calendar.`}
+                    >
+                      Move to {nextStage(g)} →
+                    </button>
+                  )}
+                </article>
+              ))}
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card span-5" aria-labelledby="act">
+      <h2 id="act">Needs action</h2>
+      <ul class="list">
+        {
+          needsAction.map((g) => (
+            <li class="row">
+              <span>
+                <strong>{g.name}</strong>
+                <br />
+                <span class="muted small">{day(g.date)}</span>
+              </span>
+              <Chip tone="warn">{actionLabels[g.action]}</Chip>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="card span-7" aria-labelledby="detail">
+      <h2 id="detail">{focus.name}</h2>
+      <p class="muted small">
+        {day(focus.date, { weekday: "long", month: "long", day: "numeric" })} · {focus.venue} · {focus.format}
+      </p>
+      <div class="detail">
+        <div>
+          <h3>Checklist · {focus.done.length}/{checklist.length}</h3>
+          <ul class="checks">
+            {
+              checklist.map((c) => (
+                <li>
+                  <span aria-hidden="true">{focus.done.includes(c) ? "✓" : "○"}</span> {c}
+                  <span class="visually-hidden">{focus.done.includes(c) ? "done" : "not done"}</span>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+        <div>
+          <h3>Google Calendar</h3>
+          <ol class="timeline">
+            {
+              calendarSteps.map((step) => {
+                const event = focus.calendar.find((e) => e.label === step);
+                return (
+                  <li class:list={[{ done: event }]}>
+                    <span>{step}</span>
+                    <span class="muted small">{event ? `added ${day(event.date)}` : "not yet"}</span>
+                  </li>
+                );
+              })
+            }
+          </ol>
+          <h3>Money</h3>
+          <p class="small">
+            Fee {money(focus.fee)} · paid {money(focus.paid)} · <strong>balance {money(focus.fee - focus.paid)}</strong>
+          </p>
+          <button type="button" class="mini-btn" data-toast="Would email the invoice for the balance and add “Invoice sent” to the gig's timeline.">
+            Send balance invoice
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card span-12" aria-labelledby="who">
+      <h2 id="who">Who's available</h2>
+      <div class="table-wrap">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th>Gig</th>
+              {members.map((m) => <th>{m.status === "Sub" ? m.part : firstName(m.id)}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {
+              upcoming.map((g) => (
+                <tr>
+                  <td>
+                    <strong>{day(g.date)}</strong> <span class="muted">{g.name}</span>
+                  </td>
+                  {members.map((m) => {
+                    const a = availability[g.id]?.[m.id];
+                    return <td class:list={["cell", a]}>{a ? `${symbol[a]} ${a}` : "—"}</td>;
+                  })}
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="muted small">✓ yes · ? maybe · ✕ no · — no answer yet</p>
+    </section>
+
+    <section class="card span-7" aria-labelledby="inq">
+      <h2 id="inq">Website inquiries</h2>
+      <ul class="list">
+        {
+          inquiries.map((q) => (
+            <li>
+              <div class="row">
+                <strong>
+                  {q.type} · {day(q.date)} · {q.where}
+                </strong>
+                <span class="muted small">received {day(q.received)}</span>
+              </div>
+              <p class="small">
+                {q.from}: “{q.message}”
+              </p>
+              <div class="row start">
+                <button type="button" class="mini-btn" data-toast={`Would create a gig in Enquiry and add “New tentative gig: ${q.type}, ${q.where}” to the 6MW Gigs Google Calendar.`}>
+                  Create tentative gig
+                </button>
+                <button type="button" class="mini-btn" data-toast="Would open a reply email with availability for that date filled in.">
+                  Reply
+                </button>
+              </div>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="card span-5" aria-labelledby="dl">
+      <h2 id="dl">Deadlines</h2>
+      <ul class="list">
+        {
+          deadlines.map((d) => (
+            <li class="row">
+              <span>{d.label}</span>
+              <strong>{day(d.date)}</strong>
+            </li>
+          ))
+        }
+      </ul>
+      <h2 class="spaced">Expenses to approve</h2>
+      <ul class="list">
+        {
+          toApprove.map((e) => (
+            <li class="row">
+              <span>
+                {memberName(e.who)}: {e.what}
+              </span>
+              <button type="button" class="mini-btn" data-toast={`Would approve ${money(e.amount)} for ${memberName(e.who)} and log it for reimbursement.`}>
+                Approve {money(e.amount)}
+              </button>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="card span-12" aria-labelledby="cal">
+      <h2 id="cal">Calendar sync</h2>
+      <p class="small">
+        Connected to Google Calendar <strong>6MW Gigs</strong>. Each step below adds or updates an event that everyone in the band sees.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>When</th><th>Event it creates</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>A gig is created from an inquiry</td><td>“New tentative gig: name” on the show date, marked tentative</td></tr>
+            <tr><td>Gig moves to Confirmed</td><td>Event becomes confirmed, with call time, venue and outfit in the description</td></tr>
+            <tr><td>Contract uploaded</td><td>Contract link added to the event</td></tr>
+            <tr><td>Deposit or balance received</td><td>Note added to the event</td></tr>
+            <tr><td>Rehearsal scheduled</td><td>“Rehearsal: songs” on the rehearsal date</td></tr>
+            <tr><td>Gig cancelled</td><td>Event cancelled, with a note to the band</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</Admin>
+
+<style>
+  .stats {
+    margin-bottom: 16px;
+  }
+
+  .board-card {
+    margin-bottom: 16px;
+  }
+
+  .board {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(4, minmax(220px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .col {
+    min-width: 0;
+    padding: 10px;
+    background: var(--color-bg);
+    border-radius: var(--radius);
+  }
+
+  .col h3 {
+    font-size: 0.8rem;
+    margin: 0 0 10px;
+    letter-spacing: 0.08em;
+  }
+
+  .gig {
+    padding: 12px;
+    margin-bottom: 10px;
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+  }
+
+  .gig__name {
+    margin: 0 0 4px;
+    font-weight: 700;
+  }
+
+  .gig .row {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .start {
+    justify-content: flex-start;
+  }
+
+  .small {
+    font-size: 0.85rem;
+    margin: 0 0 8px;
+  }
+
+  .detail {
+    display: grid;
+    gap: 20px;
+  }
+
+  @media (min-width: 700px) {
+    .detail {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .detail h3 {
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    margin: 12px 0 8px;
+  }
+
+  .checks,
+  .timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .checks li {
+    padding: 3px 0;
+  }
+
+  .timeline li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 0 5px 14px;
+    border-left: 2px solid var(--color-border);
+  }
+
+  .timeline li.done {
+    border-left-color: var(--color-accent);
+  }
+
+  .matrix td.cell {
+    white-space: nowrap;
+  }
+
+  .matrix td.yes {
+    color: var(--color-success);
+  }
+
+  .matrix td.maybe {
+    color: var(--color-warning);
+  }
+
+  .matrix td.no {
+    color: var(--color-danger);
+  }
+
+  .spaced {
+    margin-top: 24px !important;
+  }
+</style>
