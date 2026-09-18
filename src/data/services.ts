@@ -70,7 +70,7 @@ export const services: Service[] = [
         body: "Six people and a handful of microphones. We can open the night, fill the gap between awards, and close it out without a single crew change.",
       },
       {
-        title: "Black tie by default",
+        title: "Dressed for the gala",
         body: "Matching black suits and blue ties. We look like we belong at the gala because we dress for it.",
       },
       {

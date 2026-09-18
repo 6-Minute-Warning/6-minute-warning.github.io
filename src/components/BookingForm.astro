@@ -59,7 +59,7 @@ const { eventType = "", heading = "Check your date" } = Astro.props;
         <span>Website</span>
         <input name="website" tabindex="-1" autocomplete="off" />
       </label>
-      <input type="hidden" name="loadedAt" />
+      <input type="hidden" name="fillMs" />
       <button class="btn" type="submit">Send inquiry</button>
       <p class="form__status" role="status" aria-live="polite"></p>
     </form>
@@ -79,12 +79,13 @@ const { eventType = "", heading = "Check your date" } = Astro.props;
   for (const form of document.querySelectorAll<HTMLFormElement>("form.form")) {
     const status = form.querySelector<HTMLElement>(".form__status")!;
     const button = form.querySelector<HTMLButtonElement>("button[type=submit]")!;
-    const loadedAt = form.querySelector<HTMLInputElement>("[name=loadedAt]")!;
-    loadedAt.value = String(Date.now());
+    const fillMs = form.querySelector<HTMLInputElement>("[name=fillMs]")!;
+    let loadedAt = Date.now();
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (!form.reportValidity()) return;
+      fillMs.value = String(Date.now() - loadedAt);
       const data = new FormData(form);
       const endpoint = form.dataset.endpoint;
       if (!endpoint) {
@@ -102,7 +103,7 @@ const { eventType = "", heading = "Check your date" } = Astro.props;
         const result = await response.json();
         if (!result.ok) throw new Error(result.error);
         form.reset();
-        loadedAt.value = String(Date.now());
+        loadedAt = Date.now();
         status.dataset.state = "ok";
         status.textContent = "✓ Sent. We will be in touch within two business days.";
       } catch {

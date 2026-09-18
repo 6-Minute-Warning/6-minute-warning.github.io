@@ -31,7 +31,7 @@ The form posts to a Google Apps Script web app that emails `manager@6minutewarni
 4. Deploy → New deployment → Web app. Execute as: Me. Who has access: Anyone.
 5. Copy the `/exec` URL into `bookingEndpoint` and push.
 
-Spam handling: a hidden honeypot field and a 3-second minimum fill time. Both drop submissions silently.
+Spam handling: a hidden honeypot field and a 3-second minimum fill time, measured in the visitor's browser. Suspected spam sends no email; with `SHEET_ID` set it is still logged to the sheet, marked `spam`, so a misjudged real inquiry can be recovered.
 
 ## DNS (Namecheap)
 

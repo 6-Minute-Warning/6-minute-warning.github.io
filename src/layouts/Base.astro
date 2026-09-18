@@ -39,7 +39,7 @@ const band = {
     { "@type": "State", name: site.region },
   ],
   sameAs: site.socials.map((s) => s.url),
-  member: members.map((m) => ({ "@type": "Person", name: m.name, roleName: m.role })),
+  member: members.map((m) => ({ "@type": "Person", name: m.name, jobTitle: m.role })),
 };
 ---
 

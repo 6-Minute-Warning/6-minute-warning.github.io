@@ -134,7 +134,8 @@ import { services } from "../data/services";
       display: none;
     }
 
-    .menu__panel {
+    .menu__panel,
+    .menu__toggle[aria-expanded="true"] + .menu__panel {
       position: static;
       display: flex;
       align-items: center;

@@ -4,21 +4,22 @@ const FIELDS = ["name", "email", "phone", "eventType", "date", "location", "mess
 
 function doPost(e) {
   const p = e.parameter;
-  const loadedAt = Number(p.loadedAt);
-  if (p.website || !loadedAt || Date.now() - loadedAt < MIN_FILL_MS) {
-    return json({ ok: true });
-  }
-  if (!p.name || !p.email || !p.message) {
+  const suspect = Boolean(p.website) || !(Number(p.fillMs) >= MIN_FILL_MS);
+  if (!suspect && (!p.name || !p.email || !p.message)) {
     return json({ ok: false, error: "missing fields" });
   }
 
-  const subject = `Booking inquiry: ${p.eventType || "Event"}${p.date ? ` on ${p.date}` : ""} (${p.name})`;
-  const body = FIELDS.map((k) => `${k}: ${p[k] || ""}`).join("\n");
-  MailApp.sendEmail({ to: RECIPIENT, replyTo: p.email, subject, body, name: "6minutewarning.com" });
+  if (!suspect) {
+    const subject = `Booking inquiry: ${p.eventType || "Event"}${p.date ? ` on ${p.date}` : ""} (${p.name})`;
+    const body = FIELDS.map((k) => `${k}: ${p[k] || ""}`).join("\n");
+    MailApp.sendEmail({ to: RECIPIENT, replyTo: p.email, subject, body, name: "6minutewarning.com" });
+  }
 
   const sheetId = PropertiesService.getScriptProperties().getProperty("SHEET_ID");
   if (sheetId) {
-    SpreadsheetApp.openById(sheetId).getSheets()[0].appendRow([new Date(), ...FIELDS.map((k) => p[k] || "")]);
+    SpreadsheetApp.openById(sheetId)
+      .getSheets()[0]
+      .appendRow([new Date(), suspect ? "spam" : "sent", ...FIELDS.map((k) => p[k] || "")]);
   }
   return json({ ok: true });
 }

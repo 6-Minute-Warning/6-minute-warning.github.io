@@ -23,6 +23,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/configure-pages@v5
       - run: npm ci
       - run: npx astro check
       - run: npm run build
