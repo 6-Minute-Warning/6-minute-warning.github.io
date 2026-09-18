@@ -56,8 +56,16 @@ export const members = [
   { id: "brayden", name: "Brayden Foo", part: "Tenor", status: "Active" },
   { id: "taylor", name: "Taylor Fawcett", part: "Tenor", status: "Active" },
   { id: "jo", name: "Jo Tong", part: "Bass", status: "Active" },
-  { id: "sub-bass", name: "Sample sub", part: "Bass sub", status: "Sub" },
+  { id: "sub-bass", name: "Sam Sample", part: "Bass", status: "Sub" },
+  { id: "sub-tenor", name: "Terry Sample", part: "Tenor", status: "Sub" },
 ];
+
+export const subs = [
+  { id: "sub-bass", covers: ["jo"], phone: "(780) 555-0142", email: "sam@example.com", lastGig: "2025-12-06" },
+  { id: "sub-tenor", covers: ["bernard", "brayden", "taylor"], phone: "(780) 555-0187", email: "terry@example.com", lastGig: "2026-02-27" },
+];
+
+export const staleAfterDays = 120;
 
 const core = ["bryan", "brett", "bernard", "brayden", "taylor", "jo"];
 
@@ -218,20 +226,48 @@ export interface Song {
   status: "Ready" | "Learning" | "Retired";
   soloist: string;
   tags: string[];
+  lastPerformed: string;
   readiness: Record<string, 1 | 2 | 3>;
+  formation?: string;
+  notes?: string;
 }
+
+type Spot = [number, number];
+
+export const formations: Record<string, { label: string; spots: Record<string, Spot> }> = {
+  line: {
+    label: "Straight line",
+    spots: { taylor: [12, 55], bernard: [27, 55], brayden: [42, 55], bryan: [58, 55], jo: [73, 55], brett: [88, 55] },
+  },
+  arc: {
+    label: "Arc",
+    spots: { taylor: [12, 40], bernard: [26, 58], brayden: [42, 66], bryan: [58, 66], jo: [74, 58], brett: [88, 40] },
+  },
+  soloist: {
+    label: "Soloist forward",
+    spots: { bernard: [50, 78], taylor: [18, 38], brayden: [34, 34], bryan: [50, 32], jo: [66, 34], brett: [82, 38] },
+  },
+  huddle: {
+    label: "Huddle",
+    spots: { bryan: [44, 42], jo: [56, 42], taylor: [36, 60], bernard: [50, 64], brayden: [64, 60], brett: [50, 22] },
+  },
+  vee: {
+    label: "V",
+    spots: { brayden: [50, 76], taylor: [38, 60], bernard: [62, 60], bryan: [26, 44], jo: [74, 44], brett: [14, 28] },
+  },
+};
 
 export const readinessLabels = { 1: "Learning notes", 2: "Off book, shaky", 3: "Performance ready" } as const;
 
 export const songs: Song[] = [
-  { id: "o-canada", title: "O Canada", key: "B♭", minutes: 2, status: "Ready", soloist: "", tags: ["Anthem"], readiness: { bryan: 3, brett: 3, bernard: 3, brayden: 3, taylor: 3, jo: 3 } },
-  { id: "attention", title: "Attention", key: "E♭ minor", minutes: 4, status: "Ready", soloist: "bernard", tags: ["Pop"], readiness: { bryan: 3, brett: 3, bernard: 3, brayden: 3, taylor: 3, jo: 3 } },
-  { id: "hallelujah", title: "Hallelujah", key: "C", minutes: 5, status: "Ready", soloist: "taylor", tags: ["Ballad"], readiness: { bryan: 3, brett: 3, bernard: 3, brayden: 3, taylor: 3, jo: 2 } },
-  { id: "bringin", title: "Bringin' It Back", key: "G", minutes: 4, status: "Ready", soloist: "brayden", tags: ["Original"], readiness: { bryan: 3, brett: 3, bernard: 3, brayden: 3, taylor: 2, jo: 3 } },
-  { id: "let-it-snow", title: "Let It Snow", key: "D", minutes: 3, status: "Ready", soloist: "taylor", tags: ["Christmas"], readiness: { bryan: 3, brett: 3, bernard: 3, brayden: 3, taylor: 3, jo: 2 } },
-  { id: "bleak-midwinter", title: "In the Bleak Midwinter", key: "F", minutes: 4, status: "Learning", soloist: "jo", tags: ["Christmas"], readiness: { bryan: 3, brett: 2, bernard: 2, brayden: 1, taylor: 2, jo: 2 } },
-  { id: "stand-by", title: "Stand By Christmas", key: "A", minutes: 4, status: "Learning", soloist: "brayden", tags: ["Christmas", "Music video"], readiness: { bryan: 3, brett: 2, bernard: 1, brayden: 3, taylor: 1, jo: 1 } },
-  { id: "sample-medley", title: "Sample 90s R&B medley", key: "Various", minutes: 7, status: "Learning", soloist: "bernard", tags: ["Pop"], readiness: { bryan: 2, brett: 2, bernard: 2, brayden: 1, taylor: 1, jo: 1 } },
+  { id: "o-canada", title: "O Canada", key: "B♭", minutes: 2, status: "Ready", soloist: "", tags: ["Anthem"], lastPerformed: "2026-08-08", readiness: { bryan: 3, brett: 3, bernard: 3, brayden: 3, taylor: 3, jo: 3, "sub-bass": 3, "sub-tenor": 3 }, formation: "line", notes: "Hats off cue from the emcee. Hold the last “stand on guard” three beats." },
+  { id: "attention", title: "Attention", key: "E♭ minor", minutes: 4, status: "Ready", soloist: "bernard", tags: ["Pop"], lastPerformed: "2026-08-08", readiness: { bryan: 3, brett: 3, bernard: 3, brayden: 3, taylor: 3, jo: 3, "sub-bass": 2, "sub-tenor": 3 }, formation: "soloist", notes: "Bernard steps forward on the pickup. Brett: count in 4, snaps on 2 and 4." },
+  { id: "hallelujah", title: "Hallelujah", key: "C", minutes: 5, status: "Ready", soloist: "taylor", tags: ["Ballad"], lastPerformed: "2026-08-08", readiness: { bryan: 3, brett: 3, bernard: 3, brayden: 3, taylor: 3, jo: 2, "sub-bass": 3, "sub-tenor": 2 }, formation: "arc", notes: "Lights down if the venue can. Taylor centre for verse 3." },
+  { id: "bringin", title: "Bringin' It Back", key: "G", minutes: 4, status: "Ready", soloist: "brayden", tags: ["Original"], lastPerformed: "2026-02-27", readiness: { bryan: 3, brett: 3, bernard: 3, brayden: 3, taylor: 2, jo: 3, "sub-bass": 1, "sub-tenor": 2 }, formation: "vee", notes: "Crowd clap-along on the second chorus. Brayden to the front for the bridge." },
+  { id: "let-it-snow", title: "Let It Snow", key: "D", minutes: 3, status: "Ready", soloist: "taylor", tags: ["Christmas"], lastPerformed: "2025-12-13", readiness: { bryan: 3, brett: 3, bernard: 3, brayden: 3, taylor: 3, jo: 2, "sub-bass": 3, "sub-tenor": 3 }, formation: "line", notes: "Jingle bells from Brett on the intro." },
+  { id: "bleak-midwinter", title: "In the Bleak Midwinter", key: "F", minutes: 4, status: "Learning", soloist: "jo", tags: ["Christmas"], lastPerformed: "", readiness: { bryan: 3, brett: 2, bernard: 2, brayden: 1, taylor: 2, jo: 2, "sub-bass": 1, "sub-tenor": 1 }, formation: "arc", notes: "Jo solo verse 1, everyone in on verse 2." },
+  { id: "stand-by", title: "Stand By Christmas", key: "A", minutes: 4, status: "Learning", soloist: "brayden", tags: ["Christmas", "Music video"], lastPerformed: "", readiness: { bryan: 3, brett: 2, bernard: 1, brayden: 3, taylor: 1, jo: 1, "sub-bass": 1 }, formation: "soloist", notes: "Brayden forward for verse 1." },
+  { id: "sample-medley", title: "Sample 90s R&B medley", key: "Various", minutes: 7, status: "Learning", soloist: "bernard", tags: ["Pop"], lastPerformed: "", readiness: { bryan: 2, brett: 2, bernard: 2, brayden: 1, taylor: 1, jo: 1, "sub-tenor": 1 }, formation: "huddle", notes: "Segue straight from the previous song, no applause break. Watch Bryan for the key change." },
 ];
 
 export const setlists: Record<string, string[]> = {
@@ -279,6 +315,14 @@ export const today = "2026-09-18";
 export function memberName(id: string) {
   if (id === "manager") return "Manager";
   return members.find((m) => m.id === id)?.name ?? id;
+}
+
+export function daysSince(date: string) {
+  return date ? Math.round((Date.parse(today) - Date.parse(date)) / 86400000) : Infinity;
+}
+
+export function isStale(song: Song) {
+  return song.status === "Ready" && daysSince(song.lastPerformed) > staleAfterDays;
 }
 
 export function firstName(id: string) {

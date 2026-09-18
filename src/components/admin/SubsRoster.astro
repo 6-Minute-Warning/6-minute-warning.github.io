@@ -1,0 +1,39 @@
+---
+import { subs, members, songs, firstName, day } from "../../data/admin/sample";
+
+const rows = subs.map((s) => ({
+  ...s,
+  member: members.find((m) => m.id === s.id)!,
+  known: songs.filter((song) => (song.readiness[s.id] ?? 0) === 3).length,
+}));
+---
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Sub</th><th>Part</th><th>Covers</th><th>Contact</th><th>Songs ready</th><th>Last gig</th></tr>
+    </thead>
+    <tbody>
+      {
+        rows.map((r) => (
+          <tr>
+            <td>
+              <strong>{r.member.name}</strong>
+            </td>
+            <td>{r.member.part}</td>
+            <td>{r.covers.map(firstName).join(", ")}</td>
+            <td>
+              <a href={`tel:${r.phone.replace(/[^0-9+]/g, "")}`}>{r.phone}</a>
+              <br />
+              <a href={`mailto:${r.email}`}>{r.email}</a>
+            </td>
+            <td>
+              {r.known}/{songs.length}
+            </td>
+            <td>{day(r.lastGig, { month: "short", day: "numeric", year: "numeric" })}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>

@@ -1,9 +1,21 @@
 ---
 import Admin from "../../layouts/Admin.astro";
 import Chip from "../../components/admin/Chip.astro";
-import { songs, members, setlists, rehearsals, readinessLabels, songById, gigById, firstName, day, today } from "../../data/admin/sample";
+import SubsRoster from "../../components/admin/SubsRoster.astro";
+import { songs, members, setlists, rehearsals, readinessLabels, songById, gigById, firstName, day, today, subs, isStale, daysSince, staleAfterDays, gigs } from "../../data/admin/sample";
 
 const singers = members.filter((m) => m.status === "Active");
+const subMembers = members.filter((m) => m.status === "Sub");
+const stale = songs.filter(isStale);
+const lastSung = (date: string) => (date ? day(date, { month: "short", day: "numeric", year: "numeric" }) : "Never");
+const subGaps = gigs
+  .filter((g) => g.date >= today && setlists[g.id])
+  .flatMap((g) =>
+    g.performers
+      .filter((p) => subs.some((s) => s.id === p))
+      .map((p) => ({ gig: g, sub: p, gaps: setlists[g.id].map((id) => songById(id)!).filter((song) => (song.readiness[p] ?? 0) < 3) })),
+  )
+  .filter((x) => x.gaps.length);
 const ready = songs.filter((s) => s.status === "Ready");
 const learningSongs = songs.filter((s) => s.status === "Learning");
 const gig = gigById("riverbend")!;
@@ -27,6 +39,7 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
   <div class="stats card">
     <div class="stat"><span class="muted">Performance ready</span><strong>{ready.length} songs</strong></div>
     <div class="stat"><span class="muted">In progress</span><strong>{learningSongs.length} songs</strong></div>
+    <div class="stat"><span class="muted">Stale (not sung in {staleAfterDays}+ days)</span><strong>{stale.length} songs</strong></div>
     <div class="stat"><span class="muted">Next set ({gig.name})</span><strong>{setMinutes} / {slotMinutes} min</strong><span class="muted">{gig.format}</span></div>
     <div class="stat"><span class="muted">Next rehearsal</span><strong>{day(nextRehearsal.date)}</strong><span class="muted">{nextRehearsal.time}</span></div>
   </div>
@@ -40,7 +53,7 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Song</th><th>Key</th><th>Min</th><th>Status</th><th>Soloist</th><th>Ready</th></tr>
+            <tr><th>Song</th><th>Key</th><th>Min</th><th>Status</th><th>Soloist</th><th>Last sung</th><th>Ready</th></tr>
           </thead>
           <tbody>
             {
@@ -54,9 +67,10 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
                   <td>{s.key}</td>
                   <td>{s.minutes}</td>
                   <td>
-                    <Chip tone={s.status === "Ready" ? "ok" : "warn"}>{s.status}</Chip>
+                    {isStale(s) ? <Chip tone="warn">Stale</Chip> : <Chip tone={s.status === "Ready" ? "ok" : "warn"}>{s.status}</Chip>}
                   </td>
                   <td>{s.soloist ? firstName(s.soloist) : <span class="muted">Group</span>}</td>
+                  <td class="nowrap">{lastSung(s.lastPerformed)}</td>
                   <td>
                     {readyCount(s.id)}/{singers.length}
                   </td>
@@ -78,7 +92,7 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
           set.map((s) => (
             <li>
               <span>
-                <strong>{s.title}</strong> <span class="muted small">{s.minutes} min</span>
+                <strong>{s.title}</strong> <span class="muted small">{s.minutes} min</span> {isStale(s) && <Chip tone="warn">Stale</Chip>}
               </span>
               <span class="row">
                 <button type="button" class="mini-btn up" aria-label={`Move ${s.title} up`}>↑</button>
@@ -91,6 +105,7 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
       <div class="row start">
         <button type="button" class="mini-btn" data-toast="Would pick from songs marked Ready, showing each one's length.">+ Add from repertoire</button>
         <button type="button" class="mini-btn" data-toast="Would publish this set list to every performer's singer view.">Publish to singers</button>
+        <a class="mini-btn" href="/admin/stage/">Open stage view</a>
       </div>
     </section>
 
@@ -102,6 +117,7 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
             <tr>
               <th>Song</th>
               {singers.map((m) => <th>{firstName(m.id)}</th>)}
+              {subMembers.map((m, i) => <th class:list={[{ divider: i === 0 }]}>{firstName(m.id)} <span class="muted">({m.part.toLowerCase()} sub)</span></th>)}
             </tr>
           </thead>
           <tbody>
@@ -119,6 +135,12 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
                       </td>
                     );
                   })}
+                  {subMembers.map((m, i) => {
+                    const r = s.readiness[m.id];
+                    return (
+                      <td class:list={["cell", r ? `r${r}` : "none", { divider: i === 0 }]}>{r ? mark[r] : "— Not learned"}</td>
+                    );
+                  })}
                 </tr>
               ))
             }
@@ -126,6 +148,48 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
         </table>
       </div>
       <p class="muted small">● performance ready · ◐ off book but shaky · ○ still learning notes. Singers update their own row from the singer view.</p>
+    </section>
+
+    <section class="card span-6" aria-labelledby="subgap">
+      <h2 id="subgap">Sub coverage</h2>
+      <p class="muted small">Booked subs who aren't ready on a song in that gig's set list.</p>
+      <ul class="list">
+        {
+          subGaps.map((x) => (
+            <li>
+              <div class="row">
+                <strong>{x.gig.name}</strong>
+                <span class="muted small">{day(x.gig.date)}</span>
+              </div>
+              <p class="small">
+                {firstName(x.sub)} (covering {subs.find((s) => s.id === x.sub)!.covers.map(firstName).join(", ")}) needs: {x.gaps.map((g) => g.title).join(", ")}
+              </p>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="card span-6" aria-labelledby="stale">
+      <h2 id="stale">Stale songs</h2>
+      <p class="muted small">Ready songs not performed in {staleAfterDays}+ days. Run them before they go back in a set.</p>
+      <ul class="list">
+        {
+          stale.map((s) => (
+            <li class="row">
+              <strong>{s.title}</strong>
+              <span class="muted small">
+                last sung {lastSung(s.lastPerformed)} · {daysSince(s.lastPerformed)} days ago
+              </span>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="card span-12" aria-labelledby="subs">
+      <h2 id="subs">Subs</h2>
+      <SubsRoster />
     </section>
 
     <section class="card span-6" aria-labelledby="plan">
@@ -233,5 +297,17 @@ const mark = { 1: "○ Notes", 2: "◐ Shaky", 3: "● Ready" } as const;
 
   .matrix td.r1 {
     color: var(--color-danger);
+  }
+
+  .matrix td.none {
+    color: var(--color-text-muted);
+  }
+
+  .matrix .divider {
+    border-left: 2px solid var(--color-border);
+  }
+
+  .nowrap {
+    white-space: nowrap;
   }
 </style>
