@@ -27,3 +27,6 @@ pnpm-debug.log*
 firestore-debug.log
 firebase-debug.log
 .firebase/
+
+# local exports with personal data
+.local/

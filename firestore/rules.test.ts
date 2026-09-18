@@ -85,6 +85,18 @@ describe('members', () => {
   })
 })
 
+describe('linked addresses', () => {
+  it('admins can link an address to a person', async () => {
+    await assertSucceeds(setDoc(doc(as('admin@example.com'), 'users/jo@6minutewarning.com'), { name: 'Jo', role: 'member', person: 'jo-tong' }))
+  })
+
+  it('person links must be short strings', async () => {
+    const db = as('admin@example.com')
+    await assertFails(setDoc(doc(db, 'users/a@example.com'), { name: 'A', role: 'member', person: 'x'.repeat(81) }))
+    await assertFails(setDoc(doc(db, 'users/b@example.com'), { name: 'B', role: 'member', person: 42 }))
+  })
+})
+
 describe('admins', () => {
   it('the owner is an admin before any access record exists', async () => {
     const db = as(OWNER)
