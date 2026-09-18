@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function email() {
+      return request.auth.token.email.lower();
+    }
+
+    function userDoc() {
+      return /databases/$(database)/documents/users/$(email());
+    }
+
+    function isOwner() {
+      return signedIn() && email() == 'brett@6minutewarning.com';
+    }
+
+    function isMember() {
+      return signedIn() && (isOwner() || exists(userDoc()));
+    }
+
+    function isAdmin() {
+      return isOwner() || (isMember() && get(userDoc()).data.role == 'admin');
+    }
+
+    function validUser() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'role', 'addedAt', 'addedBy'])
+        && d.role in ['admin', 'manager', 'director', 'member']
+        && d.name is string && d.name.size() <= 120;
+    }
+
+    match /users/{userEmail} {
+      allow get: if signedIn() && userEmail == email();
+      allow list, get: if isMember();
+      allow create, update: if isAdmin() && userEmail == userEmail.lower() && validUser();
+      allow delete: if isAdmin() && userEmail != email();
+    }
+
+    match /gigs/{id} {
+      allow read, write: if isMember();
+    }
+
+    match /contracts/{id} {
+      allow read, write: if isMember();
+    }
+
+    match /payments/{id} {
+      allow read, write: if isMember();
+    }
+
+    match /people/{id} {
+      allow read, write: if isMember();
+    }
+
+    match /venues/{id} {
+      allow read, write: if isMember();
+    }
+
+    match /events/{id} {
+      allow read, create: if isMember();
+    }
+  }
+}

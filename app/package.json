@@ -18,10 +18,11 @@
     "lint:ci:eslint": "eslint . --cache"
   },
   "dependencies": {
+    "@6mw/theme": "*",
+    "firebase": "^12.19.0",
     "pinia": "^4.0.3",
     "vue": "^3.5.42",
-    "vue-router": "^5.3.1",
-    "@6mw/theme": "*"
+    "vue-router": "^5.3.1"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.5",

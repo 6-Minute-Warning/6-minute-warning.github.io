@@ -10,6 +10,10 @@ The band's management app, replacing Notion. First priority: gigs, contracts and
 - Cloud Functions for work the browser can't do: filling the contract template, sending email as manager@6minutewarning.com, and creating Google Calendar events.
 - Colours come from `theme/theme.css`, shared with the site.
 
+## Access
+
+Sign-in is Google only. A person can use Backstage only if their email has a document in `users/` (keyed by lowercase email) with a role: admin, manager, director or member. brett@6minutewarning.com is the owner and becomes an admin on first sign-in; admins add everyone else on the Access page. Member emails live in Firestore, never in this public repo. `firestore/firestore.rules` enforces this, and `firestore/rules.test.ts` covers it.
+
 ## Records
 
 | Collection | Holds |

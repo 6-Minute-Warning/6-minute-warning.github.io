@@ -1,14 +1,14 @@
+<script setup lang="ts">
+import AppHeader from '@/components/AppHeader.vue'
+import { useAuth } from '@/stores/auth'
+
+const auth = useAuth()
+</script>
+
 <template>
-  <main class="home">
-    <h1>6MW Backstage</h1>
-    <p>Gigs, contracts and payments for 6 Minute Warning. Sign-in comes next.</p>
+  <AppHeader />
+  <main class="page">
+    <h1>Hi {{ auth.access?.name?.split(' ')[0] }}</h1>
+    <p class="muted">Gigs, contracts and payments land here next. Admins manage who can sign in under Access.</p>
   </main>
 </template>
-
-<style scoped>
-.home {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 48px 16px;
-}
-</style>
