@@ -1,0 +1,54 @@
+---
+import { nextPublicShow, formatShowDay, formatShowTime } from "../data/shows";
+
+const show = nextPublicShow();
+---
+
+{
+  show && (
+    <a class="next" href="#shows">
+      <span class="next__label">See us next</span>
+      <span class="next__when">{formatShowDay(show.start, { weekday: "short", month: "short", day: "numeric" })}</span>
+      <span class="next__where">{[show.venue, show.city, formatShowTime(show.start)].filter(Boolean).join(" · ")}</span>
+    </a>
+  )
+}
+
+<style>
+  .next {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    margin-top: 28px;
+    padding: 12px 16px;
+    border: 1px solid var(--color-border);
+    border-left: 3px solid var(--color-accent);
+    border-radius: var(--radius);
+    background: var(--color-scrim);
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .next:hover {
+    border-color: var(--color-accent);
+  }
+
+  .next__label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-accent-strong);
+  }
+
+  .next__when {
+    font-weight: 800;
+    font-stretch: 118%;
+    text-transform: uppercase;
+  }
+
+  .next__where {
+    color: var(--color-text-muted);
+  }
+</style>
