@@ -48,7 +48,7 @@ GitHub Pages settings: source "GitHub Actions", custom domain `6minutewarning.co
 | A | @ | 185.199.109.153 |
 | A | @ | 185.199.110.153 |
 | A | @ | 185.199.111.153 |
-| CNAME | www | `<org>.github.io` |
+| CNAME | www | `6-minute-warning.github.io` |
 
 Leave the MX records alone; mail stays on Google Workspace.
 
