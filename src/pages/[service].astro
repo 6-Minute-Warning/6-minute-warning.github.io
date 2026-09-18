@@ -1,0 +1,201 @@
+---
+import { Image } from "astro:assets";
+import Base from "../layouts/Base.astro";
+import Hero from "../components/Hero.astro";
+import Stages from "../components/Stages.astro";
+import Faq from "../components/Faq.astro";
+import EventGrid from "../components/EventGrid.astro";
+import Testimonials from "../components/Testimonials.astro";
+import BookingForm from "../components/BookingForm.astro";
+import { services, type Service } from "../data/services";
+import { site } from "../data/site";
+
+export function getStaticPaths() {
+  return services.map((service) => ({ params: { service: service.slug }, props: { service } }));
+}
+
+const { service } = Astro.props as { service: Service };
+const url = new URL(`/${service.slug}/`, site.url).href;
+
+const schema = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: service.nav,
+    serviceType: `${service.eventType} entertainment`,
+    description: service.description,
+    url,
+    provider: { "@id": `${site.url}/#band` },
+    areaServed: [
+      { "@type": "City", name: site.city },
+      { "@type": "State", name: site.region },
+    ],
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: service.faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Events", item: `${site.url}/events/` },
+      { "@type": "ListItem", position: 2, name: service.nav, item: url },
+    ],
+  },
+];
+---
+
+<Base title={service.title} description={service.description} image={service.hero} schema={schema}>
+  <Hero image={service.hero} alt={`6 Minute Warning performing: ${service.nav.toLowerCase()}`} position={service.heroPosition} eyebrow={`${service.nav} · ${site.city}`}>
+    <h1>{service.h1}</h1>
+    <p class="lede">{service.intro}</p>
+    <div class="actions">
+      <a class="btn" href="#book">Check your date</a>
+    </div>
+  </Hero>
+
+  <Stages />
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Why us</span>
+      <h2>What you get</h2>
+      <ul class="points">
+        {
+          service.points.map((p) => (
+            <li>
+              <h3>{p.title}</h3>
+              <p>{p.body}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section class="section section--raised">
+    <div class="wrap split">
+      <Image class="split__img" src={service.photo} alt="6 Minute Warning in black suits and blue ties" widths={[480, 800, 1200]} sizes="(min-width: 900px) 45vw, 100vw" />
+      <div>
+        <span class="eyebrow">How it works</span>
+        <h2>Three steps to the stage</h2>
+        <ol class="steps">
+          {service.steps.map((s) => <li>{s}</li>)}
+        </ol>
+        <a class="btn" href="#book">Start with step one</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <Testimonials />
+    </div>
+  </section>
+
+  <section class="section section--raised">
+    <div class="wrap faq-wrap">
+      <div>
+        <span class="eyebrow">Questions</span>
+        <h2>Planner FAQ</h2>
+      </div>
+      <Faq faqs={service.faqs} />
+    </div>
+  </section>
+
+  <BookingForm eventType={service.eventType} heading={`Book music for your ${service.eventType.toLowerCase()}`} />
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">We also play</span>
+      <h2>Other events</h2>
+      <EventGrid exclude={service.slug} />
+    </div>
+  </section>
+</Base>
+
+<style>
+  .actions {
+    margin-top: 28px;
+  }
+
+  .points {
+    list-style: none;
+    margin: 32px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 32px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+
+  .points li {
+    border-top: 2px solid var(--color-accent);
+    padding-top: 20px;
+  }
+
+  .points p {
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  .split {
+    display: grid;
+    gap: 48px;
+    align-items: center;
+  }
+
+  @media (min-width: 900px) {
+    .split {
+      grid-template-columns: 0.9fr 1.1fr;
+    }
+  }
+
+  .split :global(.split__img) {
+    border-radius: var(--radius);
+    aspect-ratio: 1;
+    object-fit: cover;
+    width: 100%;
+  }
+
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    margin: 24px 0 32px;
+    padding: 0;
+    display: grid;
+    gap: 20px;
+  }
+
+  .steps li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    align-items: baseline;
+    font-size: 1.1rem;
+  }
+
+  .steps li::before {
+    content: counter(step);
+    font-weight: 800;
+    font-stretch: 125%;
+    font-size: 1.6rem;
+    color: var(--color-accent);
+  }
+
+  .faq-wrap {
+    display: grid;
+    gap: 32px;
+  }
+
+  @media (min-width: 900px) {
+    .faq-wrap {
+      grid-template-columns: 4fr 8fr;
+    }
+  }
+</style>

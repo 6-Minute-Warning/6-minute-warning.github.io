@@ -1,0 +1,227 @@
+---
+import { Image, getImage } from "astro:assets";
+import Base from "../layouts/Base.astro";
+import Video from "../components/Video.astro";
+import Testimonials from "../components/Testimonials.astro";
+import { site, videos, highlights } from "../data/site";
+import groupStudio from "../assets/photos/group-studio.jpg";
+import groupSeated from "../assets/photos/group-studio-seated.jpg";
+import groupPortrait from "../assets/photos/group-portrait.jpg";
+import groupBw from "../assets/photos/group-bw-mics.jpg";
+import outdoorMic from "../assets/photos/outdoor-mic.jpg";
+import threeMics from "../assets/photos/three-mics.jpg";
+import logoWords from "../assets/brand/logo-words.png";
+import logoMark from "../assets/brand/Six1Transparent.png";
+
+const photoSources = [
+  { src: groupStudio, name: "group-studio" },
+  { src: groupSeated, name: "group-seated" },
+  { src: groupPortrait, name: "group-portrait" },
+  { src: groupBw, name: "group-black-and-white" },
+  { src: outdoorMic, name: "group-outdoors" },
+  { src: threeMics, name: "three-mics" },
+];
+
+const photos = await Promise.all(
+  photoSources.map(async (p) => ({
+    ...p,
+    full: await getImage({ src: p.src, width: Math.min(2400, p.src.width), format: "jpg", quality: 90 }),
+  })),
+);
+
+const logos = [
+  { src: logoWords, label: "Logo with name (PNG)" },
+  { src: logoMark, label: "Logo mark, transparent (PNG)" },
+];
+
+const shortBio =
+  "6 Minute Warning is a six-voice a cappella group from Edmonton, Alberta. They perform pop and R&B with influences from Take 6, Boyz II Men and NSYNC, and their shows are known for high energy, spontaneity and humour. The group has backed Ben Folds with the Edmonton Symphony Orchestra, placed in the top five of David Foster's Star Search, and performed alongside Glass Tiger.";
+---
+
+<Base
+  title="Press Kit | 6 Minute Warning"
+  description="Electronic press kit for 6 Minute Warning, Edmonton a cappella group: bio, performance highlights, videos, audio, press photos and logos."
+>
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Electronic press kit</span>
+      <h1>6 Minute Warning</h1>
+      <p class="lede">Everything a promoter, presenter or journalist needs in one place. Photos and logos are free to use when promoting a 6 Minute Warning performance.</p>
+      <p class="actions">
+        <a class="btn" href={site.mediaKitUrl}>Download media package</a>
+        <a class="btn btn--ghost" href={`mailto:${site.email}`}>{site.email}</a>
+      </p>
+      <p class="note">The media package includes MP3s, photos, logo versions and press info.</p>
+    </div>
+  </section>
+
+  <section class="section section--raised">
+    <div class="wrap two-col">
+      <div>
+        <span class="eyebrow">Bio</span>
+        <h2>Short bio</h2>
+        <p class="bio">{shortBio}</p>
+      </div>
+      <div>
+        <span class="eyebrow">Highlights</span>
+        <h2>Performance highlights</h2>
+        <ul class="highlights">
+          {highlights.map((h) => <li>{h}</li>)}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Watch and listen</span>
+      <h2>Videos and audio</h2>
+      <div class="videos">
+        {videos.map((v) => <Video id={v.id} title={v.title} />)}
+      </div>
+      <iframe
+        class="soundcloud"
+        title="6 Minute Warning on SoundCloud"
+        loading="lazy"
+        allow="autoplay"
+        src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(site.soundcloudPlaylist)}&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&visual=false`}
+      ></iframe>
+    </div>
+  </section>
+
+  <section class="section section--raised">
+    <div class="wrap">
+      <span class="eyebrow">Press photos</span>
+      <h2>Photos</h2>
+      <p class="note">Click a photo to download the high-resolution version.</p>
+      <ul class="photos">
+        {
+          photos.map((p) => (
+            <li>
+              <a href={p.full.src} download={`6-minute-warning-${p.name}.jpg`}>
+                <Image src={p.src} alt={`6 Minute Warning press photo: ${p.name.replaceAll("-", " ")}`} widths={[360, 600]} sizes="(min-width: 900px) 30vw, 50vw" />
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+      <h3>Logos</h3>
+      <ul class="logos">
+        {
+          logos.map((l) => (
+            <li>
+              <a href={l.src.src} download>
+                <Image src={l.src} alt="" width={200} />
+                <span>{l.label}</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">Press</span>
+      <h2>What people say</h2>
+      <Testimonials />
+    </div>
+  </section>
+</Base>
+
+<style>
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 28px;
+  }
+
+  .note {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+  }
+
+  .two-col {
+    display: grid;
+    gap: 48px;
+  }
+
+  @media (min-width: 900px) {
+    .two-col {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .bio {
+    font-size: 1.1rem;
+  }
+
+  .highlights {
+    margin: 0;
+    padding-left: 1.2em;
+    color: var(--color-text-muted);
+  }
+
+  .highlights li {
+    margin-bottom: 0.5em;
+  }
+
+  .highlights li::marker {
+    color: var(--color-accent);
+  }
+
+  .videos {
+    display: grid;
+    gap: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+
+  .soundcloud {
+    width: 100%;
+    height: 360px;
+    margin-top: 32px;
+    border: 0;
+    border-radius: var(--radius);
+  }
+
+  .photos,
+  .logos {
+    list-style: none;
+    margin: 24px 0 48px;
+    padding: 0;
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+
+  .photos :global(img) {
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+    border-radius: var(--radius);
+    transition: opacity 0.2s;
+  }
+
+  .photos a:hover :global(img) {
+    opacity: 0.8;
+  }
+
+  .logos a {
+    display: grid;
+    gap: 10px;
+    padding: 20px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    color: var(--color-text);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .logos :global(img) {
+    max-height: 120px;
+    width: auto;
+  }
+</style>

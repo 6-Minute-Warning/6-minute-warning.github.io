@@ -1,0 +1,25 @@
+:root {
+  --color-bg: #07090d;
+  --color-surface: #10141b;
+  --color-surface-raised: #181e28;
+  --color-border: #262e3b;
+  --color-text: #f3f5f8;
+  --color-text-muted: #a3adbd;
+  --color-accent: #1e8bff;
+  --color-accent-strong: #5aabff;
+  --color-accent-ink: #03101f;
+  --color-danger: #ff6b6b;
+  --color-success: #4fd18b;
+  --color-scrim: rgb(7 9 13 / 0.72);
+  --color-scrim-soft: rgb(7 9 13 / 0.35);
+  --color-glow: rgb(30 139 255 / 0.35);
+
+  --font-body: "Archivo Variable", system-ui, sans-serif;
+  --font-display: "Archivo Variable", system-ui, sans-serif;
+  --display-stretch: 125%;
+
+  --radius: 6px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --max: 1180px;
+  --space-section: clamp(64px, 10vw, 128px);
+}

@@ -1,0 +1,95 @@
+---
+import { Image } from "astro:assets";
+import Base from "../layouts/Base.astro";
+import Hero from "../components/Hero.astro";
+import BookingForm from "../components/BookingForm.astro";
+import { members, alumni } from "../data/members";
+import groupSeated from "../assets/photos/group-studio-seated.jpg";
+---
+
+<Base
+  title="Meet the Band | 6 Minute Warning, Edmonton A Cappella"
+  description="Meet the six singers of 6 Minute Warning, an Edmonton a cappella group performing pop and R&B with influences from Take 6, Boyz II Men and NSYNC."
+  image={groupSeated}
+>
+  <Hero image={groupSeated} alt="6 Minute Warning posing in black suits in a studio" position="center 30%" eyebrow="The band">
+    <h1>Meet the six</h1>
+    <p class="lede">6 Minute Warning is an a cappella group from Edmonton that aims to blow your socks and ears off, metaphorically speaking.</p>
+  </Hero>
+
+  <section class="section">
+    <div class="wrap narrow">
+      <p>We sing pop and R&B with influences from Take 6, Boyz II Men and NSYNC, and we have built a sound that is all our own. Our shows are loose, spontaneous and funny, so no two are the same.</p>
+      <p>We could tell you more, but you should sit back, listen and enjoy. In the end, how we make you feel when we sing is all that matters.</p>
+    </div>
+  </section>
+
+  {
+    members.map((m, i) => (
+      <section class:list={["section", "bio", { "section--raised": i % 2 === 0 }]} id={m.slug}>
+        <div class:list={["wrap", "bio__grid", { "bio__grid--flip": i % 2 === 1 }]}>
+          <Image src={m.suit} alt={`${m.name} of 6 Minute Warning`} widths={[480, 800, 1100]} sizes="(min-width: 900px) 45vw, 100vw" class="bio__img" />
+          <div>
+            <span class="eyebrow">{m.role}</span>
+            <h2>{m.name}</h2>
+            {m.bio.map((p) => <p>{p}</p>)}
+          </div>
+        </div>
+      </section>
+    ))
+  }
+
+  <section class="section">
+    <div class="wrap narrow">
+      <span class="eyebrow">Alumni</span>
+      <h2>Past members</h2>
+      <p class="alumni">{alumni.join(" · ")}</p>
+    </div>
+  </section>
+
+  <BookingForm />
+</Base>
+
+<style>
+  .narrow {
+    max-width: 760px;
+    font-size: 1.15rem;
+  }
+
+  .bio {
+    scroll-margin-top: 68px;
+  }
+
+  .bio__grid {
+    display: grid;
+    gap: 40px;
+    align-items: center;
+  }
+
+  @media (min-width: 900px) {
+    .bio__grid {
+      grid-template-columns: 5fr 7fr;
+    }
+
+    .bio__grid--flip > :first-child {
+      order: 2;
+    }
+  }
+
+  .bio :global(.bio__img) {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    object-position: center 25%;
+    border-radius: var(--radius);
+  }
+
+  .bio p {
+    color: var(--color-text-muted);
+  }
+
+  .alumni {
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+</style>

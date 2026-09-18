@@ -1,0 +1,92 @@
+---
+import { Image } from "astro:assets";
+import { services } from "../data/services";
+
+interface Props {
+  exclude?: string;
+}
+
+const { exclude } = Astro.props;
+const items = services.filter((s) => s.slug !== exclude);
+---
+
+<ul class="events">
+  {
+    items.map((s) => (
+      <li>
+        <a href={`/${s.slug}/`}>
+          <Image src={s.hero} alt="" widths={[400, 700]} sizes="(min-width: 900px) 25vw, 90vw" style={`object-position: ${s.heroPosition ?? "center"}`} />
+          <span class="events__label">{s.nav}</span>
+          <span class="events__arrow" aria-hidden="true">→</span>
+        </a>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .events {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+
+  a {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    aspect-ratio: 4 / 3;
+    padding: 20px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    color: var(--color-text);
+    text-decoration: none;
+    isolation: isolate;
+    border: 1px solid var(--color-border);
+  }
+
+  a :global(img) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -2;
+    filter: grayscale(0.4);
+    transition: transform 0.4s, filter 0.4s;
+  }
+
+  a::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(to top, var(--color-scrim) 20%, transparent 80%);
+  }
+
+  a:hover :global(img) {
+    transform: scale(1.05);
+    filter: none;
+  }
+
+  a:hover {
+    border-color: var(--color-accent);
+  }
+
+  .events__label {
+    font-weight: 800;
+    font-stretch: 125%;
+    text-transform: uppercase;
+    font-size: 1.25rem;
+    line-height: 1.1;
+  }
+
+  .events__arrow {
+    font-size: 1.5rem;
+    color: var(--color-accent-strong);
+  }
+</style>

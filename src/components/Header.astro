@@ -1,0 +1,169 @@
+---
+import { Image } from "astro:assets";
+import mark from "../assets/brand/Six2Transparent.png";
+import { services } from "../data/services";
+---
+
+<header class="header">
+  <div class="wrap header__inner">
+    <a class="brand" href="/" aria-label="6 Minute Warning home">
+      <Image src={mark} alt="" width={44} height={44} loading="eager" />
+      <span class="brand__name">6 Minute Warning</span>
+    </a>
+    <div class="menu">
+      <button class="menu__toggle" type="button" aria-expanded="false" aria-controls="menu-panel">Menu</button>
+      <nav class="menu__panel" id="menu-panel" aria-label="Main">
+        <ul class="menu__events">
+          {services.map((s) => <li><a href={`/${s.slug}/`}>{s.nav}</a></li>)}
+        </ul>
+        <ul class="menu__main">
+          <li><a href="/about/">The band</a></li>
+          <li><a href="/epk/">Press kit</a></li>
+          <li><a class="btn menu__cta" href="/book/">Book us</a></li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>(".menu__toggle");
+  toggle?.addEventListener("click", () => {
+    const open = toggle.getAttribute("aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", String(!open));
+  });
+</script>
+
+<style>
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--color-scrim);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 68px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .brand img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .brand__name {
+    font-weight: 800;
+    font-stretch: 125%;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-size: 1.05rem;
+  }
+
+  .menu__toggle {
+    cursor: pointer;
+    background: none;
+    color: var(--color-text);
+    font: inherit;
+    padding: 0.5em 0.9em;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+  }
+
+  .menu__panel {
+    display: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    padding: 16px var(--gutter) 24px;
+  }
+
+  .menu__toggle[aria-expanded="true"] + .menu__panel {
+    display: block;
+  }
+
+  .menu ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .menu a:not(.btn) {
+    display: block;
+    padding: 0.6em 0;
+    color: var(--color-text);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .menu a:not(.btn):hover {
+    color: var(--color-accent-strong);
+  }
+
+  .menu__events {
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+  }
+
+  .menu__cta {
+    margin-top: 12px;
+  }
+
+  @media (min-width: 1100px) {
+    .menu__toggle {
+      display: none;
+    }
+
+    .menu__panel {
+      position: static;
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      background: none;
+      border: 0;
+      padding: 0;
+    }
+
+    .menu ul {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .menu__events {
+      border: 0;
+      margin: 0;
+      padding: 0 28px 0 0;
+      border-right: 1px solid var(--color-border);
+    }
+
+    .menu a:not(.btn) {
+      font-size: 0.95rem;
+    }
+
+    .menu__cta {
+      margin: 0;
+      padding: 0.7em 1.2em;
+    }
+  }
+</style>

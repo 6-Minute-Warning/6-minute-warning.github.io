@@ -1,0 +1,182 @@
+---
+import { Image } from "astro:assets";
+import Base from "../layouts/Base.astro";
+import Hero from "../components/Hero.astro";
+import Stages from "../components/Stages.astro";
+import EventGrid from "../components/EventGrid.astro";
+import Video from "../components/Video.astro";
+import MemberCard from "../components/MemberCard.astro";
+import Testimonials from "../components/Testimonials.astro";
+import BookingForm from "../components/BookingForm.astro";
+import { videos } from "../data/site";
+import { members } from "../data/members";
+import groupStudio from "../assets/photos/group-studio.jpg";
+import threeMics from "../assets/photos/three-mics.jpg";
+
+const reasons = [
+  { n: "01", title: "On and off in seconds", body: "No instruments, no changeover. We walk on, sing, and walk off before your emcee reaches the podium." },
+  { n: "02", title: "Six people wide", body: "Our whole stage plot is six singers standing in a row. Ballroom, boardroom or beer tent, we fit." },
+  { n: "03", title: "Minimal tech", body: "No drums, no amps, no backline. Your AV team plugs in a few mics and goes back to their coffee." },
+  { n: "04", title: "Suits and ties", body: "Black suits and blue ties as standard. We look at home at a black-tie gala and sound it too." },
+];
+---
+
+<Base title="6 Minute Warning | Edmonton A Cappella Group for Corporate Events, Galas & Festivals">
+  <Hero image={groupStudio} alt="The six members of 6 Minute Warning in black suits and blue ties, singing into vintage microphones" position="center 30%" eyebrow="Edmonton a cappella" tall>
+    <h1>Six voices. No band. No fuss.</h1>
+    <p class="lede">Pop and R&B for awards ceremonies, corporate parties and festivals. On stage in seconds, off in seconds, and nothing for your crew to set up.</p>
+    <div class="actions">
+      <a class="btn" href="#book">Check your date</a>
+      <a class="btn btn--ghost" href="#watch">Watch us</a>
+    </div>
+  </Hero>
+
+  <Stages />
+
+  <section class="section">
+    <div class="wrap split">
+      <div>
+        <span class="eyebrow">Why planners book us</span>
+        <h2>All the show, none of the load-in</h2>
+        <ol class="reasons">
+          {
+            reasons.map((r) => (
+              <li>
+                <span class="reasons__n">{r.n}</span>
+                <div>
+                  <h3>{r.title}</h3>
+                  <p>{r.body}</p>
+                </div>
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+      <Image class="split__img" src={threeMics} alt="Three members of 6 Minute Warning singing in black suits, black and white" widths={[480, 800, 1200]} sizes="(min-width: 900px) 45vw, 100vw" />
+    </div>
+  </section>
+
+  <section class="section section--raised">
+    <div class="wrap">
+      <span class="eyebrow">Book us for</span>
+      <h2>Built for your event</h2>
+      <EventGrid />
+      <p class="more"><a href="/events/">All event types →</a></p>
+    </div>
+  </section>
+
+  <section class="section" id="watch">
+    <div class="wrap">
+      <span class="eyebrow">Watch</span>
+      <h2>Hear it for yourself</h2>
+      <div class="videos">
+        {videos.map((v) => <Video id={v.id} title={v.title} />)}
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--raised">
+    <div class="wrap">
+      <Testimonials />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <span class="eyebrow">The band</span>
+      <h2>Meet the six</h2>
+      <div class="members">
+        {members.map((m) => <MemberCard member={m} />)}
+      </div>
+      <p class="more"><a href="/about/">Read the bios →</a></p>
+    </div>
+  </section>
+
+  <BookingForm />
+</Base>
+
+<style>
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 28px;
+  }
+
+  .split {
+    display: grid;
+    gap: 48px;
+    align-items: center;
+  }
+
+  @media (min-width: 900px) {
+    .split {
+      grid-template-columns: 1.1fr 0.9fr;
+    }
+  }
+
+  .split :global(.split__img) {
+    border-radius: var(--radius);
+    aspect-ratio: 1;
+    object-fit: cover;
+    width: 100%;
+  }
+
+  .reasons {
+    list-style: none;
+    margin: 32px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 28px;
+  }
+
+  .reasons li {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 16px;
+  }
+
+  .reasons__n {
+    font-weight: 800;
+    font-stretch: 125%;
+    font-size: 1.6rem;
+    color: var(--color-accent);
+    line-height: 1;
+  }
+
+  .reasons h3 {
+    margin-bottom: 0.3em;
+  }
+
+  .reasons p {
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  .videos {
+    display: grid;
+    gap: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+
+  .members {
+    display: grid;
+    gap: 24px 16px;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 700px) {
+    .members {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .more {
+    margin-top: 32px;
+    font-weight: 700;
+  }
+
+  .more a {
+    text-decoration: none;
+  }
+</style>

@@ -1,0 +1,42 @@
+// @ts-check
+import { defineConfig } from "astro/config";
+import sitemap from "@astrojs/sitemap";
+
+export default defineConfig({
+  site: "https://6minutewarning.com",
+  trailingSlash: "always",
+  integrations: [sitemap({ filter: (page) => !page.endsWith("/404/") })],
+  redirects: {
+    "/2015-run-for-music": "/",
+    "/6-minute-warning-big-band": "/",
+    "/6-minute-warning-in-wainwright": "/",
+    "/6mw-in-sherwood-park": "/",
+    "/a-cappella-festival": "/",
+    "/about-us": "/about/",
+    "/andrew-malcolm": "/about/#jo-tong",
+    "/august-17th-festival-place-patio-series": "/",
+    "/beaumont-library": "/",
+    "/bernard-quilala": "/about/#bernard-quilala",
+    "/brayden-foo": "/about/#brayden-foo",
+    "/brett-ludwig": "/about/#brett-ludwig",
+    "/bryan-legrow": "/about/#bryan-legrow",
+    "/cold-lake-feast-on-the-beach": "/",
+    "/contact-us": "/book/",
+    "/feed": "/",
+    "/fensala-hall": "/",
+    "/fundraiser-basically-babies": "/",
+    "/home": "/",
+    "/instagram": "/",
+    "/instagram-2": "/",
+    "/last-event": "/",
+    "/live-at-the-ccc": "/",
+    "/march-9th-festival-place": "/",
+    "/matt-raven": "/about/",
+    "/members": "/about/",
+    "/nathan-willis": "/about/",
+    "/section1": "/",
+    "/tim-noel": "/about/#taylor-fawcett",
+    "/tyson-kerr": "/about/",
+    "/warning-video": "/",
+  },
+});

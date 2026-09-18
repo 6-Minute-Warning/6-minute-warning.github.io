@@ -1,0 +1,36 @@
+---
+import Base from "../layouts/Base.astro";
+import Hero from "../components/Hero.astro";
+import Stages from "../components/Stages.astro";
+import EventGrid from "../components/EventGrid.astro";
+import Testimonials from "../components/Testimonials.astro";
+import BookingForm from "../components/BookingForm.astro";
+import outdoorMic from "../assets/photos/outdoor-mic.jpg";
+---
+
+<Base
+  title="Live Event Entertainment in Edmonton | A Cappella Group | 6 Minute Warning"
+  description="Hire 6 Minute Warning, a six-voice a cappella group from Edmonton, for awards ceremonies, corporate parties, Christmas parties, festivals and community events across Alberta."
+  image={outdoorMic}
+>
+  <Hero image={outdoorMic} alt="6 Minute Warning in black suits and blue ties, singing outdoors" position="center 35%" eyebrow="Events">
+    <h1>Live music for events in Edmonton and across Alberta</h1>
+    <p class="lede">Six singers, no instruments, no stage changeover. Pick your event to see how we fit into it.</p>
+  </Hero>
+
+  <Stages />
+
+  <section class="section">
+    <div class="wrap">
+      <EventGrid />
+    </div>
+  </section>
+
+  <section class="section section--raised">
+    <div class="wrap">
+      <Testimonials />
+    </div>
+  </section>
+
+  <BookingForm />
+</Base>

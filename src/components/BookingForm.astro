@@ -1,0 +1,208 @@
+---
+import { site, eventTypes } from "../data/site";
+
+interface Props {
+  eventType?: string;
+  heading?: string;
+}
+
+const { eventType = "", heading = "Check your date" } = Astro.props;
+---
+
+<section class="section section--raised" id="book" aria-labelledby="book-heading">
+  <div class="wrap booking">
+    <div class="booking__intro">
+      <span class="eyebrow">Booking</span>
+      <h2 id="book-heading">{heading}</h2>
+      <p class="lede">Tell us about your event and we will reply within two business days with availability and a quote.</p>
+      <p>Prefer email? <a href={`mailto:${site.email}`}>{site.email}</a></p>
+    </div>
+
+    <form class="form" data-endpoint={site.bookingEndpoint} data-email={site.email} novalidate>
+      <div class="form__row">
+        <label>
+          <span>Name <em>required</em></span>
+          <input name="name" autocomplete="name" required />
+        </label>
+        <label>
+          <span>Email <em>required</em></span>
+          <input name="email" type="email" autocomplete="email" required />
+        </label>
+      </div>
+      <div class="form__row">
+        <label>
+          <span>Phone</span>
+          <input name="phone" type="tel" autocomplete="tel" />
+        </label>
+        <label>
+          <span>Event type</span>
+          <select name="eventType">
+            {eventTypes.map((t) => <option selected={t === eventType}>{t}</option>)}
+          </select>
+        </label>
+      </div>
+      <div class="form__row">
+        <label>
+          <span>Event date</span>
+          <input name="date" type="date" />
+        </label>
+        <label>
+          <span>City or venue</span>
+          <input name="location" autocomplete="address-level2" />
+        </label>
+      </div>
+      <label>
+        <span>Tell us about it <em>required</em></span>
+        <textarea name="message" rows="5" required placeholder="Guest count, when you want music, anything else we should know"></textarea>
+      </label>
+      <label class="form__trap" aria-hidden="true">
+        <span>Website</span>
+        <input name="website" tabindex="-1" autocomplete="off" />
+      </label>
+      <input type="hidden" name="loadedAt" />
+      <button class="btn" type="submit">Send inquiry</button>
+      <p class="form__status" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</section>
+
+<script>
+  function mailtoFallback(form: HTMLFormElement, data: FormData) {
+    const lines = ["name", "email", "phone", "eventType", "date", "location"].map(
+      (k) => `${k}: ${data.get(k) ?? ""}`,
+    );
+    const body = `${lines.join("\n")}\n\n${data.get("message") ?? ""}`;
+    const subject = `Booking inquiry: ${data.get("eventType")} ${data.get("date") || ""}`.trim();
+    window.location.href = `mailto:${form.dataset.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  for (const form of document.querySelectorAll<HTMLFormElement>("form.form")) {
+    const status = form.querySelector<HTMLElement>(".form__status")!;
+    const button = form.querySelector<HTMLButtonElement>("button[type=submit]")!;
+    const loadedAt = form.querySelector<HTMLInputElement>("[name=loadedAt]")!;
+    loadedAt.value = String(Date.now());
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+      const data = new FormData(form);
+      const endpoint = form.dataset.endpoint;
+      if (!endpoint) {
+        mailtoFallback(form, data);
+        return;
+      }
+      button.disabled = true;
+      status.dataset.state = "";
+      status.textContent = "Sending…";
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          body: new URLSearchParams(data as unknown as Record<string, string>),
+        });
+        const result = await response.json();
+        if (!result.ok) throw new Error(result.error);
+        form.reset();
+        loadedAt.value = String(Date.now());
+        status.dataset.state = "ok";
+        status.textContent = "✓ Sent. We will be in touch within two business days.";
+      } catch {
+        status.dataset.state = "error";
+        status.textContent = `✕ That did not send. Email us at ${form.dataset.email} and we will reply from there.`;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+</script>
+
+<style>
+  .booking {
+    display: grid;
+    gap: 48px;
+  }
+
+  @media (min-width: 900px) {
+    .booking {
+      grid-template-columns: 5fr 7fr;
+      align-items: start;
+    }
+  }
+
+  .form {
+    display: grid;
+    gap: 18px;
+  }
+
+  .form__row {
+    display: grid;
+    gap: 18px;
+  }
+
+  @media (min-width: 600px) {
+    .form__row {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  label {
+    display: grid;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  em {
+    font-style: normal;
+    font-weight: 400;
+    color: var(--color-text-muted);
+    font-size: 0.85em;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    font: inherit;
+    font-weight: 400;
+    color: var(--color-text);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 0.75em 0.9em;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--color-accent);
+    outline: 2px solid var(--color-accent);
+    outline-offset: 0;
+  }
+
+  .form__trap {
+    position: absolute;
+    left: -9999px;
+  }
+
+  .form button {
+    justify-self: start;
+  }
+
+  .form button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+
+  .form__status {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  .form__status[data-state="ok"] {
+    color: var(--color-success);
+  }
+
+  .form__status[data-state="error"] {
+    color: var(--color-danger);
+  }
+</style>

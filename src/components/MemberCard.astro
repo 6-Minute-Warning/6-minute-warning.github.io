@@ -1,0 +1,70 @@
+---
+import { Image } from "astro:assets";
+import type { Member } from "../data/members";
+
+interface Props {
+  member: Member;
+  link?: boolean;
+}
+
+const { member, link = true } = Astro.props;
+const Tag = link ? "a" : "div";
+---
+
+<Tag class="member" href={link ? `/about/#${member.slug}` : undefined}>
+  <div class="member__photos">
+    <Image src={member.suit} alt={`${member.name} in a black suit and blue tie`} widths={[320, 480, 640]} sizes="(min-width: 900px) 30vw, 50vw" class="member__suit" />
+    <Image src={member.casual} alt="" widths={[320, 480, 640]} sizes="(min-width: 900px) 30vw, 50vw" class="member__casual" />
+  </div>
+  <p class="member__name">{member.name}</p>
+  <p class="member__role">{member.role}</p>
+</Tag>
+
+<style>
+  .member {
+    display: block;
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .member__photos {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  .member__photos :global(img) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 25%;
+    transition: opacity 0.35s;
+  }
+
+  .member__photos :global(.member__casual) {
+    opacity: 0;
+  }
+
+  .member:hover .member__photos :global(.member__casual),
+  .member:focus-visible .member__photos :global(.member__casual) {
+    opacity: 1;
+  }
+
+  .member__name {
+    margin: 12px 0 0;
+    font-weight: 800;
+    font-stretch: 118%;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+
+  .member__role {
+    margin: 2px 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+</style>

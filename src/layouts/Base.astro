@@ -1,0 +1,78 @@
+---
+import "../styles/global.css";
+import { getImage } from "astro:assets";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import { site } from "../data/site";
+import { members } from "../data/members";
+import groupStudio from "../assets/photos/group-studio.jpg";
+import mark from "../assets/brand/Six2Transparent.png";
+
+interface Props {
+  title: string;
+  description?: string;
+  image?: ImageMetadata;
+  schema?: object[];
+  noindex?: boolean;
+}
+
+const { title, description = site.description, image = groupStudio, schema = [], noindex = false } = Astro.props;
+const canonical = new URL(Astro.url.pathname, site.url).href;
+const ogImage = await getImage({ src: image, width: 1200, height: 630, fit: "cover", format: "jpg" });
+const ogImageUrl = new URL(ogImage.src, site.url).href;
+const logo = await getImage({ src: mark, width: 432, format: "png" });
+
+const band = {
+  "@context": "https://schema.org",
+  "@type": "MusicGroup",
+  "@id": `${site.url}/#band`,
+  name: site.name,
+  url: site.url,
+  logo: new URL(logo.src, site.url).href,
+  image: ogImageUrl,
+  description: site.description,
+  genre: ["A cappella", "Pop", "R&B"],
+  email: site.email,
+  foundingLocation: { "@type": "Place", name: `${site.city}, ${site.region}` },
+  areaServed: [
+    { "@type": "City", name: site.city },
+    { "@type": "State", name: site.region },
+  ],
+  sameAs: site.socials.map((s) => s.url),
+  member: members.map((m) => ({ "@type": "Person", name: m.name, roleName: m.role })),
+};
+---
+
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_CA" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json" set:html={JSON.stringify([band, ...schema])} />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <Header />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

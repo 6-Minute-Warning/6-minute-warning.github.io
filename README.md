@@ -1,0 +1,52 @@
+# 6minutewarning.com
+
+Static Astro site for 6 Minute Warning. A push to `main` builds and deploys to GitHub Pages.
+
+## Develop
+
+```
+npm install
+npm run dev
+```
+
+## Edit content
+
+| What | File |
+|---|---|
+| Email, socials, videos, credits, testimonials | `src/data/site.ts` |
+| Members, bios, alumni | `src/data/members.ts` |
+| Event pages (awards, corporate, Christmas, festivals) | `src/data/services.ts` |
+| Colours, fonts, spacing | `src/styles/theme.css` |
+| Photos | `src/assets/` |
+
+Adding an entry to `services` in `src/data/services.ts` creates a new event page, adds it to the nav and footer, and puts it in the sitemap.
+
+## Booking form
+
+The form posts to a Google Apps Script web app that emails `manager@6minutewarning.com`. Until `bookingEndpoint` in `src/data/site.ts` is set, the form opens the visitor's mail app instead.
+
+1. Signed in to the 6MW Google account, create a project at script.google.com.
+2. Paste `apps-script/Code.gs` into `Code.gs`. In Project Settings, tick "Show appsscript.json" and paste `apps-script/appsscript.json`.
+3. Optional lead log: create a Google Sheet and add its ID as the script property `SHEET_ID`. Each inquiry is appended as a row.
+4. Deploy → New deployment → Web app. Execute as: Me. Who has access: Anyone.
+5. Copy the `/exec` URL into `bookingEndpoint` and push.
+
+Spam handling: a hidden honeypot field and a 3-second minimum fill time. Both drop submissions silently.
+
+## DNS (Namecheap)
+
+GitHub Pages settings: source "GitHub Actions", custom domain `6minutewarning.com`, enforce HTTPS.
+
+| Type | Host | Value |
+|---|---|---|
+| A | @ | 185.199.108.153 |
+| A | @ | 185.199.109.153 |
+| A | @ | 185.199.110.153 |
+| A | @ | 185.199.111.153 |
+| CNAME | www | `<org>.github.io` |
+
+Leave the MX records alone; mail stays on Google Workspace.
+
+## Old WordPress URLs
+
+`redirects` in `astro.config.mjs` maps every old page and post URL to its new home.

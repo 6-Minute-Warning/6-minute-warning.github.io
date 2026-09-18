@@ -1,0 +1,90 @@
+---
+interface Props {
+  id: string;
+  title: string;
+}
+
+const { id, title } = Astro.props;
+---
+
+<figure class="video">
+  <button class="video__play" type="button" data-id={id} aria-label={`Play video: ${title}`}>
+    <img src={`https://i.ytimg.com/vi/${id}/hqdefault.jpg`} alt="" loading="lazy" width="480" height="360" />
+    <span class="video__icon" aria-hidden="true"></span>
+  </button>
+  <figcaption>{title}</figcaption>
+</figure>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>(".video__play")) {
+    button.addEventListener("click", () => {
+      const iframe = document.createElement("iframe");
+      iframe.src = `https://www.youtube-nocookie.com/embed/${button.dataset.id}?autoplay=1`;
+      iframe.title = button.getAttribute("aria-label") ?? "";
+      iframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+      iframe.allowFullscreen = true;
+      button.replaceWith(iframe);
+    });
+  }
+</script>
+
+<style>
+  .video {
+    margin: 0;
+  }
+
+  .video__play,
+  .video :global(iframe) {
+    display: block;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 0;
+    padding: 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--color-surface);
+    cursor: pointer;
+  }
+
+  .video__play img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s;
+  }
+
+  .video__play:hover img {
+    transform: scale(1.03);
+  }
+
+  .video__icon {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 76px;
+    height: 76px;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: var(--color-accent);
+    box-shadow: 0 0 40px var(--color-glow);
+  }
+
+  .video__icon::after {
+    content: "";
+    position: absolute;
+    left: 31px;
+    top: 24px;
+    border-style: solid;
+    border-width: 14px 0 14px 22px;
+    border-color: transparent transparent transparent var(--color-accent-ink);
+  }
+
+  figcaption {
+    margin-top: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.9rem;
+  }
+</style>

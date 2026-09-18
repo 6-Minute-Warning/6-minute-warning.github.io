@@ -1,0 +1,46 @@
+---
+import { testimonials } from "../data/site";
+---
+
+<div class="quotes">
+  {
+    testimonials.map((t) => (
+      <figure>
+        <blockquote>“{t.quote}”</blockquote>
+        <figcaption>
+          <strong>{t.name}</strong>
+          <span>{t.role}</span>
+        </figcaption>
+      </figure>
+    ))
+  }
+</div>
+
+<style>
+  .quotes {
+    display: grid;
+    gap: 40px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+
+  figure {
+    margin: 0;
+    padding-left: 24px;
+    border-left: 3px solid var(--color-accent);
+  }
+
+  blockquote {
+    margin: 0 0 16px;
+    font-size: clamp(1.1rem, 1.8vw, 1.3rem);
+    line-height: 1.5;
+  }
+
+  figcaption {
+    display: grid;
+    font-size: 0.9rem;
+  }
+
+  figcaption span {
+    color: var(--color-text-muted);
+  }
+</style>

@@ -1,0 +1,82 @@
+---
+import { Picture } from "astro:assets";
+
+interface Props {
+  image: ImageMetadata;
+  alt: string;
+  position?: string;
+  eyebrow?: string;
+  tall?: boolean;
+}
+
+const { image, alt, position = "center", eyebrow, tall = false } = Astro.props;
+---
+
+<section class:list={["hero", { "hero--tall": tall }]}>
+  <Picture
+    class="hero__img"
+    src={image}
+    alt={alt}
+    widths={[640, 1024, 1600, 2400]}
+    sizes="100vw"
+    formats={["avif", "webp"]}
+    loading="eager"
+    fetchpriority="high"
+    style={`object-position: ${position}`}
+  />
+  <div class="wrap hero__content">
+    {eyebrow && <span class="eyebrow">{eyebrow}</span>}
+    <slot />
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    min-height: min(78vh, 760px);
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .hero--tall {
+    min-height: min(92vh, 900px);
+  }
+
+  .hero :global(picture),
+  .hero :global(.hero__img) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -2;
+  }
+
+  .hero :global(.hero__img) {
+    object-fit: cover;
+  }
+
+  .hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      linear-gradient(to top, var(--color-bg) 0%, var(--color-scrim) 38%, var(--color-scrim-soft) 70%, transparent 100%),
+      linear-gradient(to right, var(--color-scrim) 0%, transparent 65%);
+  }
+
+  .hero__content {
+    padding-top: 120px;
+    padding-bottom: clamp(48px, 8vw, 96px);
+  }
+
+  .hero__content :global(h1) {
+    max-width: 15ch;
+  }
+
+  .hero__content :global(.lede) {
+    color: var(--color-text);
+  }
+</style>
