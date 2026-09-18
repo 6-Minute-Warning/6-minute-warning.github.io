@@ -6,6 +6,7 @@ import Video from "../components/Video.astro";
 import MemberCard from "../components/MemberCard.astro";
 import Testimonials from "../components/Testimonials.astro";
 import Shows from "../components/Shows.astro";
+import NextShow from "../components/NextShow.astro";
 import { upcomingShows } from "../data/shows";
 import { site, videos } from "../data/site";
 import { members } from "../data/members";
@@ -35,6 +36,7 @@ const showSchema = upcomingShows()
       <a class="btn" href="#watch">Watch us</a>
       <a class="btn btn--ghost" href="/book/">Book us</a>
     </div>
+    <NextShow />
   </Hero>
 
   <Stages />

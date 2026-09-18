@@ -54,6 +54,7 @@
   --font-body: "Archivo Variable", system-ui, sans-serif;
   --font-display: "Archivo Variable", system-ui, sans-serif;
   --display-stretch: 125%;
+  --font-wordmark: "Raleway", system-ui, sans-serif;
 
   --radius: 6px;
   --gutter: clamp(16px, 4vw, 40px);
