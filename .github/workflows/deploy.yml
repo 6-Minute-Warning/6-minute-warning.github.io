@@ -1,8 +1,9 @@
-name: Deploy
+name: CI
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
   schedule:
     - cron: "0 9 * * *"
@@ -13,28 +14,42 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+      - run: npx -y npm@11.19.1 ci
+      - run: npx -y npm@11.19.1 run check
+      - run: npx -y npm@11.19.1 run lint -w @6mw/app
+      - run: npx -y npm@11.19.1 test
+      - run: npx -y npm@11.19.1 run build -w @6mw/app
+
+  site:
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - uses: actions/configure-pages@v5
-      - run: npm ci
-      - run: npx astro check
-      - run: npm run build
+      - run: npx -y npm@11.19.1 ci
+      - run: npx -y npm@11.19.1 run build -w @6mw/site
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site/dist
 
   deploy:
-    needs: build
+    if: github.event_name != 'pull_request'
+    needs: site
     runs-on: ubuntu-latest
     environment:
       name: github-pages

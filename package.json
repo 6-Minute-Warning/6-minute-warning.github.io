@@ -1,27 +1,23 @@
 {
-  "name": "6minutewarning.com",
-  "type": "module",
-  "version": "0.0.1",
-  "engines": {
-    "node": ">=22.12.0"
-  },
+  "name": "6mw",
+  "private": true,
+  "workspaces": [
+    "theme",
+    "site",
+    "app"
+  ],
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "dev:site": "npm run dev -w @6mw/site",
+    "dev:app": "npm run dev -w @6mw/app",
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run check -w @6mw/site && npm run type-check -w @6mw/app",
+    "test": "npm run test:unit -w @6mw/app -- --run"
   },
-  "dependencies": {
-    "@astrojs/sitemap": "^3.7.4",
-    "@fontsource-variable/archivo": "^5.3.0",
-    "@fontsource/raleway": "^5.3.0",
-    "astro": "^7.3.3"
+  "engines": {
+    "node": ">=22.18.0"
   },
   "allowScripts": {
     "esbuild": true
   },
-  "devDependencies": {
-    "@astrojs/check": "^0.9.10",
-    "typescript": "^6.0.3"
-  }
+  "packageManager": "npm@11.19.1"
 }
