@@ -63,7 +63,7 @@ export const services: Service[] = [
       "6 Minute Warning tours a full evening a cappella show for concert series, arts councils and theatres in Alberta, British Columbia and Saskatchewan. Pop and R&B for six voices, easy to host.",
     h1: "A touring a cappella show for concert series and arts councils",
     intro:
-      "A full evening of pop and R&B for six voices, built for theatres, concert series and arts councils. We toured it across Alberta and into British Columbia in 2026, and we bring it to OSAC in Saskatchewan this fall.",
+      "A full evening of pop and R&B for six voices, built for theatres, concert series and arts councils. We toured it across Alberta and into British Columbia in 2026, and we bring it to the Organization of Saskatchewan Arts Councils (OSAC) showcase this fall.",
     hero: groupStudio,
     heroPosition: "center 30%",
     photo: threeMics,

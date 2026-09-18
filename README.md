@@ -15,7 +15,7 @@ npm run dev
 |---|---|
 | Email, socials, videos, credits, testimonials | `src/data/site.ts` |
 | Members, bios, alumni | `src/data/members.ts` |
-| Event pages (awards, corporate, Christmas, festivals) | `src/data/services.ts` |
+| Event pages (concert series, awards, corporate, Christmas, weddings, festivals, school workshops) | `src/data/services.ts` |
 | Colours, fonts, spacing | `src/styles/theme.css` |
 | Upcoming shows | `src/data/shows.ts` |
 | Photos | `src/assets/` |
