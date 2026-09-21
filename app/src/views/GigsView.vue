@@ -5,7 +5,7 @@ import { orderBy } from 'firebase/firestore'
 import AppHeader from '@/components/AppHeader.vue'
 import { db } from '@/lib/firebase'
 import { day, money, today, useCollection } from '@/lib/db'
-import { balance, isUpcoming, planGigImport, stageLabels, contractLabels, type Gig, type Stage } from '@/lib/gigs'
+import { balance, importWrite, isUpcoming, planGigImport, stageLabels, contractLabels, type Gig, type Stage } from '@/lib/gigs'
 import { useAuth } from '@/stores/auth'
 
 const auth = useAuth()
@@ -49,7 +49,7 @@ async function applyImport() {
   const planned = plan.value
   try {
     const batch = writeBatch(db)
-    planned.gigs.forEach(({ id, gig }) => batch.set(doc(db, 'gigs', id), { ...gig, importedAt: serverTimestamp(), importedBy: auth.email }, { merge: true }))
+    planned.gigs.forEach(({ id, gig }) => batch.set(doc(db, 'gigs', id), { ...importWrite(gig), importedAt: serverTimestamp(), importedBy: auth.email }, { merge: true }))
     await batch.commit()
     importDone.value = `Imported ${planned.gigs.length} gigs.`
     plan.value = null

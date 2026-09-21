@@ -94,8 +94,14 @@ describe('money and roster are manager work', () => {
     await assertFails(updateDoc(doc(db, 'gigs/g1'), { money: { fee: 9999 } }))
     await assertFails(updateDoc(doc(db, 'gigs/g1'), { contract: 'signed' }))
     await assertFails(updateDoc(doc(db, 'gigs/g1'), { contact: { name: 'Me' } }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { stage: 'cancelled' }))
     await assertFails(setDoc(doc(db, 'gigs/new'), { name: 'New gig' }))
     await assertFails(deleteDoc(doc(db, 'gigs/g1')))
+  })
+
+  it('singers cannot bypass money with a dot-path update', async () => {
+    const db = as('member@example.com')
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { 'money.fee': 9999 }))
   })
 
   it('managers handle money, gigs and the roster', async () => {

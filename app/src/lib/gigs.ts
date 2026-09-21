@@ -81,6 +81,12 @@ export interface PlannedGig {
   gig: Gig
 }
 
+/** Import fields only; omits performers/soundTech so a merge:true re-import can't wipe lineup set in the app. */
+export function importWrite(gig: Gig): Omit<Gig, 'performers' | 'soundTech'> {
+  const { performers: _performers, soundTech: _soundTech, ...rest } = gig
+  return rest
+}
+
 export function planGigImport(rows: unknown[]): { gigs: PlannedGig[]; skipped: string[] } {
   const gigs: PlannedGig[] = []
   const skipped: string[] = []

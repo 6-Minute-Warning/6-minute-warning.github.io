@@ -44,7 +44,7 @@ Contracts that presenters send use the same record, uploaded instead of generate
 | Role | Can do |
 |---|---|
 | Singer | Read gigs and the roster, edit gig notes and the lineup, add to the event log |
-| Music director | Same as singer for now; set lists arrive later |
+| Music director | Same as singer until set lists arrive |
 | Manager | All of the above, plus create and delete gigs, edit money, contract state and presenter contacts, and manage the roster, venues and payments |
 | Admin | All of the above, plus grant and remove sign-in access |
 

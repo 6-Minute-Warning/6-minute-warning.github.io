@@ -51,7 +51,7 @@ service cloud.firestore {
       allow read: if isMember();
       allow create, delete: if isManager();
       allow update: if isManager()
-        || (isMember() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['money', 'contract', 'contact']));
+        || (isMember() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['money', 'contract', 'contact', 'stage']));
     }
 
     match /contracts/{id} {

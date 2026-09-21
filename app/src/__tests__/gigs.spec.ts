@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { balance, gigId, isUpcoming, planGigImport, toContract, toStage } from '@/lib/gigs'
+import { balance, gigId, importWrite, isUpcoming, planGigImport, toContract, toStage } from '@/lib/gigs'
 
 describe('gig helpers', () => {
   it('builds ids from date and name', () => {
@@ -70,5 +70,13 @@ describe('gig import', () => {
     const { gigs, skipped } = planGigImport([row(), row(), row({ name: '' })])
     expect(gigs).toHaveLength(1)
     expect(skipped).toEqual(['Sample gig on 2026-10-03 appears twice; the first one wins', 'A row with no name'])
+  })
+
+  it('drops performers and soundTech so a re-import cannot wipe the lineup', () => {
+    const { gigs } = planGigImport([row({ fee: 3200 })])
+    const write = importWrite(gigs[0]!.gig)
+    expect(write).not.toHaveProperty('performers')
+    expect(write).not.toHaveProperty('soundTech')
+    expect(write).toMatchObject({ name: 'Sample gig', money: { fee: 3200 } })
   })
 })
