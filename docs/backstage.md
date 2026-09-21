@@ -41,7 +41,7 @@ Contracts that presenters send use the same record, uploaded instead of generate
 
 ## Deploys
 
-Merging to `main` deploys Backstage to https://six-minute-warning.web.app and releases the Firestore rules. Pull requests get their own preview URL. CI authenticates through workload identity federation, so no service account key exists.
+Merging to `main` deploys Backstage to https://six-minute-warning.web.app and releases the Firestore rules. Pull requests get their own preview URL, and CI adds that URL to the Firebase sign-in domains so people can log in on it. CI authenticates through workload identity federation, so no service account key exists.
 
 ## Roles
 

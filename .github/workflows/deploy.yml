@@ -101,7 +101,22 @@ jobs:
           url=$(npx -y firebase-tools@15 hosting:channel:deploy "pr-${{ github.event.number }}" \
             --project six-minute-warning --expires 14d --json | jq -r '.result["six-minute-warning"].url')
           echo "Backstage preview: $url"
+          echo "PREVIEW_URL=$url" >> "$GITHUB_ENV"
           echo "Backstage preview: $url" >> "$GITHUB_STEP_SUMMARY"
+      - name: Let people sign in on the preview
+        run: |
+          host=${PREVIEW_URL#https://}
+          token=$(gcloud auth print-access-token)
+          api="https://identitytoolkit.googleapis.com/admin/v2/projects/six-minute-warning/config"
+          domains=$(curl -sf -H "Authorization: Bearer $token" -H "x-goog-user-project: six-minute-warning" "$api" | jq -c '.authorizedDomains')
+          if echo "$domains" | jq -e --arg h "$host" 'index($h)' > /dev/null; then
+            echo "$host can already sign people in."
+          else
+            updated=$(echo "$domains" | jq -c --arg h "$host" '. + [$h] | unique')
+            curl -sf -X PATCH -H "Authorization: Bearer $token" -H "x-goog-user-project: six-minute-warning" \
+              -H "Content-Type: application/json" "$api?updateMask=authorizedDomains" -d "{\"authorizedDomains\": $updated}" > /dev/null
+            echo "Added $host to the sign-in domains."
+          fi
 
   deploy:
     if: github.event_name != 'pull_request'
