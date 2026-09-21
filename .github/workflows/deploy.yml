@@ -136,8 +136,10 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v2
         with:
           project_id: six-minute-warning
@@ -148,7 +150,7 @@ jobs:
           channel="pr-${{ github.event.number }}"
           host=$(npx -y firebase-tools@15 hosting:channel:list --project six-minute-warning --json \
             | jq -r --arg c "$channel" '.result.channels[]? | select(.name | endswith("/" + $c)) | .url' | sed 's|^https://||; s|/$||')
-          npx -y firebase-tools@15 hosting:channel:delete "$channel" --project six-minute-warning --force || true
+          npx -y firebase-tools@15 hosting:channel:delete "$channel" --project six-minute-warning --force
           if [ -n "$host" ]; then
             token=$(gcloud auth print-access-token)
             api="https://identitytoolkit.googleapis.com/admin/v2/projects/six-minute-warning/config"
