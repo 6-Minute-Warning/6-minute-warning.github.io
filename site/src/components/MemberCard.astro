@@ -14,7 +14,6 @@ const Tag = link ? "a" : "div";
 <Tag class="member" href={link ? `/about/#${member.slug}` : undefined}>
   <div class="member__photos">
     <Image src={member.profile} alt={`${member.name} of 6 Minute Warning singing on stage`} widths={[320, 480, 640]} sizes="(min-width: 900px) 30vw, 50vw" class="member__profile" />
-    <Image src={member.casual} alt="" widths={[320, 480, 640]} sizes="(min-width: 900px) 30vw, 50vw" class="member__casual" />
   </div>
   <p class="member__name">{member.name}</p>
 </Tag>
@@ -41,16 +40,6 @@ const Tag = link ? "a" : "div";
     height: 100%;
     object-fit: cover;
     object-position: center 25%;
-    transition: opacity 0.35s;
-  }
-
-  .member__photos :global(.member__casual) {
-    opacity: 0;
-  }
-
-  .member:hover .member__photos :global(.member__casual),
-  .member:focus-visible .member__photos :global(.member__casual) {
-    opacity: 1;
   }
 
   .member__name {

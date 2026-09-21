@@ -65,7 +65,7 @@ export const services: Service[] = [
     intro:
       "A full evening of pop and R&B for six voices, built for theatres, concert series and arts councils. We toured it across Alberta and into British Columbia in 2026, and we bring it to the Organization of Saskatchewan Arts Councils (OSAC) showcase this fall.",
     hero: groupStudio,
-    heroPosition: "center 30%",
+    heroPosition: "center 6%",
     photo: threeMics,
     points: [
       {
@@ -132,6 +132,7 @@ export const services: Service[] = [
     intro:
       "Awards nights run on a tight clock. 6 Minute Warning walks on between categories, sings, and walks off before the next envelope is open. No band to reset, no stage changeover, no dead air.",
     hero: groupStudio,
+    heroPosition: "center 6%",
     photo: threeMics,
     points: [
       {
@@ -176,6 +177,7 @@ export const services: Service[] = [
     intro:
       "Conferences, launches, staff parties and client receptions all have the same problem: a band needs a stage, a crew and an hour of setup. We need a spot to stand. Six voices, pop and R&B, and a changeover measured in seconds.",
     hero: groupSeated,
+    heroPosition: "center 18%",
     photo: outdoorMic,
     points: [
       {
@@ -213,7 +215,7 @@ export const services: Service[] = [
     intro:
       "Christmas classics and pop holiday hits, sung by six voices and nothing else. We fit into a boardroom, a ballroom or the corner of a restaurant, and we can move from room to room between sets.",
     hero: threeMics,
-    heroPosition: "center 30%",
+    heroPosition: "center 6%",
     photo: groupStudio,
     points: [
       {
@@ -247,7 +249,7 @@ export const services: Service[] = [
     intro:
       "Six voices for the moments you want to remember: walking down the aisle, signing the register, cocktails on the patio, or the first song of the reception. No amps, no drum kit, nothing to hide behind the flowers.",
     hero: groupPortrait,
-    heroPosition: "center 25%",
+    heroPosition: "center 12%",
     photo: groupSeated,
     points: [
       {
@@ -291,6 +293,7 @@ export const services: Service[] = [
     intro:
       "Main stages, patio series, park stages and community halls. We bring a high-energy set that works for every age in the audience.",
     hero: liveOutdoor,
+    heroPosition: "center 12%",
     photo: outdoorMic,
     points: [
       {
