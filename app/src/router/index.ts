@@ -12,6 +12,9 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: () => import('@/views/HomeView.vue'), meta: { access: 'member' } },
+    { path: '/gigs', name: 'gigs', component: () => import('@/views/GigsView.vue'), meta: { access: 'member' } },
+    { path: '/gigs/:id', name: 'gig', component: () => import('@/views/GigView.vue'), meta: { access: 'member' } },
+    { path: '/roster', name: 'roster', component: () => import('@/views/RosterView.vue'), meta: { access: 'member' } },
     { path: '/access', name: 'access', component: () => import('@/views/AccessView.vue'), meta: { access: 'admin' } },
     { path: '/sign-in', name: 'sign-in', component: () => import('@/views/SignInView.vue'), meta: { access: 'guest' } },
     { path: '/no-access', name: 'no-access', component: () => import('@/views/NoAccessView.vue'), meta: { access: 'no-access' } },

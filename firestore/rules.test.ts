@@ -25,6 +25,7 @@ beforeEach(async () => {
     const db = ctx.firestore()
     await setDoc(doc(db, 'users/member@example.com'), { name: 'Member', role: 'member' })
     await setDoc(doc(db, 'users/admin@example.com'), { name: 'Admin', role: 'admin' })
+    await setDoc(doc(db, 'users/manager@example.com'), { name: 'Manager', role: 'manager' })
     await setDoc(doc(db, 'gigs/g1'), { name: 'Sample gig' })
     await setDoc(doc(db, 'events/e1'), { gig: 'g1', kind: 'created' })
   })
@@ -73,8 +74,8 @@ describe('members', () => {
     await assertFails(getDocs(collection(as('member@example.com'), 'users')))
   })
 
-  it('can delete a gig', async () => {
-    await assertSucceeds(deleteDoc(doc(as('member@example.com'), 'gigs/g1')))
+  it('cannot delete a gig', async () => {
+    await assertFails(deleteDoc(doc(as('member@example.com'), 'gigs/g1')))
   })
 
   it('can add to the event log but not rewrite it', async () => {
@@ -82,6 +83,43 @@ describe('members', () => {
     await assertSucceeds(setDoc(doc(db, 'events/e2'), { gig: 'g1', kind: 'note' }))
     await assertFails(updateDoc(doc(db, 'events/e1'), { kind: 'edited' }))
     await assertFails(deleteDoc(doc(db, 'events/e1')))
+  })
+})
+
+describe('money and roster are manager work', () => {
+  it('singers read gigs and edit notes but not money, contract or contact', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(getDoc(doc(db, 'gigs/g1')))
+    await assertSucceeds(updateDoc(doc(db, 'gigs/g1'), { notes: 'Bring the risers' }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { money: { fee: 9999 } }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { contract: 'signed' }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { contact: { name: 'Me' } }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { stage: 'cancelled' }))
+    await assertFails(setDoc(doc(db, 'gigs/new'), { name: 'New gig' }))
+    await assertFails(deleteDoc(doc(db, 'gigs/g1')))
+  })
+
+  it('singers cannot bypass money with a dot-path update', async () => {
+    const db = as('member@example.com')
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { 'money.fee': 9999 }))
+  })
+
+  it('managers handle money, gigs and the roster', async () => {
+    const db = as('manager@example.com')
+    await assertSucceeds(updateDoc(doc(db, 'gigs/g1'), { money: { fee: 3200 } }))
+    await assertSucceeds(setDoc(doc(db, 'gigs/new'), { name: 'New gig' }))
+    await assertSucceeds(setDoc(doc(db, 'people/russell'), { name: 'Russell', status: 'crew', part: 'Sound tech', phone: '', emails: [] }))
+    await assertSucceeds(setDoc(doc(db, 'payments/p1'), { gig: 'g1', amount: 100 }))
+  })
+
+  it('singers cannot change the roster or payments', async () => {
+    const db = as('member@example.com')
+    await assertFails(setDoc(doc(db, 'people/russell'), { name: 'Russell', status: 'crew', part: 'Sound tech', phone: '', emails: [] }))
+    await assertFails(setDoc(doc(db, 'payments/p1'), { gig: 'g1', amount: 100 }))
+  })
+
+  it('managers cannot hand out access', async () => {
+    await assertFails(setDoc(doc(as('manager@example.com'), 'users/new@example.com'), { name: 'New', role: 'member' }))
   })
 })
 
@@ -97,7 +135,7 @@ describe('linked addresses', () => {
   })
 
   it('a person record must match the roster shape', async () => {
-    const db = as('member@example.com')
+    const db = as('manager@example.com')
     await assertSucceeds(setDoc(doc(db, 'people/jo-tong'), { name: 'Jo Tong', status: 'active', part: 'Alto', phone: '', emails: ['jo@6minutewarning.com'] }))
     await assertFails(setDoc(doc(db, 'people/bad'), { name: 'Bad', status: 'retired', part: '', phone: '', emails: [] }))
     await assertFails(setDoc(doc(db, 'people/bad2'), { name: 'Bad', status: 'active', part: '', phone: '', emails: [], isAdmin: true }))

@@ -11,6 +11,8 @@ const auth = useAuth()
     <RouterLink to="/" class="brand">6MW Backstage</RouterLink>
     <nav aria-label="Main">
       <RouterLink to="/">Home</RouterLink>
+      <RouterLink to="/gigs">Gigs</RouterLink>
+      <RouterLink to="/roster">Roster</RouterLink>
       <RouterLink v-if="auth.isAdmin" to="/access">Access</RouterLink>
     </nav>
     <span class="who">
