@@ -39,6 +39,10 @@ Contracts go out as a normal email with the PDF attached. The app enforces the s
 
 Contracts that presenters send use the same record, uploaded instead of generated.
 
+## Deploys
+
+Merging to `main` deploys Backstage to https://six-minute-warning.web.app and releases the Firestore rules. Pull requests get their own preview URL. CI authenticates through workload identity federation, so no service account key exists.
+
 ## Roles
 
 | Role | Can do |

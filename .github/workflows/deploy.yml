@@ -54,6 +54,46 @@ jobs:
         with:
           path: site/dist
 
+  backstage:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: google-github-actions/auth@v2
+        with:
+          project_id: six-minute-warning
+          workload_identity_provider: projects/56775590825/locations/global/workloadIdentityPools/github/providers/github
+          service_account: github-deploy@six-minute-warning.iam.gserviceaccount.com
+      - run: npx -y npm@11.19.1 ci
+      - run: npx -y npm@11.19.1 run build -w @6mw/app
+      - run: npx -y firebase-tools@15 deploy --only hosting,firestore:rules --project six-minute-warning --non-interactive
+
+  backstage-preview:
+    if: github.event_name == 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: google-github-actions/auth@v2
+        with:
+          project_id: six-minute-warning
+          workload_identity_provider: projects/56775590825/locations/global/workloadIdentityPools/github/providers/github
+          service_account: github-deploy@six-minute-warning.iam.gserviceaccount.com
+      - run: npx -y npm@11.19.1 ci
+      - run: npx -y npm@11.19.1 run build -w @6mw/app
+      - name: Deploy a preview for this pull request
+        run: |
+          url=$(npx -y firebase-tools@15 hosting:channel:deploy "pr-${{ github.event.number }}" \
+            --project six-minute-warning --expires 14d --json | jq -r '.result["six-minute-warning"].url')
+          echo "Backstage preview: $url" >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
     if: github.event_name != 'pull_request'
     needs: site
