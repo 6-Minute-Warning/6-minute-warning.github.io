@@ -24,7 +24,9 @@ npm run test:rules   # Firestore rules tests (needs Java 21+ for the emulator)
 npm run build        # build everything
 ```
 
-CI runs checks, lint, unit and rules tests, and both builds on every pull request, and deploys the site from `main`.
+CI runs checks, lint, unit and rules tests, and both builds on every pull request. On `main` it deploys the website to GitHub Pages and Backstage (app and Firestore rules) to Firebase. Pull requests get a Backstage preview URL, printed in the run summary, that expires after 14 days.
+
+CI signs in to Firebase through GitHub's own identity (workload identity federation) as `github-deploy@six-minute-warning.iam.gserviceaccount.com`, which only this repo may use. No key is stored anywhere.
 
 To run Backstage against local emulators instead of the live project:
 
