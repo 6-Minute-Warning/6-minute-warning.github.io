@@ -28,7 +28,7 @@ import groupSeated from "../assets/photos/group-studio-seated.jpg";
     members.map((m, i) => (
       <section class:list={["section", "bio", { "section--raised": i % 2 === 0 }]} id={m.slug}>
         <div class:list={["wrap", "bio__grid", { "bio__grid--flip": i % 2 === 1 }]}>
-          <Image src={m.suit} alt={`${m.name} of 6 Minute Warning`} widths={[480, 800, 1100]} sizes="(min-width: 900px) 45vw, 100vw" class="bio__img" />
+          <Image src={m.profile} alt={`${m.name} of 6 Minute Warning singing on stage`} widths={[480, 800, 1100]} sizes="(min-width: 900px) 45vw, 100vw" class="bio__img" />
           <div>
             {m.role && <span class="eyebrow">{m.role}</span>}
             <h2>{m.name}</h2>

@@ -13,7 +13,7 @@ const Tag = link ? "a" : "div";
 
 <Tag class="member" href={link ? `/about/#${member.slug}` : undefined}>
   <div class="member__photos">
-    <Image src={member.suit} alt={`${member.name} in a black suit and blue tie`} widths={[320, 480, 640]} sizes="(min-width: 900px) 30vw, 50vw" class="member__suit" />
+    <Image src={member.profile} alt={`${member.name} of 6 Minute Warning singing on stage`} widths={[320, 480, 640]} sizes="(min-width: 900px) 30vw, 50vw" class="member__profile" />
     <Image src={member.casual} alt="" widths={[320, 480, 640]} sizes="(min-width: 900px) 30vw, 50vw" class="member__casual" />
   </div>
   <p class="member__name">{member.name}</p>

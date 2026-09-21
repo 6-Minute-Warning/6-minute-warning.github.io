@@ -1,22 +1,22 @@
 import type { ImageMetadata } from "astro";
-import bryanSuit from "../assets/members/bryan-suit.jpg";
+import bryanProfile from "../assets/members/bryan-profile.jpg";
+import brettProfile from "../assets/members/brett-profile.jpg";
+import bernardProfile from "../assets/members/bernard-profile.jpg";
+import braydenProfile from "../assets/members/brayden-profile.jpg";
+import taylorProfile from "../assets/members/taylor-profile.jpg";
+import joProfile from "../assets/members/jo-profile.jpg";
 import bryanCasual from "../assets/members/bryan-casual.jpg";
-import brettSuit from "../assets/members/brett-suit.jpg";
 import brettCasual from "../assets/members/brett-casual.jpg";
-import bernardSuit from "../assets/members/bernard-suit.jpg";
 import bernardCasual from "../assets/members/bernard-casual.jpg";
-import braydenSuit from "../assets/members/brayden-suit.jpg";
 import braydenCasual from "../assets/members/brayden-casual.jpg";
-import taylorSuit from "../assets/members/taylor-suit.jpg";
 import taylorCasual from "../assets/members/taylor-casual.jpg";
-import joSuit from "../assets/members/jo-suit.jpg";
 import joCasual from "../assets/members/jo-casual.jpg";
 
 export interface Member {
   slug: string;
   name: string;
   role?: string;
-  suit: ImageMetadata;
+  profile: ImageMetadata;
   casual: ImageMetadata;
   bio: string[];
 }
@@ -26,7 +26,7 @@ export const members: Member[] = [
     slug: "bryan-legrow",
     name: "Bryan LeGrow",
     role: "Musical director",
-    suit: bryanSuit,
+    profile: bryanProfile,
     casual: bryanCasual,
     bio: [
       "Every group needs someone to tell them when to shut up and work, and Bryan tells us to put down our beers and sing with such grace and civility that the Dalai Lama would be jealous.",
@@ -38,7 +38,7 @@ export const members: Member[] = [
     slug: "brett-ludwig",
     name: "Brett Ludwig",
     role: "Vocal percussion",
-    suit: brettSuit,
+    profile: brettProfile,
     casual: brettCasual,
     bio: [
       "The sound of Brett singing is like a Care Bear stare blasting you right in the face. You may be laughing now, but you’ll be fighting back the tears when he rips your heart out with the fragile sensitivity of his voice. You’ve been warned.",
@@ -49,7 +49,7 @@ export const members: Member[] = [
   {
     slug: "bernard-quilala",
     name: "Bernard Quilala",
-    suit: bernardSuit,
+    profile: bernardProfile,
     casual: bernardCasual,
     bio: [
       "If you need a man to take centre stage and own it like it’s never been owned before, Bernard is your guy. There is no line too far for 6 Minute Warning’s favourite stage-hog, who once took his shirt off during a show because we ran out of bow ties that day.",
@@ -60,7 +60,7 @@ export const members: Member[] = [
   {
     slug: "brayden-foo",
     name: "Brayden Foo",
-    suit: braydenSuit,
+    profile: braydenProfile,
     casual: braydenCasual,
     bio: [
       "Brayden has an incredible voice, buttery smooth melismas and a smile that stops traffic. He’s also the baby of the group and misses most of our references: while the rest of us remember NSYNC and the Backstreet Boys, Brayden’s nostalgia is The Wiggles.",
@@ -71,7 +71,7 @@ export const members: Member[] = [
     slug: "taylor-fawcett",
     name: "Taylor Fawcett",
     role: "Tenor",
-    suit: taylorSuit,
+    profile: taylorProfile,
     casual: taylorCasual,
     bio: [
       "Taylor is a faucet of positive energy, personality and screaming high rock power. Classically trained as a tenor, he’s as at home on opera stages as he is singing pop ballads. When he’s not singing, he’s slappin’ the bass in any style you please.",
@@ -82,7 +82,7 @@ export const members: Member[] = [
     slug: "jo-tong",
     name: "Jo Tong",
     role: "Bass",
-    suit: joSuit,
+    profile: joProfile,
     casual: joCasual,
     bio: [
       "Legend says that the night Jo’s voice changed, fire burned in the skies and the earth stood still in silent respect. He can sing notes so low that he’s legally not allowed within ten miles of any fault line.",
