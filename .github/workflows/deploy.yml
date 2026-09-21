@@ -100,6 +100,7 @@ jobs:
         run: |
           url=$(npx -y firebase-tools@15 hosting:channel:deploy "pr-${{ github.event.number }}" \
             --project six-minute-warning --expires 14d --json | jq -r '.result["six-minute-warning"].url')
+          echo "Backstage preview: $url"
           echo "Backstage preview: $url" >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
