@@ -104,7 +104,7 @@ function togglePerformer(personId: string, on: boolean) {
             <dt v-if="shares">Each performer</dt>
             <dd v-if="shares">{{ money(shares) }}</dd>
           </dl>
-          <p class="muted small">Editing amounts arrives with payments (P5).</p>
+          <p class="muted small">Amount editing comes with Payments (P5).</p>
         </section>
 
         <section v-if="auth.isManager && (gig.contact?.name || gig.contact?.email || gig.contact?.phone)" class="card">
