@@ -4,15 +4,15 @@ import Base from "../layouts/Base.astro";
 import Hero from "../components/Hero.astro";
 import BookingForm from "../components/BookingForm.astro";
 import { members, alumni } from "../data/members";
-import groupSeated from "../assets/photos/group-studio-seated.jpg";
+import liveSixWide from "../assets/photos/live-six-wide.jpg";
 ---
 
 <Base
   title="Meet the Band | 6 Minute Warning, Edmonton A Cappella"
   description="Meet the six singers of 6 Minute Warning, an Edmonton a cappella group performing pop and R&B with influences from Take 6, Boyz II Men and NSYNC."
-  image={groupSeated}
+  image={liveSixWide}
 >
-  <Hero image={groupSeated} alt="6 Minute Warning posing in black suits in a studio" position="center 30%" eyebrow="The band">
+  <Hero image={liveSixWide} alt="The six members of 6 Minute Warning singing in a row on stage" position="center 30%" eyebrow="The band">
     <h1>Meet the six</h1>
     <p class="lede">6 Minute Warning is an a cappella group from Edmonton that aims to blow your socks and ears off, metaphorically speaking.</p>
   </Hero>
@@ -71,8 +71,17 @@ import groupSeated from "../assets/photos/group-studio-seated.jpg";
       grid-template-columns: 5fr 7fr;
     }
 
+    .bio__grid--flip {
+      grid-template-columns: 7fr 5fr;
+    }
+
     .bio__grid--flip > :first-child {
-      order: 2;
+      grid-column: 2;
+    }
+
+    .bio__grid--flip > :last-child {
+      grid-column: 1;
+      grid-row: 1;
     }
   }
 
@@ -82,6 +91,15 @@ import groupSeated from "../assets/photos/group-studio-seated.jpg";
     object-fit: cover;
     object-position: center 25%;
     border-radius: var(--radius);
+  }
+
+  .bio__grid .eyebrow {
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .bio__grid h2 {
+    margin-bottom: 28px;
   }
 
   .bio p {

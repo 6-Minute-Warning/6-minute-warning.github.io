@@ -34,7 +34,7 @@ const { image, alt, position = "center", eyebrow, tall = false } = Astro.props;
   .hero {
     position: relative;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     min-height: min(78vh, 760px);
     overflow: hidden;
     isolation: isolate;
@@ -68,8 +68,8 @@ const { image, alt, position = "center", eyebrow, tall = false } = Astro.props;
   }
 
   .hero__content {
-    padding-top: 120px;
-    padding-bottom: clamp(48px, 8vw, 96px);
+    padding-top: 88px;
+    padding-bottom: clamp(88px, 12vw, 180px);
   }
 
   .hero__content :global(h1) {

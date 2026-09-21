@@ -51,15 +51,20 @@ export const highlights = [
 export const testimonials = [
   {
     quote:
-      "Their rendition of O Canada was spectacular. We have had a number of good singers for O Canada in the past, but none has elicited the response, the emotion that came when 6 Minute Warning sang it.",
+      "Their rendition of O Canada was spectacular - we have had a number of comments on this - it was, to say the least, moving.  We have had a number of good singers for O Canada in the past but none has elicited the response, the emotion that came when 6 Minute Warning sang it.",
     name: "Thea Hawryluk",
-    role: "Administration Manager, Alberta Chamber of Resources",
+    role: "Executive Assistant and Administration Manager, Alberta Chamber of Resources",
   },
   {
     quote:
-      "This is a seriously talented ensemble. The CD went into my five-disc player later that month and has stayed there to this very day.",
+      "This is a seriously-talented ensemble ... the CD went into my 5-disc player later that month and has stayed there to this very day.",
     name: "Paul Grindlay",
-    role: "Musical Director, Calgary Boys' Choir",
+    role: "Musical Director, Calgary Boy's Choir, Calgary, Alberta",
+  },
+  {
+    quote: "How did you get these guys out here? They should be in Vegas!",
+    name: "Audience member",
+    role: "Olds, Alberta",
   },
 ];
 
