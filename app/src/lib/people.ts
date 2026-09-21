@@ -2,7 +2,7 @@ import { normalizeEmail, type Role } from './access'
 
 export const WORKSPACE_DOMAIN = '6minutewarning.com'
 
-export type PersonStatus = 'active' | 'sub' | 'alumni'
+export type PersonStatus = 'active' | 'sub' | 'crew' | 'alumni'
 
 export interface ImportedPerson {
   name: string

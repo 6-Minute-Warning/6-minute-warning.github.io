@@ -39,12 +39,21 @@ Contracts go out as a normal email with the PDF attached. The app enforces the s
 
 Contracts that presenters send use the same record, uploaded instead of generated.
 
+## Roles
+
+| Role | Can do |
+|---|---|
+| Singer | Read gigs and the roster, edit gig notes and the lineup, add to the event log |
+| Music director | Same as singer for now; set lists arrive later |
+| Manager | All of the above, plus create and delete gigs, edit money, contract state and presenter contacts, and manage the roster, venues and payments |
+| Admin | All of the above, plus grant and remove sign-in access |
+
 ## Phases
 
 | ID | Phase | Ships |
 |---|---|---|
 | P1 | Foundation | Monorepo, Firebase project, sign-in, one-time import of the Notion gigs and people |
-| P2 | Gigs | Pipeline and gig editing; each stage change updates the band's Google Calendar |
+| P2 | Gigs | Gig list with money and contract state, gig detail with lineup and sound tech, roster, and a Notion gig import (`node tools/notion-gigs.mjs`). Calendar events still to come. |
 | P3 | Generate contracts | Fill the Drive template from the gig and save the PDF to Drive |
 | P4 | Send and track | Email from manager@, reminders, signed-copy upload, the Confirmed gate |
 | P5 | Payments | Due dates, received amounts, overdue flags |
