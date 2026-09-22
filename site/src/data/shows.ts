@@ -10,7 +10,7 @@ export interface Show {
 export const shows: Show[] = [
   { start: "2026-09-26T19:30:00-06:00", title: "6 Minute Warning in Okotoks", venue: "Old Church Theatre", city: "Okotoks, AB", public: true },
   { start: "2026-10-16", title: "OSAC showcase", city: "Saskatchewan", public: false },
-  { start: "2027-03-13", title: "SING! Edmonton Festival", city: "Edmonton, AB", public: true },
+  { start: "2027-03-13T19:30:00-06:00", title: "SING! Edmonton Festival", city: "Edmonton, AB", public: true },
   { start: "2026-12-12T19:00:00-07:00", title: "Christmas with 6 Minute Warning", venue: "Alumni Hall Theatre, Lakeland College", city: "Vermilion, AB", public: false },
 ];
 

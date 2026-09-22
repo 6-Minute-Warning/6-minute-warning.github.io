@@ -30,3 +30,6 @@ firebase-debug.log
 
 # local exports with personal data
 .local/
+
+# clasp project config (holds the Apps Script scriptId)
+.clasp.json

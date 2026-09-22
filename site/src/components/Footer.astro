@@ -9,19 +9,18 @@ const year = new Date().getFullYear();
     <div>
       <p class="footer__name">6 Minute Warning</p>
       <p class="footer__meta">A cappella from {site.city}, {site.region}.</p>
-      <p><a href={`mailto:${site.email}`}>{site.email}</a></p>
     </div>
     <nav aria-label="Events">
-      <p class="footer__head">Book us for</p>
+      <p class="footer__head">Book Us For</p>
       <ul>
         {services.map((s) => <li><a href={`/${s.slug}/`}>{s.nav}</a></li>)}
       </ul>
     </nav>
     <nav aria-label="Band">
-      <p class="footer__head">The band</p>
+      <p class="footer__head">The Band</p>
       <ul>
         <li><a href="/about/">Members</a></li>
-        <li><a href="/epk/">Press kit</a></li>
+        <li><a href="/epk/">Press Kit</a></li>
         <li><a href="/book/">Booking inquiry</a></li>
       </ul>
     </nav>

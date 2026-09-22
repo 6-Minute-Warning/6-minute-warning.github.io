@@ -6,7 +6,7 @@ import Footer from "../components/Footer.astro";
 import ThemePicker from "../components/ThemePicker.astro";
 import { site } from "../data/site";
 import { members } from "../data/members";
-import groupStudio from "../assets/photos/group-studio.jpg";
+import liveSixWide from "../assets/photos/live-six-wide.jpg";
 import mark from "../assets/brand/Six2Transparent.png";
 
 interface Props {
@@ -17,7 +17,7 @@ interface Props {
   noindex?: boolean;
 }
 
-const { title, description = site.description, image = groupStudio, schema = [], noindex = false } = Astro.props;
+const { title, description = site.description, image = liveSixWide, schema = [], noindex = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname, site.url).href;
 const ogImage = await getImage({ src: image, width: 1200, height: 630, fit: "cover", format: "jpg" });
 const ogImageUrl = new URL(ogImage.src, site.url).href;
@@ -33,7 +33,6 @@ const band = {
   image: ogImageUrl,
   description: site.description,
   genre: ["A cappella", "Pop", "R&B"],
-  email: site.email,
   foundingLocation: { "@type": "Place", name: `${site.city}, ${site.region}` },
   areaServed: [
     { "@type": "City", name: site.city },

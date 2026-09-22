@@ -7,7 +7,8 @@ export const site = {
   city: "Edmonton",
   region: "Alberta",
   country: "CA",
-  bookingEndpoint: "",
+  bookingEndpoint:
+    "https://script.google.com/macros/s/AKfycbzv_4h3kI99BOP2LL5Vz4u_ReWdkLpexJr4hpf2OZHKo12DC4fM0v9E3hHJOxaG-KGL1A/exec",
   mediaKitUrl: "https://drive.google.com/uc?id=1yBHnwGzs-nmx9iPNMV9xJHHsihGsaxQ-&export=download",
   soundcloudPlaylist: "https://api.soundcloud.com/playlists/22425888",
   socials: [
