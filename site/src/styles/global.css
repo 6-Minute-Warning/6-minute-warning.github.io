@@ -175,3 +175,90 @@ p {
     transition: none !important;
   }
 }
+
+/* Motion. Nothing here hides content when JS is off: `reveal` only takes
+   effect once the script adds `js-motion` to the root. */
+
+.js-motion [data-reveal] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.js-motion [data-reveal].is-in {
+  opacity: 1;
+  transform: none;
+}
+
+.js-motion [data-reveal]:nth-child(2) { transition-delay: 0.06s; }
+.js-motion [data-reveal]:nth-child(3) { transition-delay: 0.12s; }
+.js-motion [data-reveal]:nth-child(4) { transition-delay: 0.18s; }
+
+.hero__content > * {
+  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero__content > :nth-child(2) { animation-delay: 0.08s; }
+.hero__content > :nth-child(3) { animation-delay: 0.16s; }
+.hero__content > :nth-child(4) { animation-delay: 0.24s; }
+.hero__content > :nth-child(5) { animation-delay: 0.32s; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+.btn {
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.menu__main a:not(.btn):not(.menu__group-link) {
+  position: relative;
+}
+
+.menu__main a:not(.btn):not(.menu__group-link)::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 2px;
+  background: var(--color-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.menu__main a:not(.btn):not(.menu__group-link):hover::after,
+.menu__main a:not(.btn):not(.menu__group-link):focus-visible::after {
+  transform: scaleX(1);
+}
+
+.js-motion [data-reveal]:focus-within {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js-motion [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+
+  .hero__content > * {
+    animation: none;
+  }
+
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
