@@ -37,7 +37,7 @@ const anthemFaq: Faq = {
 const sharedFaqs: Faq[] = [
   {
     q: "How much stage space do you need?",
-    a: "Room for six people to stand side by side. No risers, no drum kit, no amps. If a speaker fits on your stage, we fit too.",
+    a: "Room for 6 people to stand side by side. No risers, no drum kit, no amps. If a speaker fits on your stage, we fit too.",
   },
   {
     q: "What does your AV team need to do?",
@@ -45,7 +45,7 @@ const sharedFaqs: Faq[] = [
   },
   {
     q: "What kind of music do you sing?",
-    a: "Pop and R&B, from Boyz II Men and Take 6 to the songs on the radio this year, all arranged for six voices and nothing else.",
+    a: "Pop and R&B, from Boyz II Men and Take 6 to the songs on the radio this year, all arranged for 6 voices and nothing else.",
   },
   {
     q: "Do you travel outside Edmonton?",
@@ -60,10 +60,10 @@ export const services: Service[] = [
     eventType: "Concert series or presenter",
     title: "A Cappella Touring Show for Concert Series & Arts Councils | 6 Minute Warning",
     description:
-      "6 Minute Warning tours a full evening a cappella show for concert series, arts councils and theatres in Alberta, British Columbia and Saskatchewan. Pop and R&B for six voices, easy to host.",
+      "6 Minute Warning tours a full evening a cappella show for concert series, arts councils and theatres in Alberta, British Columbia and Saskatchewan. Pop and R&B for 6 voices, easy to host.",
     h1: "A touring a cappella show for concert series and arts councils",
     intro:
-      "A full evening of pop and R&B for six voices, built for theatres, concert series and arts councils. We toured it across Alberta and into British Columbia in 2026, and we bring it to the Organization of Saskatchewan Arts Councils (OSAC) showcase this fall.",
+      "A full evening of pop and R&B for 6 voices, built for theatres, concert series and arts councils. We toured it across Alberta and into British Columbia in 2026, and we bring it to the Organization of Saskatchewan Arts Councils (OSAC) showcase this fall.",
     hero: groupStudio,
     heroPosition: "center 6%",
     photo: threeMics,
@@ -74,7 +74,7 @@ export const services: Service[] = [
       },
       {
         title: "Easy to host",
-        body: "Six singers, a small stage footprint and a short tech list. Your crew will have an easy night.",
+        body: "6 singers, a small stage footprint and a short tech list. Your crew will have an easy night.",
       },
       {
         title: "Tour ready",
@@ -127,7 +127,7 @@ export const services: Service[] = [
     eventType: "Awards gala",
     title: "Awards Ceremony Music & Gala Entertainment in Edmonton | 6 Minute Warning",
     description:
-      "Live music for awards ceremonies and galas in Edmonton and across Alberta. Six singers in black suits, on and off stage in seconds between presentations, with almost no tech setup.",
+      "Live music for awards ceremonies and galas in Edmonton and across Alberta. 6 singers in black suits, on and off stage in seconds between presentations, with almost no tech setup.",
     h1: "Awards ceremony music that keeps the show moving",
     intro:
       "Awards nights run on a tight clock. 6 Minute Warning walks on between categories, sings, and walks off before the next envelope is open. No band to reset, no stage changeover, no dead air.",
@@ -137,7 +137,7 @@ export const services: Service[] = [
     points: [
       {
         title: "On and off in seconds",
-        body: "Six people and a handful of microphones. We can open the night, fill the gap between awards, and close it out without a single crew change.",
+        body: "6 people and a handful of microphones. We can open the night, fill the gap between awards, and close it out without a single crew change.",
       },
       {
         title: "Dressed for the gala",
@@ -145,7 +145,7 @@ export const services: Service[] = [
       },
       {
         title: "A small footprint",
-        body: "We need a strip of stage the width of six people. The podium, the screens and the trophy table all stay where they are.",
+        body: "We need a strip of stage the width of 6 people. The podium, the screens and the trophy table all stay where they are.",
       },
       {
         title: "Songs the room knows",
@@ -175,7 +175,7 @@ export const services: Service[] = [
       "Live music for corporate parties in Edmonton. Book 6 Minute Warning, a six-voice a cappella group, for staff parties, conferences, company parties, product launches and client receptions. Low tech, small stage, fast changeovers.",
     h1: "Corporate party music with nothing to load in",
     intro:
-      "Conferences, launches, staff parties and client receptions all have the same problem: a band needs a stage, a crew and an hour of setup. We need a spot to stand. Six voices, pop and R&B, and a changeover measured in seconds.",
+      "Conferences, launches, staff parties and client receptions all have the same problem: a band needs a stage, a crew and an hour of setup. We need a spot to stand. 6 voices, pop and R&B, and a changeover measured in seconds.",
     hero: groupSeated,
     heroPosition: "center 18%",
     photo: outdoorMic,
@@ -210,10 +210,10 @@ export const services: Service[] = [
     eventType: "Holiday party",
     title: "Christmas Party Music & Holiday Entertainment in Edmonton | 6 Minute Warning",
     description:
-      "A cappella holiday music for Edmonton Christmas parties, office parties and seasonal events. Classic carols and pop holiday hits sung by six voices in suits, with no band setup.",
+      "A cappella holiday music for Edmonton Christmas parties, office parties and seasonal events. Classic carols and pop holiday hits sung by 6 voices in suits, with no band setup.",
     h1: "Christmas party music in six-part harmony",
     intro:
-      "Christmas classics and pop holiday hits, sung by six voices and nothing else. We fit into a boardroom, a ballroom or the corner of a restaurant, and we can move from room to room between sets.",
+      "Christmas classics and pop holiday hits, sung by 6 voices and nothing else. We fit into a boardroom, a ballroom or the corner of a restaurant, and we can move from room to room between sets.",
     hero: threeMics,
     heroPosition: "center 6%",
     photo: groupStudio,
@@ -224,7 +224,7 @@ export const services: Service[] = [
       },
       {
         title: "Fits any room",
-        body: "Office party, ballroom or restaurant. If six people can stand there, we can sing there.",
+        body: "Office party, ballroom or restaurant. If 6 people can stand there, we can sing there.",
       },
       {
         title: "Book early",
@@ -244,10 +244,10 @@ export const services: Service[] = [
     eventType: "Wedding",
     title: "Wedding Music in Edmonton | A Cappella Wedding Singers | 6 Minute Warning",
     description:
-      "A cappella wedding music in Edmonton and across Alberta. Six singers in black suits for your ceremony, signing, cocktail hour or reception, with no band gear to set up.",
+      "A cappella wedding music in Edmonton and across Alberta. 6 singers in black suits for your ceremony, signing, cocktail hour or reception, with no band gear to set up.",
     h1: "Wedding music in six-part harmony",
     intro:
-      "Six voices for the moments you want to remember: walking down the aisle, signing the register, cocktails on the patio, or the first song of the reception. No amps, no drum kit, nothing to hide behind the flowers.",
+      "6 voices for the moments you want to remember: walking down the aisle, signing the register, cocktails on the patio, or the first song of the reception. No amps, no drum kit, nothing to hide behind the flowers.",
     hero: groupPortrait,
     heroPosition: "center 12%",
     photo: groupSeated,
@@ -258,7 +258,7 @@ export const services: Service[] = [
       },
       {
         title: "Fits the venue",
-        body: "Chapel, ballroom, barn or backyard. We need room for six people to stand, and that is all.",
+        body: "Chapel, ballroom, barn or backyard. We need room for 6 people to stand, and that is all.",
       },
       {
         title: "Dressed for the day",

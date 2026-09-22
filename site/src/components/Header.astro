@@ -14,15 +14,15 @@ import { services } from "../data/services";
       <nav class="menu__panel" id="menu-panel" aria-label="Main">
         <ul class="menu__main">
           <li><a href="/#watch">Watch</a></li>
-          <li><a href="/about/">The band</a></li>
+          <li><a href="/about/">The Band</a></li>
           <li class="menu__group">
             <a class="menu__group-link" href="/events/">Events</a>
             <ul class="menu__events">
               {services.map((s) => <li><a href={`/${s.slug}/`}>{s.nav}</a></li>)}
             </ul>
           </li>
-          <li><a href="/epk/">Press kit</a></li>
-          <li><a class="btn menu__cta" href="/book/">Book us</a></li>
+          <li><a href="/epk/">Press Kit</a></li>
+          <li><a class="btn menu__cta" href="/book/">Book Us</a></li>
         </ul>
       </nav>
     </div>

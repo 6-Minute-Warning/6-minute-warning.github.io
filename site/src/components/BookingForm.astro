@@ -15,10 +15,9 @@ const { eventType = "", heading = "Check your date" } = Astro.props;
       <span class="eyebrow">Booking</span>
       <h2 id="book-heading">{heading}</h2>
       <p class="lede">Tell us about your event and we will reply with availability and a quote.</p>
-      <p>Prefer email? <a href={`mailto:${site.email}`}>{site.email}</a></p>
     </div>
 
-    <form class="form" data-endpoint={site.bookingEndpoint} data-email={site.email} novalidate>
+    <form class="form" data-endpoint={site.bookingEndpoint} novalidate>
       <div class="form__row">
         <label>
           <span>Name <em>required</em></span>
@@ -67,15 +66,6 @@ const { eventType = "", heading = "Check your date" } = Astro.props;
 </section>
 
 <script>
-  function mailtoFallback(form: HTMLFormElement, data: FormData) {
-    const lines = ["name", "email", "phone", "eventType", "date", "location"].map(
-      (k) => `${k}: ${data.get(k) ?? ""}`,
-    );
-    const body = `${lines.join("\n")}\n\n${data.get("message") ?? ""}`;
-    const subject = `Booking inquiry: ${data.get("eventType")} ${data.get("date") || ""}`.trim();
-    window.location.href = `mailto:${form.dataset.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  }
-
   for (const form of document.querySelectorAll<HTMLFormElement>("form.form")) {
     const status = form.querySelector<HTMLElement>(".form__status")!;
     const button = form.querySelector<HTMLButtonElement>("button[type=submit]")!;
@@ -89,7 +79,8 @@ const { eventType = "", heading = "Check your date" } = Astro.props;
       const data = new FormData(form);
       const endpoint = form.dataset.endpoint;
       if (!endpoint) {
-        mailtoFallback(form, data);
+        status.dataset.state = "error";
+        status.textContent = "✕ The form is not accepting messages right now. Our contact details are on the press kit.";
         return;
       }
       button.disabled = true;
@@ -105,10 +96,10 @@ const { eventType = "", heading = "Check your date" } = Astro.props;
         form.reset();
         loadedAt = Date.now();
         status.dataset.state = "ok";
-        status.textContent = "✓ Sent. We will reply by email.";
+        status.textContent = "✓ Thanks for getting in touch! We'll get back to you as soon as possible.";
       } catch {
         status.dataset.state = "error";
-        status.textContent = `✕ That did not send. Email us at ${form.dataset.email} and we will reply from there.`;
+        status.textContent = "✕ That did not send. Try again, or use the contact details on the press kit.";
       } finally {
         button.disabled = false;
       }
