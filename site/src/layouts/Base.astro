@@ -81,5 +81,24 @@ const band = {
     </main>
     <Footer />
     <ThemePicker />
+    <script>
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && "IntersectionObserver" in window) {
+        const targets = [...document.querySelectorAll(".section > .wrap > :not(.members):not(.shows):not(.quotes), .members > *, .shows li, .quotes figure")];
+        for (const el of targets) el.setAttribute("data-reveal", "");
+        document.documentElement.classList.add("js-motion");
+        const show = (el: Element) => el.classList.add("is-in");
+        const seen = new IntersectionObserver((entries, obs) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            show(entry.target);
+            obs.unobserve(entry.target);
+          }
+        }, { rootMargin: "0px 0px 15% 0px" });
+        for (const el of targets) seen.observe(el);
+        // Nothing stays hidden: anything unrevealed after the first scroll-through shows anyway.
+        setTimeout(() => { for (const el of targets) show(el); }, 4000);
+        addEventListener("pagehide", () => { for (const el of targets) show(el); });
+      }
+    </script>
   </body>
 </html>

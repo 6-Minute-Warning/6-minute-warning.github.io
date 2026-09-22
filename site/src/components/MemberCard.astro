@@ -23,6 +23,20 @@ const Tag = link ? "a" : "div";
     display: block;
     color: var(--color-text);
     text-decoration: none;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .member:hover,
+  .member:focus-visible {
+    transform: translateY(-4px);
+  }
+
+  .member__photos :global(img) {
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .member:hover .member__photos :global(img) {
+    transform: scale(1.04);
   }
 
   .member__photos {
