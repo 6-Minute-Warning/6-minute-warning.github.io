@@ -36,6 +36,7 @@
   --palette-white: #ffffff;
 
   --color-bg: var(--palette-slate-950);
+  --color-paper: var(--palette-white);
   --color-surface: var(--palette-slate-900);
   --color-surface-raised: var(--palette-slate-850);
   --color-border: var(--palette-slate-800);
