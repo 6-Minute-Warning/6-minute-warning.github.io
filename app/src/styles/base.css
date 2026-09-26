@@ -69,6 +69,12 @@ h1 {
   cursor: wait;
 }
 
+.btn--danger {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-paper);
+}
+
 .btn--ghost {
   background: transparent;
   color: var(--color-text);
@@ -102,6 +108,73 @@ select {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-text-muted);
+}
+
+.mini {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.mini[aria-pressed='true'] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--color-accent-strong);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.chip--ok {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.chip--warn {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
+.chip--bad {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.ok {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 :focus-visible {

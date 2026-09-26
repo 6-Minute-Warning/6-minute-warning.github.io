@@ -311,8 +311,4 @@ label {
   list-style: none;
 }
 
-.ok {
-  color: var(--color-success);
-  font-weight: 600;
-}
 </style>

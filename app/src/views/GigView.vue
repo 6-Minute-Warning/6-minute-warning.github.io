@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore'
 import AppHeader from '@/components/AppHeader.vue'
+import GigCall from '@/components/GigCall.vue'
 import { db } from '@/lib/firebase'
 import { day, logEvent, money, useCollection } from '@/lib/db'
 import { balance, contractLabels, contractStates, stageLabels, stages, type ContractState, type Gig, type Stage } from '@/lib/gigs'
@@ -49,7 +50,7 @@ function togglePerformer(personId: string, on: boolean) {
   const next = new Set(gig.value?.performers ?? [])
   if (on) next.add(personId)
   else next.delete(personId)
-  return save({ performers: [...next] }, on ? 'the lineup' : 'the lineup')
+  return save({ performers: [...next] }, 'the lineup')
 }
 </script>
 
@@ -66,6 +67,8 @@ function togglePerformer(personId: string, on: boolean) {
       <p v-if="saved" class="ok" role="status">✓ {{ saved }}</p>
 
       <div class="cards">
+        <GigCall :id="id" :gig="gig" :people="people" />
+
         <section class="card">
           <h2>Stage</h2>
           <select
@@ -212,11 +215,6 @@ function togglePerformer(personId: string, on: boolean) {
 
 .small {
   font-size: 0.85rem;
-}
-
-.ok {
-  color: var(--color-success);
-  font-weight: 600;
 }
 
 textarea {

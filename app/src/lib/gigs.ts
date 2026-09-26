@@ -1,3 +1,5 @@
+import type { Call } from './call'
+
 export const stages = ['tentative', 'contracting', 'confirmed', 'done', 'cancelled'] as const
 export type Stage = (typeof stages)[number]
 
@@ -31,10 +33,24 @@ export interface Gig {
   contract: ContractState
   performers: string[]
   soundTech: string
+  call?: Call
 }
 
 export interface GigRow extends Gig {
   id: string
+}
+
+export function newGig(fields: Pick<Gig, 'name' | 'date' | 'time' | 'venue'>): Gig {
+  return {
+    ...fields,
+    stage: 'tentative',
+    notes: '',
+    contact: { name: '', email: '', phone: '' },
+    money: { fee: 0, deposit: 0, paid: 0, merch: 0 },
+    contract: 'none',
+    performers: [],
+    soundTech: '',
+  }
 }
 
 export function gigId(name: string, date: string) {
