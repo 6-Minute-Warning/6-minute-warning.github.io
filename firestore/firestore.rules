@@ -115,6 +115,16 @@ service cloud.firestore {
       allow create, update: if isManager() && validPerson();
     }
 
+    match /presenters/{id} {
+      allow read: if isMember();
+      allow write: if isManager();
+    }
+
+    match /tasks/{id} {
+      allow read: if isMember();
+      allow write: if isManager();
+    }
+
     match /venues/{id} {
       allow read: if isMember();
       allow write: if isManager();

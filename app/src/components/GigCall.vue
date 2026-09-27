@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { arrayUnion, deleteDoc, doc, serverTimestamp, setDoc, updateDoc, type Timestamp } from 'firebase/firestore'
+import { computed, ref, toRef } from 'vue'
+import { arrayUnion, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { day, logEvent, useCollection } from '@/lib/db'
-import { LINEUP_SIZE, callMessage, callStateLabels, openCall, subCandidates, summarize, whatsappLink, type Answer, type AnswerRecord } from '@/lib/call'
+import { day, logEvent } from '@/lib/db'
+import { LINEUP_SIZE, callMessage, callStateLabels, openCall, subCandidates, whatsappLink, type Answer } from '@/lib/call'
+import { myPersonId, usePoll } from '@/lib/poll'
 import { answersFromAttendees, calendarToken, eventBody, readEvent, saveEvent } from '@/lib/calendar'
 import type { Gig } from '@/lib/gigs'
 import type { PersonRecord } from '@/lib/people'
@@ -12,21 +13,17 @@ import { useAuth } from '@/stores/auth'
 const props = defineProps<{ id: string; gig: Gig; people: (PersonRecord & { id: string })[] }>()
 
 const auth = useAuth()
-const { rows: answerRows } = useCollection<Omit<AnswerRecord, 'at'> & { at: Timestamp | null }>(`gigs/${props.id}/answers`)
 const error = ref('')
 const done = ref('')
 const busy = ref(false)
 const confirmAbandon = ref(false)
 const showSubsFor = ref('')
 
-const answers = computed<Record<string, AnswerRecord>>(() =>
-  Object.fromEntries(answerRows.value.map(({ id, at, ...a }) => [id, { ...a, at: at?.toMillis() ?? Date.now() }])),
-)
-const summary = computed(() => (props.gig.call ? summarize(props.gig.call, answers.value) : null))
 const byId = computed(() => new Map(props.people.map((p) => [p.id, p])))
 const nameOf = (id: string) => byId.value.get(id)?.name ?? id
 const members = computed(() => props.people.filter((p) => p.status === 'active'))
-const me = computed(() => auth.access?.person ?? '')
+const me = computed(() => myPersonId(auth.access?.person, auth.email, props.people))
+const { answers, summary, answer: saveAnswer, syncLineup } = usePoll(props.id, toRef(props, 'gig'), () => auth.email, nameOf, (m) => (error.value = m))
 const everyone = computed(() => {
   const ids = new Set([...(props.gig.call?.asked ?? []), ...Object.keys(answers.value)])
   return [...ids].map((id) => ({ id, name: nameOf(id), sub: byId.value.get(id)?.status === 'sub' }))
@@ -58,32 +55,9 @@ function start() {
   })
 }
 
-async function syncLineup(next: Record<string, AnswerRecord>) {
-  if (!props.gig.call) return
-  const s = summarize(props.gig.call, next)
-  const current = props.gig.performers ?? []
-  const performers = s.state === 'full' ? s.lineup : current.filter((id) => next[id]?.answer !== 'no')
-  if (performers.join() === current.join()) return
-  await updateDoc(gigRef(), { performers })
-  if (s.state === 'full') await logEvent(props.id, 'call', `lineup full: ${s.lineup.map(nameOf).join(', ')}`, auth.email)
-}
-
 function answer(personId: string, value: Answer | null) {
   const who = personId === me.value ? 'your answer' : `${nameOf(personId)}'s answer`
-  return run(`Saved ${who}.`, async () => {
-    const answerRef = doc(db, 'gigs', props.id, 'answers', personId)
-    const next = { ...answers.value }
-    if (answers.value[personId]?.answer === value) return
-    if (value) {
-      await setDoc(answerRef, { answer: value, by: auth.email, at: serverTimestamp() })
-      next[personId] = { answer: value, by: auth.email, at: Date.now() }
-    } else {
-      await deleteDoc(answerRef)
-      delete next[personId]
-    }
-    await logEvent(props.id, 'answer', `${nameOf(personId)}: ${value ?? 'cleared'}`, auth.email)
-    await syncLineup(next)
-  })
+  return run(`Saved ${who}.`, () => saveAnswer(personId, value))
 }
 
 function findSub(personId: string) {
@@ -230,14 +204,14 @@ function pullReplies() {
 
       <div class="actions">
         <a class="btn btn--ghost" :href="share" target="_blank" rel="noopener">Share to WhatsApp</a>
-        <template v-if="auth.isManager && summary.state !== 'abandoned'">
+        <template v-if="summary.state !== 'abandoned'">
           <button type="button" class="btn btn--ghost" :disabled="busy" @click="bookCalendar">
             {{ summary.state === 'full' ? 'Confirm on calendar' : gig.call.calendarEventId ? 'Update calendar hold' : 'Put a hold on the calendar' }}
           </button>
           <button v-if="gig.call.calendarEventId" type="button" class="btn btn--ghost" :disabled="busy" @click="pullReplies">Pull calendar replies</button>
         </template>
       </div>
-      <p v-if="auth.isManager" class="muted small">Calendar invites go to every address each person has on the roster. Google asks for calendar access each time.</p>
+      <p class="muted small">Calendar invites go to every address each person has on the roster. Google asks for calendar access each time.</p>
     </template>
   </section>
 </template>

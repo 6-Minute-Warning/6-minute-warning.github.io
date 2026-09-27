@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { balance, gigId, importWrite, isUpcoming, planGigImport, toContract, toStage } from '@/lib/gigs'
+import { balance, gigId, presentersOf, timeOptions, venuesOf, importWrite, isUpcoming, planGigImport, toContract, toStage } from '@/lib/gigs'
 
 describe('gig helpers', () => {
   it('builds ids from date and name', () => {
@@ -78,5 +78,27 @@ describe('gig import', () => {
     expect(write).not.toHaveProperty('performers')
     expect(write).not.toHaveProperty('soundTech')
     expect(write).toMatchObject({ name: 'Sample gig', money: { fee: 3200 } })
+  })
+
+  it('offers half-hour times starting at 7:30pm', () => {
+    const times = timeOptions()
+    expect(times).toHaveLength(48)
+    expect(times.slice(0, 3)).toEqual(['7:30pm', '8:00pm', '8:30pm'])
+    expect(times).toContain('12:00am')
+    expect(times).toContain('12:00pm')
+    expect(times[times.length - 1]).toBe('7:00pm')
+  })
+
+  it('lists past venues once each, ignoring case and blanks', () => {
+    expect(venuesOf([{ venue: 'Winspear' }, { venue: 'winspear ' }, { venue: '' }, { venue: 'Allard Hall' }])).toEqual(['Allard Hall', 'Winspear'])
+  })
+
+  it('merges presenters by name, keeping any email or phone seen', () => {
+    const gigs = [
+      { contact: { name: 'Pat Lee', email: '', phone: '780' } },
+      { contact: { name: 'pat lee', email: 'pat@x.ca', phone: '' } },
+      { contact: { name: '', email: 'nobody@x.ca', phone: '' } },
+    ]
+    expect(presentersOf(gigs)).toEqual([{ name: 'Pat Lee', email: 'pat@x.ca', phone: '780' }])
   })
 })
