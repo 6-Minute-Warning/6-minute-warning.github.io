@@ -223,3 +223,17 @@ describe('band poll', () => {
     await assertFails(updateDoc(doc(db, 'gigs/g1'), { 'call.abandoned': true }))
   })
 })
+
+describe('venues, presenters and to-dos', () => {
+  it('members read them but only managers write', async () => {
+    const member = as('member@example.com')
+    const manager = as('manager@example.com')
+    await assertSucceeds(setDoc(doc(manager, 'presenters/pat'), { name: 'Pat' }))
+    await assertSucceeds(setDoc(doc(manager, 'tasks/venue-hall'), { kind: 'venue', target: 'hall', open: true }))
+    await assertSucceeds(getDoc(doc(member, 'presenters/pat')))
+    await assertSucceeds(getDoc(doc(member, 'tasks/venue-hall')))
+    await assertFails(setDoc(doc(member, 'presenters/pat'), { name: 'Me' }))
+    await assertFails(updateDoc(doc(member, 'tasks/venue-hall'), { open: false }))
+    await assertFails(getDoc(doc(as('stranger@example.com'), 'presenters/pat')))
+  })
+})

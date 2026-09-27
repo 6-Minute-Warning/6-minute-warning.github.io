@@ -2,16 +2,20 @@ import { onUnmounted, ref, type Ref } from 'vue'
 import { addDoc, collection, onSnapshot, query, serverTimestamp, type QueryConstraint } from 'firebase/firestore'
 import { db } from './firebase'
 
-export function useCollection<T>(name: string, ...constraints: QueryConstraint[]): { rows: Ref<(T & { id: string })[]>; error: Ref<string> } {
+export function useCollection<T>(name: string, ...constraints: QueryConstraint[]): { rows: Ref<(T & { id: string })[]>; error: Ref<string>; ready: Ref<boolean> } {
   const rows = ref([]) as Ref<(T & { id: string })[]>
   const error = ref('')
+  const ready = ref(false)
   const stop = onSnapshot(
     query(collection(db, name), ...constraints),
-    (snap) => (rows.value = snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) }))),
+    (snap) => {
+      rows.value = snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) }))
+      ready.value = true
+    },
     (e) => (error.value = e.message),
   )
   onUnmounted(stop)
-  return { rows, error }
+  return { rows, error, ready }
 }
 
 export function logEvent(gig: string, kind: string, detail: string, by: string) {

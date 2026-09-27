@@ -22,7 +22,9 @@ Sign-in is Google only. A person can use Backstage only if their email has a doc
 | `contracts` | gig, status, generated PDF, sent date and recipient, reminders, signed copy |
 | `payments` | gig, kind (deposit, balance, merch), amount, due date, received date |
 | `people` | members and subs, part, who a sub covers, contact |
-| `venues` | name, address, presenter organisation |
+| `venues` | name, address |
+| `presenters` | name, email, phone, and the tech contact's name, email and phone |
+| `tasks` | to-dos shown on a manager's Home, such as a new venue's missing address |
 | `events` | every status change on a gig, for the timeline and calendar sync |
 
 ## Contract process
@@ -39,13 +41,25 @@ Contracts go out as a normal email with the PDF attached. The app enforces the s
 
 Contracts that presenters send use the same record, uploaded instead of generated.
 
+## Home
+
+Home is the signed-in person's to-do list. Polls waiting on their answer come first and can be answered there. Managers also see a to-do for every new venue (its address) and new presenter (their contact and tech contact details), which stays until someone fills it in. Polls already answered are listed under Open polls.
+
+## Adding a gig
+
+Venue and Presenter are search boxes over every venue and presenter used before; typing loosely still finds them. Picking a venue fills in the presenter most often booked there, and picking a presenter fills in their usual venue, when that field is still empty. Typing a name that isn't on the list adds it and opens the matching to-do. Time is a list of half hours starting at 7:30pm.
+
+## On phones
+
+Backstage installs to the home screen: on Android, Chrome's menu, Install app; on iPhone, Safari's Share, Add to Home Screen. The manifest's colours come from `theme/theme.css` at build time.
+
 ## Band poll
 
-A manager adds the gig, then anyone opens the poll on its page, which asks every active member. Members answer Yes or No themselves; anyone can record an answer given in WhatsApp or by phone. Six yes answers fill the lineup, in the order they came in, and tick "Who's on it".
+A manager adds the gig, then anyone opens the poll on its page, which asks every active member. Open polls show on Home, with the ones waiting on you under To do, answerable there. Members answer Yes or No themselves; anyone can record an answer given in WhatsApp or by phone. Six yes answers fill the lineup, in the order they came in, and tick "Who's on it".
 
 When a member says no, anyone can choose to find a sub or abandon the gig. Finding a sub lists the subs who sing that part first, with their phone numbers; whoever calls records the answer. Abandoning cancels the gig.
 
-"Share to WhatsApp" opens WhatsApp with the gig and its link filled in. A manager can put a hold on the 6 Minute Warning Google Calendar (`6MW HOLD: <gig>`), which invites every roster address of everyone not yet marked no, then confirm it (`6MW CONFIRMED GIG: <gig>`) once the lineup is full. The description follows the band's gig event layout. "Pull calendar replies" turns accepted and declined invites into answers. Google asks the manager for calendar access each time, and their account needs "Make changes to events" on that calendar.
+"Share to WhatsApp" opens WhatsApp with the gig and its link filled in. Any member can put a hold on the 6 Minute Warning Google Calendar (`6MW HOLD: <gig>`), which invites every roster address of everyone not yet marked no, then confirm it (`6MW CONFIRMED GIG: <gig>`) once the lineup is full. The description follows the band's gig event layout. "Pull calendar replies" turns accepted and declined invites into answers. Google asks for calendar access each time, and the account needs "Make changes to events" on that calendar.
 
 ## Deploys
 

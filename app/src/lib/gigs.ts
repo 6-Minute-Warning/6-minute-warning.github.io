@@ -40,17 +40,59 @@ export interface GigRow extends Gig {
   id: string
 }
 
-export function newGig(fields: Pick<Gig, 'name' | 'date' | 'time' | 'venue'>): Gig {
+export type Contact = Gig['contact']
+
+export function newGig(fields: Pick<Gig, 'name' | 'date' | 'time' | 'venue'> & { contact?: Contact }): Gig {
   return {
-    ...fields,
+    name: fields.name,
+    date: fields.date,
+    time: fields.time,
+    venue: fields.venue,
     stage: 'tentative',
     notes: '',
-    contact: { name: '', email: '', phone: '' },
+    contact: fields.contact ?? { name: '', email: '', phone: '' },
     money: { fee: 0, deposit: 0, paid: 0, merch: 0 },
     contract: 'none',
     performers: [],
     soundTech: '',
   }
+}
+
+export function venuesOf(gigs: Pick<Gig, 'venue'>[]): string[] {
+  const seen = new Map<string, string>()
+  for (const g of gigs) {
+    const v = g.venue?.trim()
+    if (v && !seen.has(v.toLowerCase())) seen.set(v.toLowerCase(), v)
+  }
+  return [...seen.values()].sort((a, b) => a.localeCompare(b))
+}
+
+export function presentersOf(gigs: Pick<Gig, 'contact'>[]): Contact[] {
+  const seen = new Map<string, Contact>()
+  for (const g of gigs) {
+    const c = g.contact
+    const key = c?.name?.trim().toLowerCase()
+    if (!key) continue
+    const had = seen.get(key)
+    seen.set(key, {
+      name: had?.name || c.name.trim(),
+      email: had?.email || c.email?.trim() || '',
+      phone: had?.phone || c.phone?.trim() || '',
+    })
+  }
+  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export const DEFAULT_TIME = '7:30pm'
+
+export function timeOptions(): string[] {
+  const start = 19 * 60 + 30
+  return Array.from({ length: 48 }, (_, i) => {
+    const minutes = (start + i * 30) % (24 * 60)
+    const hour = Math.floor(minutes / 60)
+    const shown = hour % 12 || 12
+    return `${shown}:${String(minutes % 60).padStart(2, '0')}${hour < 12 ? 'am' : 'pm'}`
+  })
 }
 
 export function gigId(name: string, date: string) {

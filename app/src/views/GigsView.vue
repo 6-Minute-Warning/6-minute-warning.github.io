@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { doc, orderBy, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore'
 import AppHeader from '@/components/AppHeader.vue'
+import SearchSelect from '@/components/SearchSelect.vue'
 import { db } from '@/lib/firebase'
 import { day, logEvent, money, today, useCollection } from '@/lib/db'
-import { balance, gigId, importWrite, newGig, isUpcoming, planGigImport, stageLabels, contractLabels, type Gig, type Stage } from '@/lib/gigs'
+import { blankPresenter, mergeNames, presenterTask, slug, usualPartner, venueTask, type Presenter, type Venue } from '@/lib/directory'
+import { DEFAULT_TIME, balance, gigId, importWrite, newGig, presentersOf, timeOptions, venuesOf, isUpcoming, planGigImport, stageLabels, contractLabels, type Gig, type Stage } from '@/lib/gigs'
 import { useAuth } from '@/stores/auth'
 
 const auth = useAuth()
@@ -26,19 +28,66 @@ const needsContract = computed(() => upcoming.value.filter((g) => g.contract !==
 
 const stageTone = (stage: Stage) => (stage === 'confirmed' || stage === 'done' ? 'ok' : stage === 'cancelled' ? 'bad' : 'warn')
 
-const draft = ref({ name: '', date: '', time: '', venue: '' })
+const draft = ref({ name: '', date: '', time: DEFAULT_TIME, venue: '', presenter: '', email: '', phone: '' })
+const none = <T,>() => ({ rows: computed(() => [] as (T & { id: string })[]) })
+const { rows: venueRows } = auth.isManager ? useCollection<Venue>('venues') : none<Venue>()
+const { rows: presenterRows } = auth.isManager ? useCollection<Presenter>('presenters') : none<Presenter>()
+const venues = computed(() => mergeNames(venuesOf(gigs.value), venueRows.value.map((v) => v.name)))
+const presenters = computed(() => {
+  const known = new Map(presentersOf(gigs.value).map((c) => [c.name.toLowerCase(), c]))
+  for (const p of presenterRows.value) known.set(p.name.toLowerCase(), { name: p.name, email: p.email, phone: p.phone })
+  return [...known.values()].sort((a, b) => a.name.localeCompare(b.name))
+})
+const presenterNames = computed(() => presenters.value.map((p) => p.name))
+const known = (list: string[], value: string) => list.find((o) => slug(o) === slug(value))
+const venueIsNew = computed(() => !!draft.value.venue.trim() && !known(venues.value, draft.value.venue))
+const presenterIsNew = computed(() => !!draft.value.presenter.trim() && !known(presenterNames.value, draft.value.presenter))
+
+watch(
+  () => known(venues.value, draft.value.venue),
+  (venue) => {
+    if (venue && !draft.value.presenter.trim()) draft.value.presenter = usualPartner(gigs.value, 'venue', venue)
+  },
+)
+watch(
+  () => known(presenterNames.value, draft.value.presenter),
+  (presenter) => {
+    if (presenter && !draft.value.venue.trim()) draft.value.venue = usualPartner(gigs.value, 'presenter', presenter)
+  },
+)
+
+const times = timeOptions()
 const addError = ref('')
 const adding = ref(false)
 
 async function addGig() {
   addError.value = ''
   adding.value = true
-  const id = gigId(draft.value.name, draft.value.date)
+  const d = draft.value
+  const presenterName = known(presenterNames.value, d.presenter)
+  const picked = presenters.value.find((p) => p.name === presenterName)
+  const contact = presenterIsNew.value ? { name: d.presenter.trim(), email: d.email.trim(), phone: d.phone.trim() } : picked
+  const fields = { name: d.name, date: d.date, time: d.time, venue: known(venues.value, d.venue) ?? d.venue.trim(), contact }
+  const id = gigId(d.name, d.date)
   const gigRef = doc(db, 'gigs', id)
+  const venueId = venueIsNew.value ? slug(fields.venue) : ''
+  const presenterId = presenterIsNew.value && contact ? slug(contact.name) : ''
+  const venueRef = venueId ? doc(db, 'venues', venueId) : null
+  const presenterRef = presenterId ? doc(db, 'presenters', presenterId) : null
   try {
     await runTransaction(db, async (tx) => {
       if ((await tx.get(gigRef)).exists()) throw new Error('A gig with this name and date already exists.')
-      tx.set(gigRef, { ...newGig(draft.value), createdAt: serverTimestamp(), createdBy: auth.email })
+      const venueExists = venueRef ? (await tx.get(venueRef)).exists() : true
+      const presenterExists = presenterRef ? (await tx.get(presenterRef)).exists() : true
+      tx.set(gigRef, { ...newGig(fields), createdAt: serverTimestamp(), createdBy: auth.email })
+      if (venueRef && !venueExists) {
+        tx.set(venueRef, { name: fields.venue, address: '' })
+        tx.set(doc(db, 'tasks', `venue-${venueId}`), { ...venueTask(venueId, fields.venue, auth.email), createdAt: serverTimestamp() })
+      }
+      if (presenterRef && contact && !presenterExists) {
+        tx.set(presenterRef, blankPresenter(contact))
+        tx.set(doc(db, 'tasks', `presenter-${presenterId}`), { ...presenterTask(presenterId, contact.name, auth.email), createdAt: serverTimestamp() })
+      }
     })
     await logEvent(id, 'created', draft.value.name, auth.email)
     await router.push(`/gigs/${id}`)
@@ -128,9 +177,19 @@ async function applyImport() {
       <h2>New gig</h2>
       <form class="new" @submit.prevent="addGig">
         <label>Name<input v-model.trim="draft.name" required maxlength="120" /></label>
-        <label>Date<input v-model="draft.date" type="date" required /></label>
-        <label>Time<input v-model.trim="draft.time" maxlength="80" placeholder="7:30pm" /></label>
-        <label>Venue<input v-model.trim="draft.venue" maxlength="160" /></label>
+        <label>Date<input v-model="draft.date" type="date" required @click="($event.target as HTMLInputElement).showPicker?.()" /></label>
+        <label>Time
+          <select v-model="draft.time" aria-label="Time">
+            <option v-for="t in times" :key="t" :value="t">{{ t }}</option>
+            <option value="">Not set</option>
+          </select>
+        </label>
+        <SearchSelect v-model="draft.venue" label="Venue" :options="venues" new-label="New venue: its address becomes a to-do" />
+        <SearchSelect v-model="draft.presenter" label="Presenter" :options="presenterNames" new-label="New presenter: their details become a to-do" />
+        <template v-if="presenterIsNew">
+          <label>Presenter email<input v-model="draft.email" type="email" maxlength="160" /></label>
+          <label>Presenter phone<input v-model="draft.phone" type="tel" maxlength="40" /></label>
+        </template>
         <button type="submit" class="btn" :disabled="adding">Add gig</button>
       </form>
       <p v-if="addError" class="error" role="alert">✕ {{ addError }}</p>
