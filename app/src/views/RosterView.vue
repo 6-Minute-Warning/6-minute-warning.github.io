@@ -142,15 +142,4 @@ label {
   font-weight: 600;
   font-size: 0.9rem;
 }
-
-.link {
-  background: none;
-  border: 0;
-  padding: 0;
-  font: inherit;
-  font-size: 0.85rem;
-  color: var(--color-accent-strong);
-  cursor: pointer;
-  text-decoration: underline;
-}
 </style>

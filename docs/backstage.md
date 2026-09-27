@@ -39,6 +39,14 @@ Contracts go out as a normal email with the PDF attached. The app enforces the s
 
 Contracts that presenters send use the same record, uploaded instead of generated.
 
+## Band poll
+
+A manager adds the gig, then anyone opens the poll on its page, which asks every active member. Members answer Yes or No themselves; anyone can record an answer given in WhatsApp or by phone. Six yes answers fill the lineup, in the order they came in, and tick "Who's on it".
+
+When a member says no, anyone can choose to find a sub or abandon the gig. Finding a sub lists the subs who sing that part first, with their phone numbers; whoever calls records the answer. Abandoning cancels the gig.
+
+"Share to WhatsApp" opens WhatsApp with the gig and its link filled in. A manager can put a hold on the 6 Minute Warning Google Calendar (`6MW HOLD: <gig>`), which invites every roster address of everyone not yet marked no, then confirm it (`6MW CONFIRMED GIG: <gig>`) once the lineup is full. The description follows the band's gig event layout. "Pull calendar replies" turns accepted and declined invites into answers. Google asks the manager for calendar access each time, and their account needs "Make changes to events" on that calendar.
+
 ## Deploys
 
 Merging to `main` deploys Backstage to https://six-minute-warning.web.app and releases the Firestore rules. Pull requests get their own preview URL, and CI adds that URL to the Firebase sign-in domains so people can log in on it. CI authenticates through workload identity federation, so no service account key exists.
@@ -57,7 +65,8 @@ Merging to `main` deploys Backstage to https://six-minute-warning.web.app and re
 | ID | Phase | Ships |
 |---|---|---|
 | P1 | Foundation | Monorepo, Firebase project, sign-in, one-time import of the Notion gigs and people |
-| P2 | Gigs | Gig list with money and contract state, gig detail with lineup and sound tech, roster, and a Notion gig import (`node tools/notion-gigs.mjs`). Calendar events still to come. |
+| P2 | Gigs | Gig list with money and contract state, gig detail with lineup and sound tech, roster, and a Notion gig import (`node tools/notion-gigs.mjs`). |
+| P2b | Band poll | Ask the band about a gig, find subs, abandon, and hold then confirm the gig on the band calendar |
 | P3 | Generate contracts | Fill the Drive template from the gig and save the PDF to Drive |
 | P4 | Send and track | Email from manager@, reminders, signed-copy upload, the Confirmed gate |
 | P5 | Payments | Due dates, received amounts, overdue flags |

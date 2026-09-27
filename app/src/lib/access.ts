@@ -13,6 +13,7 @@ export const roleLabels: Record<Role, string> = {
 export interface AccessRecord {
   name: string
   role: Role
+  person?: string
 }
 
 export function normalizeEmail(email: string) {

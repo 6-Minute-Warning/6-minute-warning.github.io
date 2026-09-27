@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest'
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 
 const OWNER = 'brett@6minutewarning.com'
 let env: RulesTestEnvironment
@@ -176,5 +176,50 @@ describe('admins', () => {
     const db = as('Brett@6MinuteWarning.com')
     await assertSucceeds(getDoc(doc(db, 'gigs/g1')))
     await assertSucceeds(setDoc(doc(db, 'users/new2@example.com'), { name: 'New', role: 'member' }))
+  })
+})
+
+describe('band poll', () => {
+  const call = { openedBy: 'member@example.com', openedAt: 1, asked: ['kyle'], subbing: [], abandoned: false, calendarEventId: '' }
+  const answer = (value: string, by = 'member@example.com') => ({ answer: value, by, at: serverTimestamp() })
+
+  it('members record their own and anyone else\'s answer, signed as themselves', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(setDoc(doc(db, 'gigs/g1/answers/kyle'), answer('yes')))
+    await assertSucceeds(setDoc(doc(db, 'gigs/g1/answers/sub-sam'), answer('no')))
+    await assertSucceeds(getDocs(collection(db, 'gigs/g1/answers')))
+    await assertSucceeds(deleteDoc(doc(db, 'gigs/g1/answers/kyle')))
+  })
+
+  it('answers cannot be forged, backdated or malformed', async () => {
+    const db = as('member@example.com')
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), answer('yes', 'admin@example.com')))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), answer('maybe')))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { answer: 'yes', by: 'member@example.com', at: 0 }))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { ...answer('yes'), extra: true }))
+    await assertFails(setDoc(doc(as('stranger@example.com'), 'gigs/g1/answers/kyle'), answer('yes', 'stranger@example.com')))
+  })
+
+  it('any member can open the poll, find a sub, or abandon the gig', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(updateDoc(doc(db, 'gigs/g1'), { call }))
+    await assertSucceeds(updateDoc(doc(db, 'gigs/g1'), { 'call.subbing': ['kyle'] }))
+    await assertSucceeds(updateDoc(doc(db, 'gigs/g1'), { 'call.abandoned': true, stage: 'cancelled' }))
+    await assertSucceeds(updateDoc(doc(db, 'gigs/g1'), { 'call.abandoned': false }))
+  })
+
+  it('a malformed poll is refused', async () => {
+    const db = as('member@example.com')
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { call: { ...call, asked: 'kyle' } }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { call: { ...call, extra: 1 } }))
+    await assertFails(updateDoc(doc(as('manager@example.com'), 'gigs/g1'), { call: { ...call, abandoned: 'yes' } }))
+  })
+
+  it('abandoning is the only stage change a member can make, and it must cancel', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(updateDoc(doc(db, 'gigs/g1'), { call }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { stage: 'confirmed', 'call.abandoned': true }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { stage: 'cancelled', 'call.abandoned': false }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { 'call.abandoned': true }))
   })
 })

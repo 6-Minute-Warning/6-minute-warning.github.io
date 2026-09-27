@@ -47,11 +47,46 @@ service cloud.firestore {
       allow delete: if isAdmin() && userEmail != email();
     }
 
+    function abandons() {
+      return request.resource.data.stage == 'cancelled' && request.resource.data.call.abandoned == true;
+    }
+
+    function wasAbandoned() {
+      return 'call' in resource.data && resource.data.call.abandoned == true;
+    }
+
+    function validCall() {
+      let c = request.resource.data.call;
+      return !('call' in request.resource.data) || (
+        c is map
+        && c.keys().hasOnly(['openedBy', 'openedAt', 'asked', 'subbing', 'abandoned', 'calendarEventId'])
+        && c.asked is list && c.asked.size() <= 40
+        && c.subbing is list && c.subbing.size() <= 40
+        && c.abandoned is bool
+        && c.calendarEventId is string);
+    }
+
     match /gigs/{id} {
       allow read: if isMember();
       allow create, delete: if isManager();
-      allow update: if isManager()
-        || (isMember() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['money', 'contract', 'contact', 'stage']));
+      allow update: if validCall() && (isManager()
+        || (isMember()
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['money', 'contract', 'contact'])
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stage']) || abandons())
+          && (wasAbandoned() || request.resource.data.get('call', {}).get('abandoned', false) != true || abandons())));
+
+      function validAnswer() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['answer', 'by', 'at'])
+          && d.answer in ['yes', 'no']
+          && d.by == email()
+          && d.at == request.time;
+      }
+
+      match /answers/{person} {
+        allow read, delete: if isMember();
+        allow create, update: if isMember() && validAnswer();
+      }
     }
 
     match /contracts/{id} {

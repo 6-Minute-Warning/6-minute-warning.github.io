@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { doc, serverTimestamp, writeBatch } from 'firebase/firestore'
-import { orderBy } from 'firebase/firestore'
+import { useRouter } from 'vue-router'
+import { doc, orderBy, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore'
 import AppHeader from '@/components/AppHeader.vue'
 import { db } from '@/lib/firebase'
-import { day, money, today, useCollection } from '@/lib/db'
-import { balance, importWrite, isUpcoming, planGigImport, stageLabels, contractLabels, type Gig, type Stage } from '@/lib/gigs'
+import { day, logEvent, money, today, useCollection } from '@/lib/db'
+import { balance, gigId, importWrite, newGig, isUpcoming, planGigImport, stageLabels, contractLabels, type Gig, type Stage } from '@/lib/gigs'
 import { useAuth } from '@/stores/auth'
 
 const auth = useAuth()
+const router = useRouter()
 const { rows: gigs, error } = useCollection<Gig>('gigs', orderBy('date'))
 const filter = ref<'upcoming' | 'all'>('upcoming')
 const now = today()
@@ -24,6 +25,29 @@ const owed = computed(() => gigs.value.filter((g) => g.stage !== 'cancelled').re
 const needsContract = computed(() => upcoming.value.filter((g) => g.contract !== 'signed' && g.stage !== 'tentative'))
 
 const stageTone = (stage: Stage) => (stage === 'confirmed' || stage === 'done' ? 'ok' : stage === 'cancelled' ? 'bad' : 'warn')
+
+const draft = ref({ name: '', date: '', time: '', venue: '' })
+const addError = ref('')
+const adding = ref(false)
+
+async function addGig() {
+  addError.value = ''
+  adding.value = true
+  const id = gigId(draft.value.name, draft.value.date)
+  const gigRef = doc(db, 'gigs', id)
+  try {
+    await runTransaction(db, async (tx) => {
+      if ((await tx.get(gigRef)).exists()) throw new Error('A gig with this name and date already exists.')
+      tx.set(gigRef, { ...newGig(draft.value), createdAt: serverTimestamp(), createdBy: auth.email })
+    })
+    await logEvent(id, 'created', draft.value.name, auth.email)
+    await router.push(`/gigs/${id}`)
+  } catch (e) {
+    addError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    adding.value = false
+  }
+}
 
 const plan = ref<ReturnType<typeof planGigImport> | null>(null)
 const importError = ref('')
@@ -101,6 +125,18 @@ async function applyImport() {
     </table>
 
     <section v-if="auth.isManager" class="card import">
+      <h2>New gig</h2>
+      <form class="new" @submit.prevent="addGig">
+        <label>Name<input v-model.trim="draft.name" required maxlength="120" /></label>
+        <label>Date<input v-model="draft.date" type="date" required /></label>
+        <label>Time<input v-model.trim="draft.time" maxlength="80" placeholder="7:30pm" /></label>
+        <label>Venue<input v-model.trim="draft.venue" maxlength="160" /></label>
+        <button type="submit" class="btn" :disabled="adding">Add gig</button>
+      </form>
+      <p v-if="addError" class="error" role="alert">✕ {{ addError }}</p>
+    </section>
+
+    <section v-if="auth.isManager" class="card import">
       <h2>Import from Notion</h2>
       <p class="muted">Run <code>node tools/notion-gigs.mjs</code> in the repo, then choose <code>.local/gigs-import.json</code>. Importing again updates the same gigs and keeps anything added here.</p>
       <input type="file" accept="application/json" aria-label="Gig import file" @change="readImport" />
@@ -139,50 +175,8 @@ async function applyImport() {
   margin-bottom: 12px;
 }
 
-.mini {
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 700;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.mini[aria-pressed='true'] {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-accent-ink);
-}
-
 .nowrap {
   white-space: nowrap;
-}
-
-.chip {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--color-border);
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.chip--ok {
-  border-color: var(--color-success);
-  color: var(--color-success);
-}
-
-.chip--warn {
-  border-color: var(--color-warning);
-  color: var(--color-warning);
-}
-
-.chip--bad {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
 }
 
 .import {
@@ -194,14 +188,24 @@ async function applyImport() {
   font-size: 1.05rem;
 }
 
+.new {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+
+.new label {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
 .warn {
   color: var(--color-warning);
   list-style: none;
   padding: 0;
 }
 
-.ok {
-  color: var(--color-success);
-  font-weight: 600;
-}
 </style>
