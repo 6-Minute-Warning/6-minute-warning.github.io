@@ -25,6 +25,7 @@ export const contractLabels: Record<ContractState, string> = {
 export interface Gig {
   name: string
   date: string
+  dateOptions?: string[]
   time: string
   venue: string
   stage: Stage

@@ -12,6 +12,7 @@ import type { Task } from '@/lib/directory'
 import { today, useCollection } from '@/lib/db'
 import type { Gig, GigRow } from '@/lib/gigs'
 import type { PersonRecord } from '@/lib/people'
+import { needsAnswer } from '@/lib/options'
 import { myPersonId, useMyAnswers } from '@/lib/poll'
 import { needsRehearsalAnswer } from '@/lib/rehearsals'
 import { useAuth } from '@/stores/auth'
@@ -26,7 +27,7 @@ const live = computed(() => gigs.value.filter((g) => g.stage !== 'cancelled'))
 const polls = computed(() => live.value.filter((g) => g.call && !g.call.abandoned && g.call.asked.includes(me.value)))
 const mine = useMyAnswers(() => polls.value.map((g) => g.id), () => me.value)
 const loading = computed(() => !peopleReady.value || polls.value.some((g) => !(g.id in mine.value)))
-const needsMe = computed(() => polls.value.filter((g) => !mine.value[g.id] || mine.value[g.id] === 'later'))
+const needsMe = computed(() => polls.value.filter((g) => needsAnswer(g, mine.value[g.id])))
 const booked = computed(() => live.value.filter((g) => g.performers?.includes(me.value)))
 const next = computed(() => booked.value[0] as GigRow | undefined)
 const later = computed(() => booked.value.slice(1, 6))

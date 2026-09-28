@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest'
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
-import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from 'firebase/firestore'
 
 const OWNER = 'brett@6minutewarning.com'
 let env: RulesTestEnvironment
@@ -275,6 +275,108 @@ describe('rehearsals needed', () => {
     await assertFails(updateDoc(doc(db, 'gigs/g1'), { rehearsals: rehearsals('director@example.com', { extra: true }) }))
     const { lineupKey: _lineupKey, ...missing } = rehearsals('director@example.com')
     await assertFails(updateDoc(doc(db, 'gigs/g1'), { rehearsals: missing }))
+  })
+})
+
+describe('possible dates', () => {
+  const dateOptions = ['2026-11-27', '2026-11-28', '2026-12-04']
+  const times = (dates: Record<string, string>) => Object.fromEntries(Object.keys(dates).map((d) => [d, serverTimestamp()]))
+  const signed = (dates: Record<string, string>, extra = {}) => ({ dates, times: times(dates), by: 'member@example.com', at: serverTimestamp(), ...extra })
+  const at = Timestamp.fromMillis(1_700_000_000_000)
+  const earlier = Timestamp.fromMillis(1_600_000_000_000)
+
+  beforeEach(() =>
+    env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'gigs/g1'), { name: 'Sample gig', date: dateOptions[0], dateOptions })
+    }),
+  )
+
+  it('members answer per date, signed as themselves', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(setDoc(doc(db, 'gigs/g1/answers/kyle'), signed({ '2026-11-27': 'yes', '2026-12-04': 'no' })))
+    await assertSucceeds(setDoc(doc(db, 'gigs/g1/answers/kyle'), signed({ '2026-11-28': 'later' }, { until: '2026-10-15' })))
+  })
+
+  it('a per-date answer must name the gig\'s own dates with a known answer', async () => {
+    const db = as('member@example.com')
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), signed({ '2026-11-29': 'yes' })))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), signed({ '2026-11-27': 'maybe' })))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), signed({})))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), signed({ '2026-11-27': 'later' })))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), signed({ '2026-11-27': 'yes' }, { until: '2026-10-15' })))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { ...signed({ '2026-11-27': 'yes' }), by: 'admin@example.com' }))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { ...signed({ '2026-11-27': 'yes' }), answer: 'yes' }))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { ...signed({ '2026-11-27': 'yes' }), times: {} }))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { ...signed({ '2026-11-27': 'yes' }), times: times({ '2026-11-28': 'yes' }) }))
+  })
+
+  it('refuses a single-date answer while the dates are open', async () => {
+    await assertFails(setDoc(doc(as('member@example.com'), 'gigs/g1/answers/kyle'), { answer: 'yes', by: 'member@example.com', at: serverTimestamp() }))
+  })
+
+  it('a gig with one date takes no per-date answers', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'gigs/g2'), { name: 'One date', date: '2026-11-27' }))
+    await assertFails(setDoc(doc(as('member@example.com'), 'gigs/g2/answers/kyle'), signed({ '2026-11-27': 'yes' })))
+  })
+
+  it('only managers set or change the possible dates, and there are two to six', async () => {
+    await assertFails(updateDoc(doc(as('member@example.com'), 'gigs/g1'), { dateOptions: ['2026-11-27', '2026-11-30'] }))
+    await assertFails(updateDoc(doc(as('member@example.com'), 'gigs/g1'), { dateOptions: deleteField(), date: '2026-11-28' }))
+    await assertSucceeds(setDoc(doc(as('manager@example.com'), 'gigs/g3'), { name: 'New', date: '2026-11-27', dateOptions }))
+    await assertFails(setDoc(doc(as('manager@example.com'), 'gigs/g4'), { name: 'New', date: '2026-11-27', dateOptions: ['2026-11-27'] }))
+    await assertFails(setDoc(doc(as('manager@example.com'), 'gigs/g5'), { name: 'New', date: '2026-11-27', dateOptions: '2026-11-27' }))
+  })
+
+  describe('locking a date', () => {
+    beforeEach(() =>
+      env.withSecurityRulesDisabled(async (ctx) => {
+        const db = ctx.firestore()
+        await setDoc(doc(db, 'gigs/g1/answers/kyle'), { dates: { '2026-11-28': 'yes', '2026-12-04': 'no' }, times: { '2026-11-28': earlier, '2026-12-04': at }, by: 'kyle@example.com', at })
+        await setDoc(doc(db, 'gigs/g1/answers/tim'), { dates: { '2026-11-28': 'later' }, times: { '2026-11-28': at }, by: 'tim@example.com', at, until: '2026-10-15' })
+      }),
+    )
+
+    function lock(date: string, kyle: object, tim: object) {
+      const db = as('manager@example.com')
+      const batch = writeBatch(db)
+      batch.update(doc(db, 'gigs/g1'), { date, dateOptions: deleteField() })
+      batch.set(doc(db, 'gigs/g1/answers/kyle'), kyle)
+      batch.set(doc(db, 'gigs/g1/answers/tim'), tim)
+      return batch.commit()
+    }
+
+    it('carries each answer for the locked date over, keeping who gave it and when', async () => {
+      await assertSucceeds(lock('2026-11-28', { answer: 'yes', by: 'kyle@example.com', at: earlier }, { answer: 'later', by: 'tim@example.com', at, until: '2026-10-15' }))
+    })
+
+    it('keeps the time of the locked date\'s answer, not the latest change', async () => {
+      await assertFails(lock('2026-11-28', { answer: 'yes', by: 'kyle@example.com', at }, { answer: 'later', by: 'tim@example.com', at, until: '2026-10-15' }))
+    })
+
+    it('locks a gig with a full band of answers in one batch', async () => {
+      const names = Array.from({ length: 12 }, (_, i) => `p${i}`)
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        for (const n of names) await setDoc(doc(ctx.firestore(), `gigs/g1/answers/${n}`), { dates: { '2026-11-28': 'yes' }, times: { '2026-11-28': at }, by: 'x@example.com', at })
+      })
+      const db = as('manager@example.com')
+      const batch = writeBatch(db)
+      batch.update(doc(db, 'gigs/g1'), { date: '2026-11-28', dateOptions: deleteField() })
+      batch.set(doc(db, 'gigs/g1/answers/kyle'), { answer: 'yes', by: 'kyle@example.com', at: earlier })
+      batch.delete(doc(db, 'gigs/g1/answers/tim'))
+      for (const n of names) batch.set(doc(db, `gigs/g1/answers/${n}`), { answer: 'yes', by: 'x@example.com', at })
+      await assertSucceeds(batch.commit())
+    })
+
+    it('refuses a carried answer that differs from the one given for that date', async () => {
+      await assertFails(lock('2026-11-28', { answer: 'no', by: 'kyle@example.com', at: earlier }, { answer: 'later', by: 'tim@example.com', at, until: '2026-10-15' }))
+      await assertFails(lock('2026-12-04', { answer: 'yes', by: 'kyle@example.com', at }, { answer: 'later', by: 'tim@example.com', at, until: '2026-10-15' }))
+      await assertFails(lock('2026-11-28', { answer: 'yes', by: 'kyle@example.com', at: earlier }, { answer: 'later', by: 'tim@example.com', at, until: '2026-11-01' }))
+    })
+
+    it('keeps the old signature only while the dates are being locked', async () => {
+      const db = as('member@example.com')
+      await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { answer: 'yes', by: 'kyle@example.com', at }))
+    })
   })
 })
 

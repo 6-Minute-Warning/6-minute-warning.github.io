@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { monthSpan } from '@/lib/options'
 
-const props = defineProps<{ date: string }>()
+const props = defineProps<{ date: string; dates?: string[] }>()
+const choices = computed(() => ((props.dates?.length ?? 0) > 1 ? props.dates! : null))
 const parts = computed(() => {
   if (!props.date) return null
   const d = new Date(`${props.date}T12:00:00-06:00`)
@@ -11,7 +13,12 @@ const parts = computed(() => {
 </script>
 
 <template>
-  <span class="date" :aria-label="date">
+  <span v-if="choices" class="date" :aria-label="`${choices.length} possible dates`">
+    <span class="month">{{ monthSpan(choices) }}</span>
+    <span class="day">{{ choices.length }}</span>
+    <span class="weekday">dates</span>
+  </span>
+  <span v-else class="date" :aria-label="date">
     <template v-if="parts">
       <span class="month">{{ parts.month }}</span>
       <span class="day">{{ parts.day }}</span>

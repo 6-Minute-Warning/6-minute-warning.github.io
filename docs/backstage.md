@@ -18,7 +18,7 @@ Sign-in is Google only. A person can use Backstage only if their email has a doc
 
 | Collection | Holds |
 |---|---|
-| `gigs` | name, date, times, venue, presenter contact, stage, fee, deposit, format, outfit, performers, rehearsals needed (count, note, who set it) |
+| `gigs` | name, date, possible dates, times, venue, presenter contact, stage, fee, deposit, format, outfit, performers, rehearsals needed (count, note, who set it) |
 | `contracts` | gig, status, generated PDF, sent date and recipient, reminders, signed copy |
 | `payments` | gig, kind (deposit, balance, merch), amount, due date, received date |
 | `people` | members and subs, part, who a sub covers, contact |
@@ -84,6 +84,22 @@ A manager adds the gig, then anyone opens the poll on its page, which asks every
 When a member says no, anyone can choose to find a sub or abandon the gig. Finding a sub lists the subs who sing that part first, with their phone numbers; whoever calls records the answer. Abandoning cancels the gig.
 
 "Share to WhatsApp" opens WhatsApp with the gig and its link filled in. Any member can put a hold on the 6 Minute Warning Google Calendar (`6MW HOLD: <gig>`), which invites every roster address of everyone not yet marked no, then confirm it (`6MW CONFIRMED GIG: <gig>`) once the lineup is full. The description follows the band's gig event layout. "Pull calendar replies" turns accepted and declined invites into answers. Google asks for calendar access each time, and the account needs "Make changes to events" on that calendar.
+
+## Possible dates
+
+Possible dates are alternatives for one performance, not the days of a multi-day run. A request can offer several, for example Nov 27, Nov 28 or Dec 4, and New gig takes up to six with "+ Another possible date".
+
+Each singer answers per date: I'm in, Can't or Not sure, one tap each on Home and the gig page, with a clash warning per date. Each date has its own dial; the date that reached six first is marked Filled first, otherwise the one with the most yeses is marked Most in. Gigs shows the same dials in the date column. A manager locks a date on the gig page: the other dates are removed, and each answer for that date carries over into the poll with who gave it and when.
+
+Data, for anything that writes gigs, such as the API:
+
+| Field | Holds |
+|---|---|
+| `gigs/{id}.dateOptions` | 2 to 6 `YYYY-MM-DD` strings, sorted. Absent on a gig with one date. Only managers set or remove it. |
+| `gigs/{id}.date` | The earliest possible date until one is locked, so date sorting and queries keep working. The id is made from it. |
+| `gigs/{id}/answers/{personId}` | On a gig with possible dates: `{ dates: { 'YYYY-MM-DD': 'yes' \| 'no' \| 'later' }, times: { 'YYYY-MM-DD': timestamp }, by, at, until? }`. Every key must be one of `dateOptions`, and `times` has the same keys: when each date was last answered, which orders the yeses on that date. `until` is the earliest "know by" date while any date is `later`. A single-date answer is refused while the dates are open. On a gig with one date: `{ answer, by, at, until? }`. |
+
+Locking is one batch: the gig's `date` becomes the chosen date and `dateOptions` is deleted, each answer is rewritten as `{ answer: dates[chosen], by, at: times[chosen], until? }`, the lineup is filled if six said yes, and answers with nothing for that date are deleted. The rules accept that rewrite only when it matches the old answer for the locked date.
 
 ## Deploys
 

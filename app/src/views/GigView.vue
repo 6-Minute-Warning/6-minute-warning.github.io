@@ -5,6 +5,7 @@ import { arrayUnion, doc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 
 import AppHeader from '@/components/AppHeader.vue'
 import AnswerCard from '@/components/AnswerCard.vue'
 import DateBlock from '@/components/DateBlock.vue'
+import DateRace from '@/components/DateRace.vue'
 import GigFacts from '@/components/GigFacts.vue'
 import LineupDial from '@/components/LineupDial.vue'
 import RehearsalsCard from '@/components/RehearsalsCard.vue'
@@ -14,6 +15,7 @@ import { day, logEvent, money, useCollection } from '@/lib/db'
 import { LINEUP_SIZE, callMessage, callStateLabels, openCall, subCandidates, subMessage, whatsappLink, type Answer } from '@/lib/call'
 import { answersFromAttendees, calendarToken, eventBody, readEvent, saveEvent } from '@/lib/calendar'
 import { balance, clashes, contractLabels, contractStates, stageLabels, stages, type ContractState, type Gig, type Stage } from '@/lib/gigs'
+import { dateSaid, hasOptions, optionClashes, optionsText } from '@/lib/options'
 import type { PersonRecord } from '@/lib/people'
 import { myPersonId, usePoll } from '@/lib/poll'
 import { useAuth } from '@/stores/auth'
@@ -46,12 +48,14 @@ const members = computed(() => people.value.filter((p) => p.status === 'active')
 const singers = computed(() => people.value.filter((p) => p.status === 'active' || p.status === 'sub'))
 const crew = computed(() => people.value.filter((p) => p.status === 'crew'))
 
-const { answers, summary, answer: saveAnswer, syncLineup } = usePoll(id, gig, () => auth.email, nameOf, (m) => toast.show(m, 'error'))
+const { answers, stored, summary, standings, leading, answer: saveAnswer, answerOn, lockDate, syncLineup } = usePoll(id, gig, () => auth.email, nameOf, (m) => toast.show(m, 'error'))
 
-const when = computed(() => (gig.value ? day(gig.value.date) : ''))
+const options = computed(() => hasOptions(gig.value))
+const when = computed(() => (!gig.value ? '' : options.value ? optionsText(gig.value.dateOptions!) : day(gig.value.date)))
 const link = computed(() => `${location.origin}/gigs/${id}`)
 const share = computed(() => (gig.value ? whatsappLink(callMessage({ name: gig.value.name, when: when.value, venue: gig.value.venue }, link.value)) : ''))
-const clashNames = computed(() => (gig.value ? clashes(sameWeek.value, { id, date: gig.value.date }, me.value).map((g) => ({ name: g.name, date: g.date })) : []))
+const dateClashes = computed(() => (gig.value && options.value ? optionClashes(sameWeek.value, { ...gig.value, id }, me.value) : {}))
+const clashNames = computed(() => (gig.value && !options.value ? clashes(sameWeek.value, { id, date: gig.value.date }, me.value).map((g) => ({ name: g.name, date: g.date })) : []))
 const showShare = computed(() => route.query.share === '1')
 const asked = computed(() => !!gig.value?.call?.asked.includes(me.value))
 const lineupNames = computed(() => summary.value?.lineup.map(nameOf) ?? [])
@@ -63,7 +67,7 @@ const waitingText = computed(() => {
   return [waiting.length ? `waiting on ${waiting.join(', ')}` : '', later.length ? `will know: ${later.join(', ')}` : ''].filter(Boolean).join(' · ')
 })
 const everyone = computed(() => {
-  const ids = new Set([...(gig.value?.call?.asked ?? []), ...Object.keys(answers.value)])
+  const ids = new Set([...(gig.value?.call?.asked ?? []), ...Object.keys(stored.value)])
   return [...ids].map((pid) => ({ id: pid, name: nameOf(pid), sub: byId.value.get(pid)?.status === 'sub', answer: answers.value[pid] }))
 })
 const subbingFor = computed(() => {
@@ -104,6 +108,21 @@ function answer(personId: string, value: Answer | null, until?: string) {
     personId !== me.value ? `${firstName(personId)}'s answer is saved.` : value === 'yes' ? "You're in." : value === 'no' ? 'Got it. The band will sort a sub.' : 'Saved.'
   return act(done, () => saveAnswer(personId, value, until))
 }
+
+function answerDate(personId: string, date: string, value: Answer | null, until?: string) {
+  return act(personId === me.value && value ? dateSaid(date, value) : `${firstName(personId)}'s answer is saved.`, () => answerOn(personId, date, value, until))
+}
+
+function lock(date: string) {
+  return act(`Locked ${day(date)}.`, () => lockDate(date))
+}
+
+const onDate = (pid: string, date: string) => {
+  const value = stored.value[pid]?.dates?.[date]
+  return value ? { answer: value, until: stored.value[pid]?.until } : undefined
+}
+
+const nextAnswer = (a: Answer | undefined): Answer | null => (!a ? 'yes' : a === 'yes' ? 'no' : null)
 
 function findSub(personId: string) {
   return act('', async () => {
@@ -194,10 +213,10 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
       <header class="hero">
         <p class="chips">
           <span class="chip" :class="gig.stage === 'confirmed' || gig.stage === 'done' ? 'chip--ok' : gig.stage === 'cancelled' ? 'chip--bad' : 'chip--warn'">{{ stageLabels[gig.stage] }}</span>
-          <span v-if="summary" class="chip" :class="summary.state === 'full' ? 'chip--ok' : summary.state === 'abandoned' ? 'chip--bad' : 'chip--warn'">{{ callStateLabels[summary.state] }}</span>
+          <span v-if="summary" class="chip" :class="options ? 'chip--warn' : summary.state === 'full' ? 'chip--ok' : summary.state === 'abandoned' ? 'chip--bad' : 'chip--warn'">{{ options ? 'Picking a date' : callStateLabels[summary.state] }}</span>
         </p>
         <div class="title">
-          <DateBlock :date="gig.date" />
+          <DateBlock :date="gig.date" :dates="gig.dateOptions" />
           <h1>{{ gig.name }}</h1>
         </div>
         <GigFacts :gig="gig" :clash-names="clashNames" hide-notes />
@@ -217,6 +236,25 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
         <h2>Who can play?</h2>
         <p class="muted">Ask the {{ members.length }} members. {{ LINEUP_SIZE }} yeses fill the lineup.</p>
         <button type="button" class="btn" :disabled="busy || !members.length" @click="askBand">Ask the band</button>
+      </section>
+
+      <section v-if="options" class="card lineup">
+        <h2 v-if="!gig.call || !asked">Possible dates</h2>
+        <p v-if="!gig.call" class="muted small">Ask the band. Lock the date that fills first.</p>
+        <DateRace
+          :standings="standings"
+          :leading="leading"
+          :busy="busy"
+          :me="me"
+          :mine="stored[me]?.dates"
+          :until="stored[me]?.until"
+          :clashes="dateClashes"
+          :name-of="gig.call ? nameOf : undefined"
+          :can-answer="asked && summary?.state !== 'abandoned'"
+          :can-lock="auth.isManager"
+          @answer="(date, value, until) => answerDate(me, date, value, until)"
+          @lock="lock"
+        />
       </section>
 
       <section v-else-if="summary" class="card lineup">
@@ -284,7 +322,31 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
         </label>
       </section>
 
-      <details v-if="gig.call" class="card everyone">
+      <details v-if="gig.call && options" class="card everyone">
+        <summary>Everyone's answers</summary>
+        <p class="muted small">Record answers given by WhatsApp or phone. Tap a date to cycle through In, Can't and no answer.</p>
+        <ul class="answers">
+          <li v-for="p in everyone" :key="p.id">
+            <span class="who">{{ p.name }}<span v-if="p.sub" class="muted"> · sub</span></span>
+            <span class="record">
+              <button
+                v-for="d in gig.dateOptions"
+                :key="d"
+                type="button"
+                class="mini"
+                :class="`is-${stored[p.id]?.dates?.[d] ?? 'none'}`"
+                :aria-label="`${p.name}, ${day(d, { weekday: 'long', month: 'long', day: 'numeric' })}: ${answerLabel(onDate(p.id, d))}`"
+                :disabled="busy"
+                @click="answerDate(p.id, d, nextAnswer(stored[p.id]?.dates?.[d]))"
+              >
+                {{ day(d, { month: 'short', day: 'numeric' }) }} · {{ answerLabel(onDate(p.id, d)) }}
+              </button>
+            </span>
+          </li>
+        </ul>
+      </details>
+
+      <details v-else-if="gig.call" class="card everyone">
         <summary>Everyone's answers</summary>
         <p class="muted small">Record an answer someone gave in WhatsApp or by phone.</p>
         <ul class="answers">
@@ -300,7 +362,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
         </ul>
       </details>
 
-      <section v-if="gig.call" class="card calendar">
+      <section v-if="gig.call && !options" class="card calendar">
         <h2>Band calendar</h2>
         <p class="muted small">
           {{ gig.call.calendarEventId ? 'On the 6 Minute Warning calendar.' : 'Not on the calendar yet.' }}
@@ -566,8 +628,24 @@ textarea {
 
 .record {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+
+.mini.is-yes {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.mini.is-no {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.mini.is-later {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
 }
 
 .small {
