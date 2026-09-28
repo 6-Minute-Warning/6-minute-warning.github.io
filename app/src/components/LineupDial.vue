@@ -30,8 +30,7 @@ const label = computed(() => `${props.filled} of ${LINEUP_SIZE} singers in${prop
   <svg class="dial" :class="{ full }" :width="px" :height="px" viewBox="0 0 48 48" role="img" :aria-label="label">
     <path v-for="(s, i) in segments" :key="i" :d="s.d" class="seg" :class="{ on: s.on }" />
     <path d="M 11 30 C 11 16, 20 5, 35 4" class="tail" />
-    <line :x1="CX" :y1="CY" :x2="hand.x" :y2="hand.y" class="hand" />
-    <circle v-if="sound !== undefined" :cx="CX" :cy="CY" r="4.5" class="hub" :class="{ on: sound }" />
+    <line :x1="CX" :y1="CY" :x2="hand.x" :y2="hand.y" class="hand" :class="{ open: sound === false }" />
   </svg>
 </template>
 
@@ -62,19 +61,7 @@ const label = computed(() => `${props.filled} of ${LINEUP_SIZE} singers in${prop
   stroke-linecap: round;
 }
 
-.hub {
-  fill: var(--color-bg);
-  stroke: var(--color-warning);
-  stroke-width: 2;
-}
-
-.hub.on {
-  fill: var(--color-accent);
-  stroke: var(--color-accent);
-}
-
-.full .hub.on {
-  fill: var(--color-success);
-  stroke: var(--color-success);
+.hand.open {
+  stroke: var(--color-border);
 }
 </style>
