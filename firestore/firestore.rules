@@ -287,9 +287,32 @@ service cloud.firestore {
       allow create: if isAssistant() && id.matches('^[a-z0-9-]+$') && newPresenter();
     }
 
+    function validTask() {
+      let d = request.resource.data;
+      let was = resource != null && resource.data.get('kind', '') == 'followup';
+      return (d.get('kind', '') != 'followup' && !was) || (
+        d.get('kind', '') == 'followup'
+        && (resource == null || was)
+        && d.keys().hasOnly(['kind', 'reason', 'target', 'title', 'name', 'email', 'due', 'open', 'createdBy', 'createdAt', 'doneBy', 'doneAt', 'snoozedUntil', 'season', 'gig', 'step', 'inquiry', 'phone'])
+        && d.reason in ['season', 'reply', 'gig']
+        && d.target is string && d.target.size() <= 160
+        && d.createdBy is string
+        && d.open is bool
+        && isDate(d.due)
+        && d.name is string && d.name.size() <= 160
+        && d.email is string && d.email.size() <= 160
+        && d.title is string && d.title.size() <= 400
+        && (!('snoozedUntil' in d) || isDate(d.snoozedUntil))
+        && (!('step' in d) || d.step in ['quote', 'contract', 'chase', 'decline'])
+        && (!('gig' in d) || d.gig is string)
+        && (!('inquiry' in d) || d.inquiry is string)
+        && (!('phone' in d) || (d.phone is string && d.phone.size() <= 40)));
+    }
+
     match /tasks/{id} {
       allow read: if isMember();
-      allow write: if isManager();
+      allow delete: if isManager();
+      allow create, update: if isManager() && validTask();
       allow create: if isAssistant() && newTask(id);
     }
 

@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { orderBy, where } from 'firebase/firestore'
 import AppHeader from '@/components/AppHeader.vue'
 import DateBlock from '@/components/DateBlock.vue'
+import FollowUps from '@/components/FollowUps.vue'
 import GigFacts from '@/components/GigFacts.vue'
 import InquiryCard from '@/components/InquiryCard.vue'
 import PollCard from '@/components/PollCard.vue'
@@ -43,7 +44,8 @@ const loading = computed(() => !peopleReady.value || polls.value.some((g) => !(g
 const needsMe = computed(() => polls.value.filter((g) => !mine.value[g.id] || mine.value[g.id] === 'later'))
 const booked = computed(() => live.value.filter((g) => g.performers?.includes(me.value)))
 const next = computed(() => booked.value[0] as GigRow | undefined)
-const tasks = auth.isManager ? useCollection<Task>('tasks', where('open', '==', true)).rows : computed(() => [] as (Task & { id: string })[])
+const openTasks = auth.isManager ? useCollection<Task>('tasks', where('open', '==', true)).rows : computed(() => [] as (Task & { id: string })[])
+const tasks = computed(() => openTasks.value.filter((t) => t.kind !== 'followup'))
 const rehearsalAsks = computed(() => (auth.isDirector ? live.value.filter((g) => needsRehearsalAnswer(g, now)) : []))
 const { rows: rehearsals, ready: rehearsalsReady } = useCollection<Rehearsal>('rehearsals', orderBy('date'))
 const expected = (r: Rehearsal) => expectedAt(r, gigs.value, people.value)
@@ -108,6 +110,8 @@ function ago(g: { call?: { openedAt: number } }) {
         <p v-if="!count" class="clear">You're all caught up.</p>
       </template>
     </section>
+
+    <FollowUps v-if="auth.isManager" />
 
     <section v-if="leads.length" class="block">
       <h2 class="eyebrow">Leads · waiting on them</h2>

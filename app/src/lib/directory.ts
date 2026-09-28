@@ -14,7 +14,7 @@ export interface Presenter {
   techPhone: string
 }
 
-export type TaskKind = 'venue' | 'presenter' | 'request'
+export type TaskKind = 'venue' | 'presenter' | 'request' | 'followup'
 
 export interface Task {
   kind: TaskKind

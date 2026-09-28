@@ -26,7 +26,7 @@ Sign-in is Google only. A person can use Backstage only if their email has a doc
 | `venues` | name, address |
 | `presenters` | name, email, phone, and the tech contact's name, email and phone |
 | `tours` | name, leave and return dates, whether they're rough, places, a plan of show, travel and free days, what's covered, pay, commit-by date, poll and committed lineup; answers under `tours/{id}/answers` |
-| `tasks` | to-dos shown on a manager's Home, such as a new venue's missing address |
+| `tasks` | to-dos on a manager's Home: a new venue's missing address, and presenter follow-ups that were done, snoozed or added by hand |
 | `rehearsals` | date, start, end, place, address, the gig ids it prepares for (`gigs`, empty for a whole-band rehearsal), notes, band calendar event; `replies/{person}` holds each singer's yes or no |
 | `events` | every status change on a gig, for the timeline and calendar sync |
 | `inquiries` | booking form submissions: who, event type, date, place, budget, message, and status: new, replied, booked, declined (Not a fit) or spam |
@@ -52,7 +52,26 @@ Backstage uses the public site's identity: Archivo at 125% width for headings, u
 
 ## Home
 
-Home is the signed-in person's to-do list. Under Needs you, each poll carries what a singer needs to answer it: day and date, show and call time, sets, venue and address, their pay, who is already in, and a warning when they are already booked that day or the day either side. They answer I'm in, Can't make it, or pick the date they will know by. Managers also get a to-do for every new venue and presenter, and every booking inquiry from the website that isn't spam, with Reply (opens a drafted email), Turn into a gig (opens New gig filled in from the inquiry), Not a fit (optionally sending a polite no) and Spam. Replying moves an inquiry to Leads, where it stays until it becomes a gig or not a fit. Next rehearsal and Next gig show the next of each, sooner one first; Coming up lists the rest of both by date.
+Home is the signed-in person's to-do list. Under Needs you, each poll carries what a singer needs to answer it: day and date, show and call time, sets, venue and address, their pay, who is already in, and a warning when they are already booked that day or the day either side. They answer I'm in, Can't make it, or pick the date they will know by. Managers also get a to-do for every new venue and presenter, and every booking inquiry from the website that isn't spam, with Reply (opens a drafted email), Turn into a gig (opens New gig filled in from the inquiry), Not a fit (optionally sending a polite no) and Spam. Replying moves an inquiry to Leads, where it stays until it becomes a gig or not a fit.
+
+Managers also get Get back to: every presenter the band owes a message, with why, how late it is, an Email button that opens their mail app with the message drafted, a done button and Snooze, which hides it for a week. There are three kinds:
+
+| Kind | Shows when | Done means |
+|---|---|---|
+| Gig | A tentative gig's lineup is full (send the quote); a contracting gig has no contract, from 60 days before the date; a sent contract is unsigned, from 45 days before; the band dropped a gig (tell the presenter) | Quote sent moves the gig to Contracting; Contract sent marks the contract sent; Chase sent brings it back in 5 days; Done closes a dropped gig's message |
+| Reply | A manager adds a reply they owe with who, what they asked and a reply-by date; `inquiry` can hold a website inquiry's id. New website inquiries have their own card under Needs you | Closed |
+| Season | While a season is being booked, presenters who booked that season in the last three years and have nothing booked this time | Closed for that season this year |
+
+| Season | Ask from | Due | Gigs |
+|---|---|---|---|
+| Spring and festival | Jan 5 | Jan 31 | March to May |
+| Summer outdoor | Feb 15 | Mar 31 | June to August |
+| Fall concert | May 1 | Jun 15 | September to mid-November |
+| Holiday | Aug 15 | Sep 30 | Nov 15 to December |
+
+Gig and season follow-ups come from the gigs; a `tasks` document with `kind: followup` is written only when one is done, snoozed or added by hand.
+
+Next rehearsal and Next gig show the next of each, sooner one first; Coming up lists the rest of both by date.
 
 ## Rehearsals
 
