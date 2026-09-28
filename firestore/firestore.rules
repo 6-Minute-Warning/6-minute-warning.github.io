@@ -35,7 +35,13 @@ service cloud.firestore {
     }
 
     function isScheduler() {
-      return isManager() || (isMember() && 'scheduler' in get(userDoc()).data.get('duties', []));
+      return isManager() || (isMember() && ('scheduler' in get(userDoc()).data.get('duties', []) || hasSchedulerJob()));
+    }
+
+    function hasSchedulerJob() {
+      let person = get(userDoc()).data.get('person', '');
+      let path = /databases/$(database)/documents/people/$(person);
+      return person != '' && exists(path) && 'scheduler' in get(path).data.get('jobs', []);
     }
 
     function isAssistant() {
@@ -120,6 +126,7 @@ service cloud.firestore {
         && d.contact.keys().hasOnly(['name', 'email', 'phone'])
         && short(d.contact.name, 120) && short(d.contact.email, 160) && short(d.contact.phone, 40)
         && d.stage == 'tentative' && d.contract == 'none' && d.performers == [] && d.soundTech == ''
+        && (!('outfit' in d) || d.outfit in ['suits-blue', 'suits-white', 'casual', 'both'])
         && d.money.keys().hasOnly(['fee', 'deposit', 'paid', 'merch', 'perSinger'])
         && d.money.fee is int && d.money.fee >= 0 && d.money.perSinger is int && d.money.perSinger >= 0
         && d.money.deposit == 0 && d.money.paid == 0 && d.money.merch == 0
@@ -285,12 +292,15 @@ service cloud.firestore {
 
     function validPerson() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['name', 'status', 'part', 'phone', 'emails'])
+      return d.keys().hasOnly(['name', 'status', 'part', 'phone', 'emails', 'voice', 'jobs', 'covers'])
         && d.name is string && d.name.size() <= 120
         && d.status in ['active', 'sub', 'crew', 'alumni']
         && d.part is string && d.part.size() <= 120
         && d.phone is string && d.phone.size() <= 40
-        && d.emails is list && d.emails.size() <= 10;
+        && d.emails is list && d.emails.size() <= 10
+        && (!('voice' in d) || d.voice in ['', 'T1', 'T2', 'T3/VP', 'T4', 'Bari/VP', 'Bass'])
+        && (!('jobs' in d) || (d.jobs is list && d.jobs.hasOnly(['leader', 'director', 'scheduler', 'wardrobe', 'sound', 'bookkeeper'])))
+        && (!('covers' in d) || (d.covers is list && d.covers.size() <= 20));
     }
 
     match /people/{id} {

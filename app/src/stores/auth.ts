@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut as fbSignOut, type User } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
@@ -25,6 +25,7 @@ export const useAuth = defineStore('auth', () => {
   const view = ref<ViewAs | null>(storedView())
   const status = ref<AuthStatus>('loading')
   const error = ref('')
+  const jobs = ref<string[]>([])
 
   const realEmail = computed(() => (user.value?.email ? normalizeEmail(user.value.email) : ''))
   const canViewAs = computed(() => realAccess.value?.role === 'admin')
@@ -35,8 +36,18 @@ export const useAuth = defineStore('auth', () => {
   const isAdmin = computed(() => access.value?.role === 'admin')
   const isManager = computed(() => access.value?.role === 'admin' || access.value?.role === 'manager')
   const isDirector = computed(() => access.value?.role === 'director')
-  const isScheduler = computed(() => !!access.value?.duties?.includes('scheduler'))
+  const isScheduler = computed(() => jobs.value.includes('scheduler') || !!access.value?.duties?.includes('scheduler'))
   const canBook = computed(() => isManager.value || isScheduler.value)
+
+  watch(
+    () => access.value?.person ?? '',
+    async (person) => {
+      const snap = person ? await getDoc(doc(db, 'people', person)).catch(() => null) : null
+      const found = snap?.exists() ? snap.data().jobs : null
+      if ((access.value?.person ?? '') === person) jobs.value = Array.isArray(found) ? found : []
+    },
+    { immediate: true },
+  )
 
   let ready: Promise<void> | undefined
 

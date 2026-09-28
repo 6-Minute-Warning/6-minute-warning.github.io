@@ -16,10 +16,9 @@ import RequestCard from '@/components/RequestCard.vue'
 import TaskRow from '@/components/TaskRow.vue'
 import TourPollCard from '@/components/TourPollCard.vue'
 import type { Task } from '@/lib/directory'
-import { day, today, useCollection } from '@/lib/db'
+import { day, today, useCollection, usePeople } from '@/lib/db'
 import { outfitLabel, type Gig, type GigRow } from '@/lib/gigs'
 import { byNewest, type Inquiry } from '@/lib/inquiries'
-import type { PersonRecord } from '@/lib/people'
 import { needsAnswer } from '@/lib/options'
 import { myPersonId, useMyAnswers } from '@/lib/poll'
 import { needsRehearsalAnswer } from '@/lib/rehearsals'
@@ -31,7 +30,7 @@ import { useAuth } from '@/stores/auth'
 const auth = useAuth()
 const now = today()
 const { rows: gigs, error } = useCollection<Gig>('gigs', where('date', '>=', now), orderBy('date'))
-const { rows: people, ready: peopleReady } = useCollection<PersonRecord>('people')
+const { people, seat, ready: peopleReady } = usePeople()
 const me = computed(() => myPersonId(auth.access?.person, auth.email, people.value))
 const nameOf = (id: string) => people.value.find((p) => p.id === id)?.name ?? id
 const live = computed(() => gigs.value.filter((g) => g.stage !== 'cancelled'))
@@ -43,7 +42,7 @@ const myTours = useMyTourAnswers(() => tourPolls.value.map((t) => t.id), () => m
 const tourNeedsMe = computed(() => tourPolls.value.filter((t) => !isCurrent(myTours.value[t.id] ?? undefined, t) || myTours.value[t.id]?.answer === 'later'))
 const loading = computed(() => !peopleReady.value || polls.value.some((g) => !(g.id in mine.value)) || tourPolls.value.some((t) => !(t.id in myTours.value)))
 const needsMe = computed(() => polls.value.filter((g) => needsAnswer(g, mine.value[g.id])))
-const booked = computed(() => live.value.filter((g) => g.performers?.includes(me.value)))
+const booked = computed(() => live.value.filter((g) => g.performers?.includes(me.value) || (!!me.value && g.soundTech === me.value)))
 const next = computed(() => booked.value[0] as GigRow | undefined)
 const openTasks = auth.isManager ? useCollection<Task>('tasks', where('open', '==', true)).rows : computed(() => [] as (Task & { id: string })[])
 const tasks = computed(() => openTasks.value.filter((t) => t.kind !== 'followup'))
@@ -101,7 +100,7 @@ function ago(g: { call?: { openedAt: number } }) {
       <template v-else>
         <InquiryCard v-for="i in owedReplies" :id="i.id" :key="i.id" :inquiry="i" />
         <TourPollCard v-for="t in tourNeedsMe" :key="t.id" :tour="t" :me="me" :name-of="nameOf" :asked-by="askedBy(t)" :ago="ago(t)" />
-        <PollCard v-for="g in needsMe" :key="g.id" :gig="g" :all-gigs="gigs" :me="me" :name-of="nameOf" :asked-by="askedBy(g)" :ago="ago(g)" />
+        <PollCard v-for="g in needsMe" :key="g.id" :gig="g" :all-gigs="gigs" :me="me" :name-of="nameOf" :seat="seat" :asked-by="askedBy(g)" :ago="ago(g)" />
         <RehearsalAsk v-for="g in rehearsalAsks" :key="`rehearsals-${g.id}`" :gig="g" :people="people" :today="now" />
         <RequestCard v-for="t in requests" :id="t.id" :key="t.id" :task="t" :all-gigs="gigs" />
         <ul v-if="chores.length || rehearsalTodos.length" class="tasks card">
@@ -135,6 +134,7 @@ function ago(g: { call?: { openedAt: number } }) {
           <GigFacts :gig="next" />
           <p class="outfit"><span class="label">Outfit</span> {{ outfitLabel(next.outfit) }}</p>
           <p class="lineup muted">With {{ next.performers.filter((p) => p !== me).map((p) => nameOf(p).split(' ')[0]).join(', ') || 'nobody yet' }}</p>
+          <p class="lineup" :class="next.soundTech ? 'muted' : 'gap'">{{ next.soundTech === me ? "You're on sound" : next.soundTech ? `Sound: ${nameOf(next.soundTech).split(' ')[0]}` : 'Sound: nobody yet' }}</p>
         </div>
       </RouterLink>
     </section>
@@ -238,6 +238,10 @@ function ago(g: { call?: { openedAt: number } }) {
 .outfit,
 .lineup {
   margin: 0;
+}
+
+.gap {
+  color: var(--color-warning);
 }
 
 .label {

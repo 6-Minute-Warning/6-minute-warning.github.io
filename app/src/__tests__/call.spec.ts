@@ -1,42 +1,87 @@
 import { describe, expect, it } from 'vitest'
-import { callMessage, initials, openCall, subCandidates, subMessage, summarize, whatsappLink, type AnswerRecord } from '@/lib/call'
+import { callMessage, everyoneSings, initials, openCall, subCandidates, subMessage, summarize, whatsappLink, type AnswerRecord } from '@/lib/call'
 import { answersFromAttendees, eventBody, startTime } from '@/lib/calendar'
-import type { PersonRecord } from '@/lib/people'
+import { normalizePerson, seatLookup, type PersonRecord } from '@/lib/people'
 
 const six = ['a', 'b', 'c', 'd', 'e', 'f']
 const yes = (at: number): AnswerRecord => ({ answer: 'yes', by: 'x@example.com', at })
 const no = (at: number): AnswerRecord => ({ answer: 'no', by: 'x@example.com', at })
+const soundIs = (...ids: string[]) => (id: string) => (ids.includes(id) ? 'sound' : 'singer') as 'sound' | 'singer'
+const withSound = [...six, 'tech']
+const seat = soundIs('tech')
+const person = (id: string, over: Partial<PersonRecord> = {}) =>
+  normalizePerson({ id, name: id, status: 'sub' as const, part: '', phone: '', emails: [], ...over })
 
 describe('band poll', () => {
   it('waits until everyone answers', () => {
-    const s = summarize(openCall(six, 'me', 0), { a: yes(1) })
+    const s = summarize(openCall(six, 'me', 0), { a: yes(1) }, everyoneSings)
     expect(s.state).toBe('waiting')
     expect(s.waiting).toEqual(['b', 'c', 'd', 'e', 'f'])
   })
 
-  it('fills the lineup at six yes, in answer order', () => {
+  it('fills six singer seats in answer order and needs sound to be full', () => {
     const answers = Object.fromEntries(six.map((id, i) => [id, yes(10 - i)]))
-    const s = summarize(openCall(six, 'me', 0), { ...answers, sub: yes(99) })
+    const singersOnly = summarize(openCall(withSound, 'me', 0), { ...answers, sub: yes(99) }, seat)
+    expect(singersOnly.state).toBe('waiting')
+    expect(singersOnly.lineup).toEqual(['f', 'e', 'd', 'c', 'b', 'a'])
+    expect(singersOnly.spare).toEqual(['sub'])
+    expect(singersOnly.sound).toBe('')
+    const s = summarize(openCall(withSound, 'me', 0), { ...answers, tech: yes(1) }, seat)
     expect(s.state).toBe('full')
-    expect(s.lineup).toEqual(['f', 'e', 'd', 'c', 'b', 'a'])
-    expect(s.spare).toEqual(['sub'])
+    expect(s.sound).toBe('tech')
+  })
+
+  it('never lets a sound yes fill a singer seat', () => {
+    const answers = { ...Object.fromEntries(six.slice(0, 5).map((id, i) => [id, yes(i)])), tech: yes(0) }
+    const s = summarize(openCall(withSound, 'me', 0), answers, seat)
+    expect(s.lineup).toHaveLength(5)
+    expect(s.lineup).not.toContain('tech')
+    expect(s.sound).toBe('tech')
+    expect(s.state).toBe('waiting')
+  })
+
+  it('asks for a decision when the sound tech says no, and a sound sub closes it', () => {
+    const call = openCall(withSound, 'me', 0)
+    expect(summarize(call, { tech: no(1) }, seat)).toMatchObject({ state: 'decide', undecided: ['tech'] })
+    expect(summarize({ ...call, subbing: ['tech'] }, { tech: no(1) }, seat).state).toBe('subbing')
+    const done = summarize(call, { ...Object.fromEntries(six.map((id) => [id, yes(2)])), tech: no(1), soundsub: yes(3) }, soundIs('tech', 'soundsub'))
+    expect(done).toMatchObject({ state: 'full', sound: 'soundsub', undecided: [] })
   })
 
   it('asks for a decision on a no, then looks for a sub once one is chosen', () => {
     const call = openCall(six, 'me', 0)
-    expect(summarize(call, { a: no(1) }).state).toBe('decide')
-    expect(summarize({ ...call, subbing: ['a'] }, { a: no(1) }).state).toBe('subbing')
+    expect(summarize(call, { a: no(1) }, seat).state).toBe('decide')
+    expect(summarize({ ...call, subbing: ['a'] }, { a: no(1) }, seat).state).toBe('subbing')
+  })
+
+  it('does not ask for a sub once the singer seats are already full', () => {
+    const answers = { ...Object.fromEntries(six.map((id) => [id, yes(1)])), sam: no(2) }
+    expect(summarize(openCall([...withSound, 'sam'], 'me', 0), answers, seat)).toMatchObject({ state: 'waiting', undecided: [] })
   })
 
   it('a sub saying yes completes the lineup', () => {
-    const answers: Record<string, AnswerRecord> = { a: no(1), b: yes(2), c: yes(3), d: yes(4), e: yes(5), f: yes(6), sam: yes(7) }
-    const s = summarize({ ...openCall(six, 'me', 0), subbing: ['a'] }, answers)
+    const answers: Record<string, AnswerRecord> = { a: no(1), b: yes(2), c: yes(3), d: yes(4), e: yes(5), f: yes(6), sam: yes(7), tech: yes(1) }
+    const s = summarize({ ...openCall(withSound, 'me', 0), subbing: ['a'] }, answers, seat)
     expect(s.state).toBe('full')
     expect(s.lineup).toContain('sam')
   })
 
+  it('reads an old poll that asked the sound tech and a non-performer as singers', () => {
+    const roster = [
+      person('tech', { status: 'active', jobs: ['sound'] }),
+      person('books', { status: 'crew', jobs: ['bookkeeper'] }),
+      ...six.map((id) => person(id, { status: 'active' })),
+    ]
+    const old = openCall(['tech', 'books', ...six], 'me', 0)
+    const answers = { ...Object.fromEntries(six.slice(0, 5).map((id) => [id, yes(1)])), tech: yes(0) }
+    const s = summarize(old, answers, seatLookup(roster))
+    expect(s.sound).toBe('tech')
+    expect(s.lineup).toHaveLength(5)
+    expect(s.waiting).toEqual(['f'])
+  })
+
   it('counts a "know by" answer as still waiting and keeps its date', () => {
-    const s = summarize(openCall(six, 'me', 0), { a: { answer: 'later', by: 'x', at: 1, until: '2026-10-02' } })
+    const s = summarize(openCall(six, 'me', 0), { a: { answer: 'later', by: 'x', at: 1, until: '2026-10-02' } }, everyoneSings)
     expect(s.waiting).toContain('a')
     expect(s.later).toEqual({ a: '2026-10-02' })
     expect(s.state).toBe('waiting')
@@ -49,14 +94,44 @@ describe('band poll', () => {
   })
 
   it('abandoned wins over everything', () => {
-    expect(summarize({ ...openCall(six, 'me', 0), abandoned: true }, {}).state).toBe('abandoned')
+    expect(summarize({ ...openCall(six, 'me', 0), abandoned: true }, {}, everyoneSings).state).toBe('abandoned')
+  })
+})
+
+describe('finding a sub', () => {
+  const roster = [
+    person('kim', { name: 'Kim Low', status: 'active', voice: 'Bass' }),
+    person('zed', { name: 'Zed', voice: 'Bass' }),
+    person('amy', { name: 'Amy', voice: 'T1' }),
+    person('bo', { name: 'Bo', voice: 'Bass' }),
+    person('cal', { name: 'Cal', voice: 'T2', covers: ['kim'] }),
+    person('dee', { name: 'Dee' }),
+    person('old', { name: 'Old', status: 'alumni', voice: 'Bass' }),
+    person('ray', { name: 'Ray Sound', status: 'crew', jobs: ['sound'] }),
+    person('mix', { name: 'Mix', covers: ['ray'] }),
+    person('pat', { name: 'Pat', status: 'crew', jobs: ['sound'] }),
+    person('lou', { name: 'Lou', status: 'crew', jobs: ['bookkeeper'] }),
+  ]
+
+  it('offers who covers the member, then the same voice part, then other subs, with a reason', () => {
+    expect(subCandidates(roster, 'kim', {}).map((o) => [o.person.id, o.why])).toEqual([
+      ['cal', 'Covers Kim'],
+      ['bo', 'Sings Bass'],
+      ['zed', 'Sings Bass'],
+      ['amy', 'Sub, sings T1'],
+      ['dee', 'Sub'],
+    ])
   })
 
-  it('offers subs who cover the same part first and drops subs who said no', () => {
-    const person = (id: string, status: PersonRecord['status'], part: string) => ({ id, name: id, status, part, phone: '', emails: [] })
-    const people = [person('kyle', 'active', 'Bass'), person('zed', 'sub', 'Bass'), person('amy', 'sub', 'Tenor'), person('bo', 'sub', 'Bass')]
-    expect(subCandidates(people, 'kyle', {}).map((p) => p.id)).toEqual(['bo', 'zed', 'amy'])
-    expect(subCandidates(people, 'kyle', { bo: no(1) }).map((p) => p.id)).toEqual(['zed', 'amy'])
+  it('skips anyone who already answered', () => {
+    expect(subCandidates(roster, 'kim', { bo: no(1), cal: yes(2) }).map((o) => o.person.id)).toEqual(['zed', 'amy', 'dee'])
+  })
+
+  it('offers sound subs first, then anyone else with the sound job, and never a singer', () => {
+    expect(subCandidates(roster, 'ray', {}).map((o) => [o.person.id, o.why])).toEqual([
+      ['mix', 'Covers Ray'],
+      ['pat', 'Does sound'],
+    ])
   })
 
   it('builds a WhatsApp link with the message encoded', () => {

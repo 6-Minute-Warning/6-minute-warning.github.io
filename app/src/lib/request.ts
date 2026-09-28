@@ -1,7 +1,7 @@
 import { openCall } from './call.ts'
 import { blankPresenter, presenterTask, slug, usualPartner, venueTask, type Presenter, type Task, type Venue } from './directory.ts'
 import { gigId, newGig, presentersOf, timeOptions, venuesOf, type Contact, type Gig } from './gigs.ts'
-import type { PersonRecord } from './people.ts'
+import { normalizePerson, pollAsked, type PersonRecord } from './people.ts'
 
 export const MAX_DATES = 6
 
@@ -160,7 +160,7 @@ export function planRequest(request: GigRequest, directory: Directory, by: strin
 
   const [date = ''] = request.dates
   const id = gigId(request.name, date)
-  const members = directory.people.filter((p) => p.status === 'active').map((p) => p.id)
+  const members = pollAsked(directory.people.map(normalizePerson)).ids
   const base = newGig({ name: request.name, date, time: request.time, venue, contact })
   const gig: Gig = {
     ...base,

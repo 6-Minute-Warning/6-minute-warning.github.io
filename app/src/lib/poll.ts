@@ -2,7 +2,7 @@ import { computed, onUnmounted, ref, watch, type Ref } from 'vue'
 import { deleteDoc, deleteField, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, writeBatch, type Timestamp, type Unsubscribe } from 'firebase/firestore'
 import { db } from './firebase'
 import { logEvent, useCollection } from './db'
-import { summarize, type Answer, type AnswerRecord } from './call'
+import { summarize, type Answer, type AnswerRecord, type SeatOf } from './call'
 import type { Gig } from './gigs'
 import { answersOn, hasOptions, leader, lockPlan, race, withAnswer, type StoredAnswer } from './options'
 
@@ -48,34 +48,39 @@ export function useMyAnswers(gigIds: () => string[], me: () => string) {
   return mine
 }
 
-export function usePoll(gigId: string, gig: Readonly<Ref<Gig | null>>, by: () => string, nameOf: (id: string) => string, onError: (message: string) => void) {
+export function usePoll(gigId: string, gig: Readonly<Ref<Gig | null>>, by: () => string, nameOf: (id: string) => string, seat: () => SeatOf, onError: (message: string) => void) {
   const { rows, ready } = useCollection<RawAnswer>(`gigs/${gigId}/answers`)
   const stored = computed<Record<string, StoredAnswer>>(() => Object.fromEntries(rows.value.map((r) => [r.id, fromRaw(r)])))
   const answers = computed<Record<string, AnswerRecord>>(() =>
     Object.fromEntries(Object.entries(stored.value).flatMap(([id, a]) => (a.answer ? [[id, { ...a, answer: a.answer }]] : []))),
   )
   const options = computed(() => (hasOptions(gig.value) ? gig.value!.dateOptions! : []))
-  const standings = computed(() => (options.value.length ? race(gig.value?.call, stored.value, options.value) : []))
+  const standings = computed(() => (options.value.length ? race(gig.value?.call, stored.value, options.value, seat()) : []))
   const leading = computed(() => leader(standings.value))
   const summary = computed(() => {
     if (!gig.value?.call) return null
     if (options.value.length) return (standings.value.find((s) => s.date === leading.value) ?? standings.value[0])!.summary
-    return summarize(gig.value.call, answers.value)
+    return summarize(gig.value.call, answers.value, seat())
   })
 
   async function syncLineup(next: Record<string, AnswerRecord>, log = false) {
     const g = gig.value
     if (!g?.call || hasOptions(g)) return
-    const s = summarize(g.call, next)
+    const s = summarize(g.call, next, seat())
     const current = g.performers ?? []
-    const performers = s.state === 'full' ? s.lineup : current.filter((id) => next[id]?.answer !== 'no' && next[id]?.answer !== 'later')
-    if (performers.join() === current.join()) return
-    await updateDoc(doc(db, 'gigs', gigId), { performers })
-    if (log && s.state === 'full') await logEvent(gigId, 'call', `lineup full: ${s.lineup.map(nameOf).join(', ')}`, by())
+    const out = (id: string) => next[id]?.answer === 'no' || next[id]?.answer === 'later'
+    const performers = s.state === 'full' ? s.lineup : current.filter((id) => !out(id) && seat()(id) === 'singer')
+    const soundTech = s.state === 'full' ? s.sound : g.soundTech && !out(g.soundTech) ? g.soundTech : s.sound
+    if (performers.join() === current.join() && soundTech === (g.soundTech ?? '')) return
+    await updateDoc(doc(db, 'gigs', gigId), { performers, soundTech })
+    if (log && s.state === 'full') await logEvent(gigId, 'call', `lineup full: ${s.lineup.map(nameOf).join(', ')}; sound: ${nameOf(s.sound)}`, by())
   }
 
   watch(
-    () => !options.value.length && summary.value?.state === 'full' && summary.value.lineup.join() !== (gig.value?.performers ?? []).join(),
+    () => {
+      const s = summary.value
+      return !options.value.length && s?.state === 'full' && (s.lineup.join() !== (gig.value?.performers ?? []).join() || s.sound !== gig.value?.soundTech)
+    },
     (behind) => {
       if (behind) syncLineup(answers.value).catch((e) => onError(e instanceof Error ? e.message : String(e)))
     },
@@ -113,9 +118,9 @@ export function usePoll(gigId: string, gig: Readonly<Ref<Gig | null>>, by: () =>
     if (rows.value.some((r) => !r.at || Object.values(r.times ?? {}).some((t) => !t))) throw new Error('An answer is still saving. Try again in a moment.')
     const { carry, clear } = lockPlan(rows.value, date)
     const kept = Object.fromEntries(carry.map(({ row }) => [row.id, fromRaw(row)]))
-    const s = gig.value?.call ? summarize(gig.value.call, answersOn(kept, date)) : null
+    const s = gig.value?.call ? summarize(gig.value.call, answersOn(kept, date), seat()) : null
     const batch = writeBatch(db)
-    batch.update(doc(db, 'gigs', gigId), { date, dateOptions: deleteField(), ...(s?.state === 'full' ? { performers: s.lineup } : {}) })
+    batch.update(doc(db, 'gigs', gigId), { date, dateOptions: deleteField(), ...(s?.state === 'full' ? { performers: s.lineup, soundTech: s.sound } : {}) })
     for (const { row, answer, until } of carry) {
       batch.set(doc(db, 'gigs', gigId, 'answers', row.id), { answer, by: row.by, at: row.times?.[date] ?? row.at, ...(until ? { until } : {}) })
     }

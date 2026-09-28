@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { PersonRecord } from '@/lib/people'
-import type { Answer } from '@/lib/call'
+import type { Person } from '@/lib/people'
+import type { Answer, SubOption } from '@/lib/call'
 
-type Person = PersonRecord & { id: string }
-
-const props = defineProps<{ out: Person | undefined; candidates: Person[]; message: string; busy: boolean }>()
+const props = defineProps<{ out: Person | undefined; forSound: boolean; candidates: SubOption<Person>[]; message: string; busy: boolean }>()
 const emit = defineEmits<{ answer: [personId: string, value: Answer] }>()
 
 const skipped = ref<string[]>([])
-const queue = computed(() => props.candidates.filter((c) => !skipped.value.includes(c.id)))
+const queue = computed(() => props.candidates.filter((c) => !skipped.value.includes(c.person.id)))
 const current = computed(() => queue.value[0])
 const after = computed(() => queue.value.slice(1))
 const phone = (p: Person) => p.phone.replace(/[^0-9+]/g, '')
@@ -19,28 +17,28 @@ const bodyJoin = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) ? '&' : 
 <template>
   <div class="finder">
     <p class="head">
-      Finding a sub for <strong>{{ out?.name ?? 'someone' }}</strong><span v-if="out?.part" class="muted"> · {{ out.part }}</span>
+      Finding {{ forSound ? 'someone on sound' : 'a sub' }} for <strong>{{ out?.name ?? 'someone' }}</strong><span v-if="!forSound && out?.voice" class="muted"> · {{ out.voice }}</span>
     </p>
     <div v-if="current" class="next">
       <p class="who">
         <span class="label">Ask next</span>
-        <strong>{{ current.name }}</strong>
-        <span class="muted">{{ current.part || 'Sub' }}{{ current.phone ? ` · ${current.phone}` : '' }}</span>
+        <strong>{{ current.person.name }}</strong>
+        <span class="muted">{{ current.why }}{{ current.person.phone ? ` · ${current.person.phone}` : '' }}</span>
       </p>
-      <div v-if="current.phone" class="reach">
-        <a class="btn btn--ghost" :href="`tel:${phone(current)}`">Call</a>
-        <a class="btn btn--ghost" :href="`sms:${phone(current)}${bodyJoin}body=${encodeURIComponent(message)}`">Text</a>
+      <div v-if="current.person.phone" class="reach">
+        <a class="btn btn--ghost" :href="`tel:${phone(current.person)}`">Call</a>
+        <a class="btn btn--ghost" :href="`sms:${phone(current.person)}${bodyJoin}body=${encodeURIComponent(message)}`">Text</a>
       </div>
       <p v-else class="muted small">No phone number on the roster. Add one under Roster.</p>
       <div class="said">
-        <button type="button" class="btn" :disabled="busy" @click="emit('answer', current.id, 'yes')">{{ current.name.split(' ')[0] }} said yes</button>
-        <button type="button" class="btn btn--ghost" :disabled="busy" @click="emit('answer', current.id, 'no')">Said no</button>
-        <button type="button" class="link" @click="skipped = [...skipped, current.id]">Skip for now</button>
+        <button type="button" class="btn" :disabled="busy" @click="emit('answer', current.person.id, 'yes')">{{ current.person.name.split(' ')[0] }} said yes</button>
+        <button type="button" class="btn btn--ghost" :disabled="busy" @click="emit('answer', current.person.id, 'no')">Said no</button>
+        <button type="button" class="link" @click="skipped = [...skipped, current.person.id]">Skip for now</button>
       </div>
-      <p v-if="after.length" class="muted small">Then: {{ after.map((p) => p.name.split(' ')[0]).join(', ') }}</p>
+      <p v-if="after.length" class="muted small">Then: {{ after.map((c) => c.person.name.split(' ')[0]).join(', ') }}</p>
     </div>
     <p v-else class="muted">
-      No subs left to ask.
+      {{ forSound ? 'Nobody else on Roster does sound. Add a sound sub on Roster and they show up here.' : 'No subs left to ask.' }}
       <button v-if="skipped.length" type="button" class="link" @click="skipped = []">Start over with the ones you skipped</button>
     </p>
   </div>

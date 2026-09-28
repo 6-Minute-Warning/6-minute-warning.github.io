@@ -11,10 +11,10 @@ import TourFacts from '@/components/TourFacts.vue'
 import TourForm from '@/components/TourForm.vue'
 import TourStrip from '@/components/TourStrip.vue'
 import { db } from '@/lib/firebase'
-import { useCollection } from '@/lib/db'
-import { LINEUP_SIZE, whatsappLink, type Answer } from '@/lib/call'
+import { usePeople } from '@/lib/db'
+import { LINEUP_SIZE, rankSubs, whatsappLink, type Answer } from '@/lib/call'
 import { gigId, newGig } from '@/lib/gigs'
-import type { PersonRecord } from '@/lib/people'
+import { pollAsked } from '@/lib/people'
 import { myPersonId } from '@/lib/poll'
 import {
   answerText,
@@ -63,13 +63,12 @@ const stop = onSnapshot(
 )
 onUnmounted(stop)
 
-const { rows: people } = useCollection<PersonRecord>('people')
-const byId = computed(() => new Map(people.value.map((p) => [p.id, p])))
+const { people, byId } = usePeople()
 const nameOf = (pid: string) => byId.value.get(pid)?.name ?? pid
 const firstName = (pid: string) => (pid === me.value ? 'You' : (nameOf(pid).split(' ')[0] ?? pid))
 const inline = (pid: string) => (pid === me.value ? 'you' : firstName(pid))
 const me = computed(() => myPersonId(auth.access?.person, auth.email, people.value))
-const members = computed(() => people.value.filter((p) => p.status === 'active'))
+const members = computed(() => pollAsked(people.value).singers)
 const isSub = (pid: string) => byId.value.get(pid)?.status === 'sub'
 
 const { answers, answer: saveAnswer } = useTourAnswers(id, tour, () => auth.email, nameOf)
@@ -105,20 +104,13 @@ const everyone = computed(() => {
 const subbingFor = computed(() => holes.value.filter((g) => tour.value?.call?.subbing.includes(g.person)))
 const undecided = computed(() => holes.value.filter((g) => !tour.value?.call?.subbing.includes(g.person)))
 
-function candidates(dates: string[]) {
+function subsFor(out: string, dates: string[]) {
   const t = tour.value
   if (!t) return []
-  return (people.value.filter((p) => p.status === 'sub') as (PersonRecord & { id: string })[])
-    .filter((p) => {
-      const can = daysFor(answers.value[p.id], t)
-      return !(isCurrent(answers.value[p.id], t) && answers.value[p.id]?.answer === 'no') && !dates.every((d) => can?.includes(d))
-    })
-}
-
-function subsFor(out: string, dates: string[]) {
-  const part = byId.value.get(out)?.part.trim().toLowerCase()
-  const fits = (p: PersonRecord) => Number(!!part && p.part.trim().toLowerCase() === part)
-  return candidates(dates).sort((a, b) => fits(b) - fits(a) || a.name.localeCompare(b.name))
+  return rankSubs(people.value, out, (p) => {
+    const can = daysFor(answers.value[p.id], t)
+    return p.status === 'sub' && !(isCurrent(answers.value[p.id], t) && answers.value[p.id]?.answer === 'no') && !dates.every((d) => can?.includes(d))
+  })
 }
 
 async function act(done: string, work: () => Promise<unknown>) {
@@ -286,7 +278,7 @@ async function copyLink() {
       <section v-if="!tour.call" class="card">
         <h2>Who's coming?</h2>
         <template v-if="auth.isManager">
-          <p class="muted">Ask the {{ members.length }} members. Each show day needs {{ LINEUP_SIZE }}.</p>
+          <p class="muted">Ask the {{ members.length }} singers. Each show day needs {{ LINEUP_SIZE }}.</p>
           <button type="button" class="btn" :disabled="busy || !members.length" @click="askBand">Ask the band</button>
         </template>
         <p v-else class="muted">A manager asks the band once the plan is ready.</p>
@@ -326,9 +318,10 @@ async function copyLink() {
         <SubFinder
           v-for="g in subbingFor"
           :key="`sub-${g.person}`"
-          :out="byId.get(g.person) ? { ...byId.get(g.person)!, id: g.person } : undefined"
+          :out="byId.get(g.person)"
+          :for-sound="false"
           :candidates="subsFor(g.person, g.dates)"
-          :message="tourSubMessage(tour, byId.get(g.person)?.part ?? '', g.dates)"
+          :message="tourSubMessage(tour, byId.get(g.person)?.voice ?? '', g.dates)"
           :busy="busy"
           @answer="(pid, value) => subSaid(pid, value, g.dates)"
         />

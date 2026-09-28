@@ -2,13 +2,14 @@
 import { computed } from 'vue'
 import LineupDial from '@/components/LineupDial.vue'
 import { day, useCollection } from '@/lib/db'
+import type { SeatOf } from '@/lib/call'
 import type { GigRow } from '@/lib/gigs'
 import { leader, race } from '@/lib/options'
 import { fromRaw, type RawAnswer } from '@/lib/poll'
 
-const props = defineProps<{ gig: GigRow }>()
+const props = defineProps<{ gig: GigRow; seat: SeatOf }>()
 const { rows } = useCollection<Omit<RawAnswer, 'id'>>(`gigs/${props.gig.id}/answers`)
-const standings = computed(() => race(props.gig.call, Object.fromEntries(rows.value.map((r) => [r.id, fromRaw(r)])), props.gig.dateOptions ?? []))
+const standings = computed(() => race(props.gig.call, Object.fromEntries(rows.value.map((r) => [r.id, fromRaw(r)])), props.gig.dateOptions ?? [], props.seat))
 const leading = computed(() => leader(standings.value))
 </script>
 

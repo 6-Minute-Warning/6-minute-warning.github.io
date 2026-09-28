@@ -5,19 +5,19 @@ import DateBlock from '@/components/DateBlock.vue'
 import DateRace from '@/components/DateRace.vue'
 import GigFacts from '@/components/GigFacts.vue'
 import LineupDial from '@/components/LineupDial.vue'
-import { LINEUP_SIZE, type Answer } from '@/lib/call'
+import { LINEUP_SIZE, type Answer, type SeatOf } from '@/lib/call'
 import { clashes, type GigRow } from '@/lib/gigs'
 import { dateSaid, hasOptions, optionClashes, optionsText } from '@/lib/options'
 import { usePoll } from '@/lib/poll'
 import { useAuth } from '@/stores/auth'
 import { useToast } from '@/stores/toast'
 
-const props = defineProps<{ gig: GigRow; allGigs: GigRow[]; me: string; nameOf: (id: string) => string; askedBy: string; ago: string }>()
+const props = defineProps<{ gig: GigRow; allGigs: GigRow[]; me: string; nameOf: (id: string) => string; seat: SeatOf; askedBy: string; ago: string }>()
 
 const auth = useAuth()
 const toast = useToast()
 const busy = ref(false)
-const { answers, stored, summary, standings, leading, answer, answerOn } = usePoll(props.gig.id, toRef(props, 'gig'), () => auth.email, props.nameOf, (m) => toast.show(m, 'error'))
+const { answers, stored, summary, standings, leading, answer, answerOn } = usePoll(props.gig.id, toRef(props, 'gig'), () => auth.email, props.nameOf, () => props.seat, (m) => toast.show(m, 'error'))
 const first = (id: string) => (id === props.me ? 'You' : props.nameOf(id).split(' ')[0])
 const inNames = computed(() => summary.value?.lineup.map(first) ?? [])
 const clashNames = computed(() => clashes(props.allGigs, props.gig, props.me).map((g) => ({ name: g.name, date: g.date })))
@@ -66,10 +66,12 @@ async function replyOn(date: string, value: Answer, until?: string) {
     </template>
 
     <div v-else-if="summary" class="who">
-      <LineupDial :filled="summary.lineup.length" />
+      <LineupDial :filled="summary.lineup.length" :sound="!!summary.sound" />
       <p>
         <strong>{{ summary.lineup.length }} of {{ LINEUP_SIZE }} in</strong>
         <span v-if="inNames.length" class="muted"> · {{ inNames.join(', ') }}</span>
+        <br />
+        <span :class="summary.sound ? 'muted' : 'gap'">{{ summary.sound ? `Sound: ${first(summary.sound)}` : 'Sound: nobody yet' }}</span>
       </p>
     </div>
 
@@ -117,6 +119,10 @@ async function replyOn(date: string, value: Answer, until?: string) {
 
 .who p {
   margin: 0;
+}
+
+.gap {
+  color: var(--color-warning);
 }
 
 .lockhint {
