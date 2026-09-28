@@ -7,13 +7,16 @@ import DateBlock from '@/components/DateBlock.vue'
 import GigFacts from '@/components/GigFacts.vue'
 import PollCard from '@/components/PollCard.vue'
 import RehearsalAsk from '@/components/RehearsalAsk.vue'
+import RehearsalCard from '@/components/RehearsalCard.vue'
+import RehearsalTodoRow from '@/components/RehearsalTodoRow.vue'
 import TaskRow from '@/components/TaskRow.vue'
 import type { Task } from '@/lib/directory'
-import { today, useCollection } from '@/lib/db'
+import { day, today, useCollection } from '@/lib/db'
 import type { Gig, GigRow } from '@/lib/gigs'
 import type { PersonRecord } from '@/lib/people'
 import { myPersonId, useMyAnswers } from '@/lib/poll'
 import { needsRehearsalAnswer } from '@/lib/rehearsals'
+import { expectedAt, schedulerTodos, upcomingRehearsals, type Rehearsal } from '@/lib/schedule'
 import { useAuth } from '@/stores/auth'
 
 const auth = useAuth()
@@ -29,10 +32,30 @@ const loading = computed(() => !peopleReady.value || polls.value.some((g) => !(g
 const needsMe = computed(() => polls.value.filter((g) => !mine.value[g.id] || mine.value[g.id] === 'later'))
 const booked = computed(() => live.value.filter((g) => g.performers?.includes(me.value)))
 const next = computed(() => booked.value[0] as GigRow | undefined)
-const later = computed(() => booked.value.slice(1, 6))
 const tasks = auth.isManager ? useCollection<Task>('tasks', where('open', '==', true)).rows : computed(() => [] as (Task & { id: string })[])
 const rehearsalAsks = computed(() => (auth.isDirector ? live.value.filter((g) => needsRehearsalAnswer(g, now)) : []))
-const count = computed(() => needsMe.value.length + tasks.value.length + rehearsalAsks.value.length)
+const { rows: rehearsals, ready: rehearsalsReady } = useCollection<Rehearsal>('rehearsals', orderBy('date'))
+const expected = (r: Rehearsal) => expectedAt(r, gigs.value, people.value)
+const myRehearsals = computed(() => upcomingRehearsals(rehearsals.value, now).filter((r) => expected(r).includes(me.value)))
+const nextRehearsal = computed(() => myRehearsals.value[0])
+const rehearsalFirst = computed(() => !!nextRehearsal.value && (!next.value || nextRehearsal.value.date < next.value.date))
+const shortDay = (date: string) => day(date, { weekday: 'short', month: 'short', day: 'numeric' })
+const rehearsalTodos = computed(() => (auth.isScheduler && rehearsalsReady.value ? schedulerTodos(rehearsals.value, live.value, now, shortDay) : []))
+const later = computed(() =>
+  [
+    ...booked.value.slice(1).map((g) => ({ key: g.id, date: g.date, to: `/gigs/${g.id}`, name: g.name, facts: [g.time, g.venue] })),
+    ...myRehearsals.value.slice(1).map((r) => ({
+      key: r.id,
+      date: r.date,
+      to: `/rehearsals#rehearsal-${r.id}`,
+      name: r.gigs.length ? `Rehearsal: ${r.gigs.map((id) => gigs.value.find((g) => g.id === id)?.name).filter(Boolean).join(', ')}` : 'Rehearsal',
+      facts: [[r.start, r.end].filter(Boolean).join(' – '), r.place],
+    })),
+  ]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 6),
+)
+const count = computed(() => needsMe.value.length + tasks.value.length + rehearsalAsks.value.length + rehearsalTodos.value.length)
 
 function askedBy(g: GigRow) {
   const email = g.call?.openedBy?.toLowerCase() ?? ''
@@ -58,15 +81,21 @@ function ago(g: GigRow) {
       <template v-else>
         <PollCard v-for="g in needsMe" :key="g.id" :gig="g" :all-gigs="gigs" :me="me" :name-of="nameOf" :asked-by="askedBy(g)" :ago="ago(g)" />
         <RehearsalAsk v-for="g in rehearsalAsks" :key="`rehearsals-${g.id}`" :gig="g" :people="people" :today="now" />
-        <ul v-if="tasks.length" class="tasks card">
+        <ul v-if="tasks.length || rehearsalTodos.length" class="tasks card">
+          <RehearsalTodoRow v-for="t in rehearsalTodos" :key="t.key" :todo="t" :rehearsals="rehearsals" :gigs="gigs" :people="people" />
           <TaskRow v-for="t in tasks" :id="t.id" :key="t.id" :task="t" />
         </ul>
         <p v-if="!count" class="clear">You're all caught up.</p>
       </template>
     </section>
 
+    <section v-if="nextRehearsal && rehearsalFirst" class="block">
+      <h2 class="eyebrow">Next rehearsal</h2>
+      <RehearsalCard :key="nextRehearsal.id" :rehearsal="nextRehearsal" :gigs="gigs" :expected="expected(nextRehearsal)" :me="me" :name-of="nameOf" />
+    </section>
+
     <section v-if="next" class="block">
-      <h2 class="eyebrow">Next up</h2>
+      <h2 class="eyebrow">Next gig</h2>
       <RouterLink :to="`/gigs/${next.id}`" class="next">
         <div class="head">
           <DateBlock :date="next.date" />
@@ -80,15 +109,20 @@ function ago(g: GigRow) {
       </RouterLink>
     </section>
 
+    <section v-if="nextRehearsal && !rehearsalFirst" class="block">
+      <h2 class="eyebrow">Next rehearsal</h2>
+      <RehearsalCard :key="nextRehearsal.id" :rehearsal="nextRehearsal" :gigs="gigs" :expected="expected(nextRehearsal)" :me="me" :name-of="nameOf" />
+    </section>
+
     <section v-if="later.length" class="block">
       <h2 class="eyebrow">Coming up</h2>
       <ul class="list">
-        <li v-for="g in later" :key="g.id">
-          <RouterLink :to="`/gigs/${g.id}`" class="row">
+        <li v-for="g in later" :key="g.key">
+          <RouterLink :to="g.to" class="row">
             <DateBlock :date="g.date" />
             <span class="what">
               <strong>{{ g.name }}</strong>
-              <span class="muted">{{ [g.time, g.venue].filter(Boolean).join(' · ') }}</span>
+              <span class="muted">{{ g.facts.filter(Boolean).join(' · ') }}</span>
             </span>
           </RouterLink>
         </li>

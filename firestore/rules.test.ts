@@ -291,3 +291,66 @@ describe('venues, presenters and to-dos', () => {
     await assertFails(getDoc(doc(as('stranger@example.com'), 'presenters/pat')))
   })
 })
+
+describe('rehearsals', () => {
+  const rehearsal = { date: '2026-10-04', start: '2:00pm', end: '5:00pm', place: 'Studio B', address: '', gigs: [], notes: 'Setup at 1:30pm', createdBy: 'joseph@example.com' }
+  const reply = (value: string, by = 'member@example.com') => ({ answer: value, by, at: serverTimestamp() })
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore()
+      await setDoc(doc(db, 'users/joseph@example.com'), { name: 'Joseph', role: 'member', duties: ['scheduler'] })
+      await setDoc(doc(db, 'rehearsals/r1'), rehearsal)
+    })
+  })
+
+  it('the scheduler books, moves and cancels rehearsals without being a manager', async () => {
+    const db = as('joseph@example.com')
+    await assertSucceeds(setDoc(doc(db, 'rehearsals/r2'), { ...rehearsal, gigs: ['g1'] }))
+    await assertSucceeds(updateDoc(doc(db, 'rehearsals/r1'), { start: '3:00pm', place: "Joseph's place" }))
+    await assertSucceeds(deleteDoc(doc(db, 'rehearsals/r2')))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { money: { fee: 1 } }))
+  })
+
+  it('managers can book rehearsals too', async () => {
+    await assertSucceeds(setDoc(doc(as('manager@example.com'), 'rehearsals/r3'), rehearsal))
+  })
+
+  it('other singers read rehearsals but cannot book or change them', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(getDoc(doc(db, 'rehearsals/r1')))
+    await assertFails(setDoc(doc(db, 'rehearsals/r4'), rehearsal))
+    await assertFails(updateDoc(doc(db, 'rehearsals/r1'), { place: 'Elsewhere' }))
+    await assertFails(deleteDoc(doc(db, 'rehearsals/r1')))
+    await assertFails(getDoc(doc(as('stranger@example.com'), 'rehearsals/r1')))
+  })
+
+  it('a rehearsal must match its shape', async () => {
+    const db = as('joseph@example.com')
+    await assertFails(setDoc(doc(db, 'rehearsals/bad1'), { ...rehearsal, date: 'Sunday' }))
+    await assertFails(setDoc(doc(db, 'rehearsals/bad2'), { ...rehearsal, gigs: 'g1' }))
+    await assertFails(setDoc(doc(db, 'rehearsals/bad3'), { ...rehearsal, extra: true }))
+    await assertFails(setDoc(doc(db, 'rehearsals/bad4'), { ...rehearsal, notes: 'x'.repeat(2001) }))
+    await assertFails(setDoc(doc(db, 'rehearsals/bad5'), { ...rehearsal, gigs: Array.from({ length: 11 }, (_, i) => `g${i}`) }))
+  })
+
+  it('any singer says whether they can make it, signed as themselves', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(setDoc(doc(db, 'rehearsals/r1/replies/kyle'), reply('no')))
+    await assertSucceeds(setDoc(doc(db, 'rehearsals/r1/replies/kyle'), reply('yes')))
+    await assertSucceeds(getDocs(collection(db, 'rehearsals/r1/replies')))
+    await assertSucceeds(deleteDoc(doc(db, 'rehearsals/r1/replies/kyle')))
+    await assertFails(setDoc(doc(db, 'rehearsals/r1/replies/kyle'), reply('no', 'admin@example.com')))
+    await assertFails(setDoc(doc(db, 'rehearsals/r1/replies/kyle'), reply('maybe')))
+    await assertFails(setDoc(doc(db, 'rehearsals/r1/replies/kyle'), { answer: 'no', by: 'member@example.com', at: 0 }))
+    await assertFails(setDoc(doc(as('stranger@example.com'), 'rehearsals/r1/replies/kyle'), reply('no', 'stranger@example.com')))
+  })
+
+  it('only admins hand out the scheduler duty, and only known duties', async () => {
+    await assertSucceeds(updateDoc(doc(as('admin@example.com'), 'users/member@example.com'), { duties: ['scheduler'] }))
+    await assertFails(updateDoc(doc(as('admin@example.com'), 'users/member@example.com'), { duties: ['treasurer'] }))
+    await assertFails(updateDoc(doc(as('admin@example.com'), 'users/member@example.com'), { duties: 'scheduler' }))
+    await assertFails(updateDoc(doc(as('manager@example.com'), 'users/member@example.com'), { duties: ['scheduler'] }))
+    await assertFails(updateDoc(doc(as('member@example.com'), 'users/member@example.com'), { duties: ['scheduler'] }))
+  })
+})

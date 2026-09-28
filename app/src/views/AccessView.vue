@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
-import { collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore'
+import { arrayRemove, arrayUnion, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore'
 import AppHeader from '@/components/AppHeader.vue'
 import { db } from '@/lib/firebase'
-import { isValidEmail, normalizeEmail, roleLabels, roles, type AccessRecord, type Role } from '@/lib/access'
+import { dutyLabels, duties, isValidEmail, normalizeEmail, roleLabels, roles, type AccessRecord, type Duty, type Role } from '@/lib/access'
 import { personId, planImport, type ImportPlan, type ImportedPerson } from '@/lib/people'
 import { useAuth } from '@/stores/auth'
 
@@ -22,10 +22,11 @@ const stop = onSnapshot(
 onUnmounted(stop)
 
 const groups = computed(() => {
-  const byKey = new Map<string, { key: string; name: string; role: Role; emails: string[] }>()
+  const byKey = new Map<string, { key: string; name: string; role: Role; duties: Duty[]; emails: string[] }>()
   for (const u of users.value) {
     const key = u.person ?? `email:${u.email}`
-    const group = byKey.get(key) ?? { key, name: u.name, role: u.role, emails: [] }
+    const group = byKey.get(key) ?? { key, name: u.name, role: u.role, duties: [], emails: [] }
+    group.duties = [...new Set([...group.duties, ...(u.duties ?? [])])]
     group.emails.push(u.email)
     byKey.set(key, group)
   }
@@ -56,15 +57,23 @@ function removeEmail(email: string) {
   return run(() => deleteDoc(doc(db, 'users', email)))
 }
 
+function setDuty(emails: string[], duty: Duty, on: boolean) {
+  return run(async () => {
+    const batch = writeBatch(db)
+    emails.forEach((email) => batch.update(doc(db, 'users', email), { duties: on ? arrayUnion(duty) : arrayRemove(duty) }))
+    await batch.commit()
+  })
+}
+
 const newEmail = ref<Record<string, string>>({})
 
-function addEmail(group: { key: string; name: string; role: Role }) {
+function addEmail(group: { key: string; name: string; role: Role; duties: Duty[] }) {
   const email = normalizeEmail(newEmail.value[group.key] ?? '')
   if (!isValidEmail(email)) return (actionError.value = 'Enter a full email address.')
   if (users.value.some((u) => u.email === email)) return (actionError.value = `${email} already has access.`)
   const person = group.key.startsWith('email:') ? personId(group.name) : group.key
   return run(async () => {
-    await setDoc(doc(db, 'users', email), { name: group.name, role: group.role, person, addedAt: serverTimestamp(), addedBy: auth.email })
+    await setDoc(doc(db, 'users', email), { name: group.name, role: group.role, person, duties: group.duties, addedAt: serverTimestamp(), addedBy: auth.email })
     newEmail.value[group.key] = ''
   })
 }
@@ -157,6 +166,10 @@ async function applyImport() {
             >
               <option v-for="r in roles" :key="r" :value="r">{{ roleLabels[r] }}</option>
             </select>
+            <label v-for="d in duties" :key="d" class="duty">
+              <input type="checkbox" :checked="g.duties.includes(d)" @change="setDuty(g.emails, d, ($event.target as HTMLInputElement).checked)" />
+              {{ dutyLabels[d] }}
+            </label>
           </td>
           <td>
             <ul class="emails">
@@ -287,6 +300,20 @@ label {
   gap: 4px;
   font-weight: 600;
   font-size: 0.9rem;
+}
+
+.duty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.duty input {
+  width: 18px;
+  height: 18px;
 }
 
 .link {
