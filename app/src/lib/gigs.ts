@@ -1,4 +1,5 @@
 import type { Call } from './call'
+import type { Rehearsals } from './rehearsals'
 
 export const stages = ['tentative', 'contracting', 'confirmed', 'done', 'cancelled'] as const
 export type Stage = (typeof stages)[number]
@@ -37,6 +38,7 @@ export interface Gig {
   outfit?: string
   sets?: string
   call?: Call
+  rehearsals?: Rehearsals
 }
 
 export interface GigRow extends Gig {

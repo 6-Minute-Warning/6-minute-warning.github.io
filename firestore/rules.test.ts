@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest'
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
-import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 
 const OWNER = 'brett@6minutewarning.com'
 let env: RulesTestEnvironment
@@ -26,6 +26,7 @@ beforeEach(async () => {
     await setDoc(doc(db, 'users/member@example.com'), { name: 'Member', role: 'member' })
     await setDoc(doc(db, 'users/admin@example.com'), { name: 'Admin', role: 'admin' })
     await setDoc(doc(db, 'users/manager@example.com'), { name: 'Manager', role: 'manager' })
+    await setDoc(doc(db, 'users/director@example.com'), { name: 'Director', role: 'director' })
     await setDoc(doc(db, 'gigs/g1'), { name: 'Sample gig' })
     await setDoc(doc(db, 'events/e1'), { gig: 'g1', kind: 'created' })
   })
@@ -231,6 +232,49 @@ describe('band poll', () => {
     await assertFails(updateDoc(doc(db, 'gigs/g1'), { stage: 'confirmed', 'call.abandoned': true }))
     await assertFails(updateDoc(doc(db, 'gigs/g1'), { stage: 'cancelled', 'call.abandoned': false }))
     await assertFails(updateDoc(doc(db, 'gigs/g1'), { 'call.abandoned': true }))
+  })
+})
+
+describe('rehearsals needed', () => {
+  const rehearsals = (by: string, extra: Record<string, unknown> = {}) => ({ needed: 3, note: '2 full + 1 sectional', by, at: serverTimestamp(), lineupKey: 'a,b,c', ...extra })
+
+  it('the music director and managers set it, signed as themselves', async () => {
+    await assertSucceeds(updateDoc(doc(as('director@example.com'), 'gigs/g1'), { rehearsals: rehearsals('director@example.com') }))
+    await assertSucceeds(updateDoc(doc(as('manager@example.com'), 'gigs/g1'), { rehearsals: rehearsals('manager@example.com', { needed: 0, note: '' }) }))
+    await assertSucceeds(setDoc(doc(as('manager@example.com'), 'gigs/g2'), { name: 'New', rehearsals: rehearsals('manager@example.com') }))
+  })
+
+  it('singers cannot set or clear it, but can still edit the rest of the gig', async () => {
+    const member = as('member@example.com')
+    await assertFails(updateDoc(doc(member, 'gigs/g1'), { rehearsals: rehearsals('member@example.com') }))
+    await assertFails(updateDoc(doc(member, 'gigs/g1'), { 'rehearsals.needed': 1 }))
+    await assertSucceeds(updateDoc(doc(as('director@example.com'), 'gigs/g1'), { rehearsals: rehearsals('director@example.com') }))
+    await assertFails(updateDoc(doc(member, 'gigs/g1'), { rehearsals: deleteField() }))
+    await assertSucceeds(updateDoc(doc(member, 'gigs/g1'), { notes: 'Bring the risers' }))
+  })
+
+  it('nobody clears an answer once given', async () => {
+    const db = as('director@example.com')
+    await assertSucceeds(updateDoc(doc(db, 'gigs/g1'), { rehearsals: rehearsals('director@example.com') }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { rehearsals: deleteField() }))
+    await assertFails(updateDoc(doc(as('manager@example.com'), 'gigs/g1'), { rehearsals: deleteField() }))
+  })
+
+  it('the director still cannot touch money', async () => {
+    await assertFails(updateDoc(doc(as('director@example.com'), 'gigs/g1'), { money: { fee: 1 } }))
+  })
+
+  it('a forged, backdated or malformed answer is refused', async () => {
+    const db = as('director@example.com')
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { rehearsals: rehearsals('manager@example.com') }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { rehearsals: rehearsals('director@example.com', { at: 0 }) }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { rehearsals: rehearsals('director@example.com', { needed: -1 }) }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { rehearsals: rehearsals('director@example.com', { needed: 21 }) }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { rehearsals: rehearsals('director@example.com', { needed: 2.5 }) }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { rehearsals: rehearsals('director@example.com', { note: 'x'.repeat(201) }) }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { rehearsals: rehearsals('director@example.com', { extra: true }) }))
+    const { lineupKey: _lineupKey, ...missing } = rehearsals('director@example.com')
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { rehearsals: missing }))
   })
 })
 
