@@ -27,6 +27,8 @@ Sign-in is Google only. A person can use Backstage only if their email has a doc
 | `presenters` | name, email, phone, and the tech contact's name, email and phone |
 | `tasks` | to-dos shown on a manager's Home, such as a new venue's missing address |
 | `events` | every status change on a gig, for the timeline and calendar sync |
+| `inquiries` | booking form submissions: who, event type, date, place, budget, message, and status: new, replied, booked, declined (Not a fit) or spam |
+| `pushTokens` | one per device that gets notifications: its Firebase Cloud Messaging token, whose it is, and the topics it gets |
 
 ## Contract process
 
@@ -48,7 +50,7 @@ Backstage uses the public site's identity: Archivo at 125% width for headings, u
 
 ## Home
 
-Home is the signed-in person's to-do list. Under Needs you, each poll carries what a singer needs to answer it: day and date, show and call time, sets, venue and address, their pay, who is already in, and a warning when they are already booked that day or the day either side. They answer I'm in, Can't make it, or pick the date they will know by. Managers also get a to-do for every new venue and presenter. Next up shows their next booked gig with call time, outfit and who they sing with; Coming up lists the rest.
+Home is the signed-in person's to-do list. Under Needs you, each poll carries what a singer needs to answer it: day and date, show and call time, sets, venue and address, their pay, who is already in, and a warning when they are already booked that day or the day either side. They answer I'm in, Can't make it, or pick the date they will know by. Managers also get a to-do for every new venue and presenter, and every booking inquiry from the website that isn't spam, with Reply (opens a drafted email), Turn into a gig (opens New gig filled in from the inquiry), Not a fit (optionally sending a polite no) and Spam. Replying moves an inquiry to Leads, where it stays until it becomes a gig or not a fit. Next up shows their next booked gig with call time, outfit and who they sing with; Coming up lists the rest.
 
 ## Rehearsals needed
 
@@ -142,6 +144,10 @@ The Assistant role can create a gig only if it is tentative, has no contract, li
 ## On phones
 
 Backstage installs to the home screen: on Android, Chrome's menu, Install app; on iPhone, Safari's Share, Add to Home Screen. The manifest's colours come from `theme/theme.css` at build time.
+
+## Notifications
+
+Managers turn on notifications from Home, once per phone. On iPhone that works only after Add to Home Screen. Each device saves a token to `pushTokens`; the booking form's Apps Script reads the tokens for a topic and sends through the Firebase Cloud Messaging HTTP API, with no Cloud Functions, so the Spark plan is enough. `app/public/sw.js` shows the notification and opens the link it carries. Setup is in `site/apps-script/README.md`.
 
 ## Band poll
 

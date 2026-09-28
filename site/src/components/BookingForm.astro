@@ -50,6 +50,12 @@ const { eventType = "", heading = "Check your date" } = Astro.props;
           <input name="location" autocomplete="address-level2" />
         </label>
       </div>
+      <div class="form__row">
+        <label>
+          <span>Budget</span>
+          <input name="budget" maxlength="60" placeholder="A range is fine" />
+        </label>
+      </div>
       <label>
         <span>Tell us about it <em>required</em></span>
         <textarea name="message" rows="5" required placeholder="Guest count, when you want music, anything else we should know"></textarea>

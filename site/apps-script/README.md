@@ -9,7 +9,7 @@ nobody on a phone or in webmail.
 ## What the script does
 
 `Code.gs` reads these fields off the POST: `name`, `email`, `phone`,
-`eventType`, `date`, `location`, `message`, `website`, `fillMs`. It replies
+`eventType`, `date`, `location`, `message`, `budget`, `website`, `fillMs`. It replies
 with JSON — `{"ok": true}` or `{"ok": false, "error": "…"}` — which is what
 `../src/components/BookingForm.astro` checks.
 
@@ -17,6 +17,13 @@ with JSON — `{"ok": true}` or `{"ok": false, "error": "…"}` — which is wha
 `fillMs` is how long the visitor spent on the form, measured in their browser.
 Either signal marks a submission as spam, which sends no email but is still
 logged to the sheet as `spam`, so a misjudged real inquiry can be recovered.
+Content that reads like spam (see `judge`) is emailed with `[Likely spam]` in
+the subject and logged as `suspect`, but skips Backstage and notifications.
+
+Every other inquiry is also written to Firestore as `inquiries/<id>` with
+status `new`, which puts it on the managers' Backstage Home, and each manager
+device in `pushTokens` with the `inquiries` topic gets a notification. A
+failure in either step is logged and skipped.
 
 Mail goes out through `MailApp` with reply-to set to the visitor, so hitting
 reply in Gmail answers the person who wrote in.
@@ -86,12 +93,49 @@ Create a sheet, copy the id out of its URL
 (`docs.google.com/spreadsheets/d/<id>/edit`), then **Project Settings → Script
 Properties → Add script property**, name `SHEET_ID`, value the id. Rows are
 appended as `Timestamp, Status, Name, Email, Phone, Event Type, Date, Location,
-Message`. Without the property the form still works; only the email goes out.
+Message, Budget`. Without the property the form still works; only the email goes out.
 
 ## Wiring it up
 
 Put the `/exec` URL in `bookingEndpoint` in `../src/data/site.ts`, rebuild, and
 send a real inquiry through `/book/` to confirm it arrives.
+
+## Backstage and phone notifications
+
+The script writes to Firestore and sends notifications with its own OAuth
+token (`ScriptApp.getOAuthToken()`), so there is no service account key and
+no Cloud Functions; the Firebase project stays on the free Spark plan. Firestore
+calls made with a Google account's token skip the security rules and use that
+account's IAM access instead, so the account set under Execute as (the one that deployed the web app) needs:
+
+| On project `six-minute-warning` | For |
+|---|---|
+| Cloud Datastore User | writing `inquiries`, reading `users` and `pushTokens` |
+| Firebase Cloud Messaging Admin | sending notifications |
+| Service Usage Consumer | the `x-goog-user-project` header that bills calls to this project |
+
+A project Owner or Editor already has all three. Grant them at
+<https://console.cloud.google.com/iam-admin/iam?project=six-minute-warning>.
+
+After pushing a new `Code.gs` and `appsscript.json`:
+
+1. In the editor, pick `checkSetup` and **Run**. Google asks for the new
+   permissions (Firestore, Cloud Messaging, external requests); allow them.
+   The log should say `Firestore reachable`.
+2. Redeploy the web app as a new version (below), so the live URL gets the new
+   code and permissions.
+3. Each manager opens Backstage on their phone (on iPhone, from the home screen
+   icon) and taps **Turn on** on Home.
+4. Run `sendTestPush` from the editor. Every manager phone that turned
+   notifications on gets "Test from the booking form".
+
+If `checkSetup` fails with `403 ... has not been used in project` or
+`USER_PROJECT_DENIED`, the account lacks Service Usage Consumer on
+`six-minute-warning`, or the Cloud Firestore or Firebase Cloud Messaging
+API is off there. A `404` for a user or token is normal.
+
+Any Apps Script function, including a time-driven trigger, can call
+`sendPush(topic, note)`. `note` is `{ title, body, link, tag }`.
 
 ## Changing the script later
 

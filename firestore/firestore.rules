@@ -242,5 +242,31 @@ service cloud.firestore {
     match /events/{id} {
       allow read, create: if isMember();
     }
+
+    match /inquiries/{id} {
+      allow read: if isManager();
+      allow update: if isManager()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'handledBy', 'handledAt', 'gig'])
+        && request.resource.data.status in ['new', 'replied', 'booked', 'declined', 'spam']
+        && request.resource.data.handledBy == email()
+        && request.resource.data.handledAt == request.time
+        && request.resource.data.get('gig', '') is string;
+    }
+
+    function validPushToken() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['token', 'email', 'topics', 'device', 'updatedAt'])
+        && d.token is string && d.token.size() <= 4096
+        && d.email == email()
+        && d.topics is list && d.topics.size() <= 10
+        && (!d.topics.hasAny(['inquiries']) || isManager())
+        && d.device is string && d.device.size() <= 80
+        && d.updatedAt == request.time;
+    }
+
+    match /pushTokens/{id} {
+      allow create, update: if isMember() && validPushToken();
+      allow delete: if isMember() && resource.data.email == email();
+    }
   }
 }
