@@ -61,6 +61,7 @@ describe('tour days', () => {
   it('turns a rough form into a tour, never ending before it starts', () => {
     const f = fromDraft({ ...blankDraft(), name: ' Japan ', start: '2027-05-10', end: '2027-05-01', perSinger: '250.4' })
     expect(f).toMatchObject({ name: 'Japan', start: '2027-05-10', end: '2027-05-10', perSinger: 250 })
+    expect(fromDraft({ ...blankDraft(), start: '2027-05-10', commitBy: '2027-06-01' }).commitBy).toBe('')
     expect(datesChanged(tour(), { start: '2027-05-10', end: '2027-05-15' })).toBe(true)
   })
 })

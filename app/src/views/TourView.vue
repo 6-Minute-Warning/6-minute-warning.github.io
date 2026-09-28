@@ -146,8 +146,11 @@ function answer(personId: string, value: TourAnswerValue | null, extra: AnswerEx
 function subSaid(personId: string, value: Answer, dates: string[]) {
   const t = tour.value
   if (!t) return
-  if (value !== 'yes') return answer(personId, 'no')
   const had = daysFor(answers.value[personId], t) ?? []
+  if (value !== 'yes') {
+    const left = had.filter((d) => !dates.includes(d))
+    return left.length ? answer(personId, 'some', { days: left }) : answer(personId, 'no')
+  }
   const days = [...new Set([...had, ...dates])]
   return days.length >= t.days.length ? answer(personId, 'all') : answer(personId, 'some', { days })
 }
@@ -170,18 +173,29 @@ function findSub(personId: string) {
 function commit() {
   const picked = lineup.value
   return act('Committed. Time to book flights.', async () => {
-    await updateDoc(tourRef(), { stage: 'committed', lineup: picked })
-    for (const d of tour.value?.days ?? []) {
-      if (d.gig && picked[d.date]) await updateDoc(doc(db, 'gigs', d.gig), { performers: picked[d.date] })
-    }
+    await writeLineup({ stage: 'committed', lineup: picked }, picked)
     await logTourEvent(id, 'call', 'committed the lineup', auth.email)
+  })
+}
+
+async function writeLineup(patch: Record<string, unknown>, picked: Record<string, string[]>) {
+  const linked = (tour.value?.days ?? []).filter((d) => d.gig)
+  await runTransaction(db, async (tx) => {
+    const found = await Promise.all(linked.map((d) => tx.get(doc(db, 'gigs', d.gig!))))
+    tx.update(tourRef(), patch)
+    linked.forEach((d, i) => {
+      if (found[i]?.exists()) tx.update(doc(db, 'gigs', d.gig!), { performers: picked[d.date] ?? [] })
+    })
   })
 }
 
 function setStage(stage: Tour['stage'], done: string, what: string) {
   confirmOff.value = false
+  const leaving = tour.value?.stage === 'committed'
   return act(done, async () => {
-    await updateDoc(tourRef(), stage === 'planning' ? { stage, lineup: deleteField() } : { stage })
+    const patch = stage === 'planning' ? { stage, lineup: deleteField() } : { stage }
+    if (leaving) await writeLineup(patch, {})
+    else await updateDoc(tourRef(), patch)
     await logTourEvent(id, 'call', what, auth.email)
   })
 }
@@ -202,10 +216,12 @@ function makeGig(date: string) {
   return act('The gig is made. Fill in venue and times on its page.', async () => {
     await runTransaction(db, async (tx) => {
       const ref = doc(db, 'gigs', gid)
+      const cur = (await tx.get(tourRef())).data() as Tour | undefined
       if ((await tx.get(ref)).exists()) throw new Error('A gig with this name and date already exists.')
+      if (!cur) throw new Error('This tour no longer exists.')
       const gig = newGig({ name, date, time: '', venue: '' })
-      tx.set(ref, { ...gig, performers: t.lineup?.[date] ?? [], tour: id, createdAt: serverTimestamp(), createdBy: auth.email })
-      tx.update(tourRef(), { days: t.days.map((x) => (x.date === date ? { ...x, gig: gid } : x)) })
+      tx.set(ref, { ...gig, performers: cur.lineup?.[date] ?? [], tour: id, createdAt: serverTimestamp(), createdBy: auth.email })
+      tx.update(tourRef(), { days: cur.days.map((x) => (x.date === date ? { ...x, gig: gid } : x)) })
     })
     await logTourEvent(id, 'edit', `made a gig for ${shortDate(date)}`, auth.email)
   })
@@ -216,10 +232,17 @@ function saveEdit() {
   if (!t) return
   const fields = fromDraft(draft.value)
   const moved = datesChanged(t, fields)
+  const kept = new Set(planDays(fields.start, fields.end).map((d) => d.date))
+  const stranded = t.days.filter((d) => d.gig && !kept.has(d.date))
+  if (stranded.length) {
+    toast.show(`${datesText(stranded.map((d) => d.date))} has a gig. Move or delete that gig before changing the dates.`, 'error')
+    return
+  }
   const reopen = moved && t.stage === 'committed' ? { stage: 'planning', lineup: deleteField() } : {}
   const patch = moved ? { ...fields, days: planDays(fields.start, fields.end, t.days), version: t.version + 1, ...reopen } : fields
   return act(moved ? 'Saved. The dates moved, so everyone is asked to check their answer.' : 'Saved.', async () => {
-    await updateDoc(tourRef(), patch)
+    if (moved && t.stage === 'committed') await writeLineup(patch, {})
+    else await updateDoc(tourRef(), patch)
     await logTourEvent(id, 'edit', moved ? 'moved the dates' : 'edited the tour', auth.email)
     editing.value = false
   })
@@ -344,7 +367,7 @@ async function copyLink() {
           <li v-for="p in everyone" :key="p.id">
             <span class="who">{{ p.name }}<span v-if="p.sub" class="muted"> · sub</span></span>
             <span class="chip" :class="!isCurrent(p.answer, tour) ? '' : p.answer?.answer === 'no' ? 'chip--bad' : p.answer?.answer === 'later' ? 'chip--warn' : 'chip--ok'">{{ answerText(p.answer, tour) }}</span>
-            <span class="record">
+            <span v-if="tour.stage !== 'committed'" class="record">
               <button type="button" class="mini" :aria-label="`${p.name} is in for all of it`" :aria-pressed="isCurrent(p.answer, tour) && p.answer?.answer === 'all'" :disabled="busy" @click="answer(p.id, 'all')">All</button>
               <button type="button" class="mini" :aria-label="`${p.name} can't go`" :aria-pressed="isCurrent(p.answer, tour) && p.answer?.answer === 'no'" :disabled="busy" @click="answer(p.id, 'no')">Can't</button>
               <button v-if="p.answer" type="button" class="link" :disabled="busy" @click="answer(p.id, null)">Clear</button>

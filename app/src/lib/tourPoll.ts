@@ -15,7 +15,10 @@ export interface AnswerExtra {
 }
 
 export function logTourEvent(tour: string, kind: string, detail: string, by: string) {
-  return addDoc(collection(db, 'events'), { tour, kind, detail, by, at: serverTimestamp() })
+  return addDoc(collection(db, 'events'), { tour, kind, detail, by, at: serverTimestamp() }).then(
+    () => undefined,
+    () => undefined,
+  )
 }
 
 export function answerWrite(value: TourAnswerValue, by: string, version: number, extra: AnswerExtra) {
@@ -64,9 +67,11 @@ export function useMyTourAnswers(tourIds: () => string[], me: () => string) {
       for (const id of tourIds()) {
         stops.set(
           id,
-          onSnapshot(doc(db, 'tours', id, 'answers', person), (snap) => {
-            mine.value = { ...mine.value, [id]: snap.exists() ? toAnswer(snap.data() as Stored) : null }
-          }),
+          onSnapshot(
+            doc(db, 'tours', id, 'answers', person),
+            (snap) => (mine.value = { ...mine.value, [id]: snap.exists() ? toAnswer(snap.data() as Stored) : null }),
+            () => (mine.value = { ...mine.value, [id]: null }),
+          ),
         )
       }
     },

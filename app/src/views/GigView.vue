@@ -199,7 +199,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
           <h1>{{ gig.name }}</h1>
         </div>
         <GigFacts :gig="gig" :clash-names="clashNames" :me="me" hide-notes />
-        <RouterLink v-if="gig.tour" :to="`/tours/${gig.tour}`" class="back">Part of a tour: who sings is set on the tour →</RouterLink>
+        <RouterLink v-if="gig.tour" :to="`/tours/${gig.tour}`" class="back">Part of a tour. The lineup is set there →</RouterLink>
       </header>
 
       <section v-if="showShare && gig.call" class="card share">

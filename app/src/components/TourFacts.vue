@@ -20,7 +20,7 @@ const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
       <dd>
         <strong>{{ spanText(tour.start, tour.end) }}</strong>
         <span class="muted"> · {{ plural(dates.length, 'day') }}{{ travel ? `, ${travel} travel` : '' }}</span>
-        <span v-if="tour.rough" class="rough">Rough dates, may move</span>
+        <span v-if="tour.rough" class="rough">Rough dates</span>
       </dd>
     </div>
     <div>
@@ -28,11 +28,11 @@ const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
       <dd>{{ tour.places || 'Not set yet' }}<span class="muted"> · {{ shows ? plural(shows, 'show day') : 'shows not set yet' }}</span></dd>
     </div>
     <div>
-      <dt>Time off</dt>
-      <dd><strong>{{ plural(off, 'weekday') }}</strong><span class="muted"> away from work for the whole tour</span></dd>
+      <dt>Off work</dt>
+      <dd><strong>{{ plural(off, 'weekday') }}</strong><span class="muted"> for the whole tour</span></dd>
     </div>
     <div>
-      <dt>Covered</dt>
+      <dt>Band pays</dt>
       <dd>{{ tour.covered || 'Not set yet' }}</dd>
     </div>
     <div>
@@ -40,7 +40,7 @@ const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
       <dd>{{ tour.notCovered || 'Not set yet' }}</dd>
     </div>
     <div>
-      <dt>Your pay</dt>
+      <dt>You earn</dt>
       <dd><strong>{{ tour.perSinger ? money(tour.perSinger) : 'Not set yet' }}</strong></dd>
     </div>
     <div v-if="tour.commitBy" :class="{ soon: left !== null && left <= 14 }">

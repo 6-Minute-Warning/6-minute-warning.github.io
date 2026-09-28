@@ -43,9 +43,9 @@ function send(value: TourAnswerValue) {
 <template>
   <div class="answer">
     <template v-if="asking">
-      <p v-if="stale" class="stale">The plan changed since you answered. Check it still works.</p>
+      <p v-if="stale" class="stale">The dates changed. Check your answer.</p>
       <p v-else-if="mine?.answer === 'later'" class="stale">You said you'd know by {{ shortDate(mine.until ?? '') }}.</p>
-      <p class="q">Can you come on the tour?</p>
+      <p class="q">Can you make the tour?</p>
 
       <template v-if="mode === ''">
         <div class="two">

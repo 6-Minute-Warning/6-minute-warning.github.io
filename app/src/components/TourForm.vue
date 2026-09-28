@@ -18,7 +18,7 @@ const picker = (e: Event) => (e.target as HTMLInputElement).showPicker?.()
     </div>
     <p v-if="dates.length" class="muted hint">
       {{ dates.length }} days including travel, {{ weekdays(dates) }} of them weekdays.
-      <span v-if="tooLong" class="error">Tours stop at {{ MAX_TOUR_DAYS }} days.</span>
+      <span v-if="tooLong" class="error">Max {{ MAX_TOUR_DAYS }} days.</span>
     </p>
     <label class="check">
       <input v-model="draft.rough" type="checkbox" />
@@ -29,13 +29,13 @@ const picker = (e: Event) => (e.target as HTMLInputElement).showPicker?.()
 
   <fieldset>
     <legend>Money and deadline</legend>
-    <label>Covered for singers<input v-model.trim="draft.covered" maxlength="200" placeholder="Flights and hotels" /></label>
+    <label>Band pays for<input v-model.trim="draft.covered" maxlength="200" placeholder="Flights and hotels" /></label>
     <label>Singers pay for<input v-model.trim="draft.notCovered" maxlength="200" placeholder="Meals and a rail pass" /></label>
     <div class="pair">
       <label>Pay per singer<input v-model="draft.perSinger" type="number" min="0" step="50" inputmode="numeric" placeholder="0" /></label>
       <label>Commit by<input v-model="draft.commitBy" type="date" :max="draft.start || undefined" @click="picker" /></label>
     </div>
-    <p class="muted hint">Commit by is when flights need booking. Leave anything blank you don't know yet; it all stays editable.</p>
+    <p class="muted hint">Commit by is when flights get booked. Leave blank what you don't know yet.</p>
     <label>Notes<textarea v-model="draft.notes" rows="3" maxlength="2000" placeholder="SING! collaboration and Hinton–Wanouchi cultural exchange"></textarea></label>
   </fieldset>
 </template>

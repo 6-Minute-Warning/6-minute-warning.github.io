@@ -20,7 +20,7 @@ const stageText = { planning: 'Planning', committed: 'Committed', cancelled: 'Ca
           <DateBlock :date="t.start" />
           <span class="what">
             <strong>{{ t.name }}</strong>
-            <span class="muted">{{ [spanText(t.start, t.end) + (t.rough ? ' (rough)' : ''), t.places].filter(Boolean).join(' · ') }}</span>
+            <span class="muted">{{ [spanText(t.start, t.end) + (t.rough ? ' (rough dates)' : ''), t.places].filter(Boolean).join(' · ') }}</span>
           </span>
           <span class="chip" :class="t.stage === 'committed' ? 'chip--ok' : t.stage === 'cancelled' ? 'chip--bad' : 'chip--warn'">{{ stageText[t.stage] }}</span>
         </RouterLink>

@@ -174,9 +174,9 @@ When a member says no, anyone can choose to find a sub or abandon the gig. Findi
 
 ## Tours
 
-A tour is one record spanning every day away, travel included, with one poll for the whole span. Managers add it from New tour on Gigs; rough dates are fine and everything stays editable. New tours start with a travel day at each end and show days between; managers mark each day Show, Travel or Free, add the city, and turn a show day into a gig once there's a venue.
+A tour is one record spanning every day away, travel included, with one poll for the whole span. Managers add it from New tour on Gigs; rough dates are fine. New tours start with a travel day at each end and show days between; managers mark each day Show, Travel or Free, add the city, and turn a show day into a gig once there's a venue.
 
-Singers see the tour on Home with the dates, the number of weekdays off work, what's covered and what they pay, their pay, the commit-by date and who's going. They answer All of it, Can't go, Part of it (untap the days they can't be there, with an optional note), or the date they'll know by. Moving the dates asks everyone again, since an answer only counts for the dates it was given against.
+Singers see the tour on Home with the dates, weekdays off work, what the band pays, what they pay, what they earn, the commit-by date and who's going. They answer All of it, Can't go, Part of it (tap the days they can't be there, with an optional note), or the date they'll know by. Moving the dates asks everyone again, since an answer only counts for the dates it was given against.
 
 The tour page shows a strip of days, each with the lineup dial filling toward six; tap a day to see who's there, who's away and who hasn't answered. When someone's absence leaves show days short, anyone can find a sub for those days or for the whole tour: a sub's yes covers just the missing days. Once every show day has six, a manager commits the lineup, which records who sings each show day and fills in any linked gigs. Moving the dates after that reopens it.
 

@@ -50,7 +50,7 @@ async function addTour() {
   <main class="page new">
     <RouterLink to="/gigs" class="back">← Gigs</RouterLink>
     <h1>New tour</h1>
-    <p class="muted lede">Rough is fine. Put in the dates you think, and fix them as the plan firms up. You mark show days and places on the tour page.</p>
+    <p class="muted lede">Rough dates are fine. Mark show days and cities on the tour page.</p>
     <form class="form" @submit.prevent="addTour">
       <TourForm v-model="draft" />
 
@@ -58,7 +58,7 @@ async function addTour() {
         <legend>The band</legend>
         <label class="check">
           <input v-model="ask" type="checkbox" />
-          Ask the {{ members.length }} members now. They answer all of it, some days, can't go, or when they'll know.
+          Ask the {{ members.length }} members now. They answer All of it, Part of it, Can't go or Not sure yet.
         </label>
       </fieldset>
 

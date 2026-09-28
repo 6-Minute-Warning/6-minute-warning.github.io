@@ -61,7 +61,7 @@ export type TourState = 'waiting' | 'short' | 'holds' | 'committed' | 'cancelled
 export const tourStateLabels: Record<TourState, string> = {
   waiting: 'Waiting on answers',
   short: 'Short on singers',
-  holds: 'Lineup holds',
+  holds: 'Lineup full',
   committed: 'Committed',
   cancelled: 'Called off',
 }
@@ -139,7 +139,7 @@ export function fromDraft(d: TourDraft): TourFields {
     covered: d.covered.trim().slice(0, 200),
     notCovered: d.notCovered.trim().slice(0, 200),
     perSinger: Math.max(0, Math.round(Number(d.perSinger) || 0)),
-    commitBy: d.commitBy,
+    commitBy: d.commitBy && d.commitBy <= d.start ? d.commitBy : '',
     notes: d.notes.trim().slice(0, 2000),
   }
 }
