@@ -6,7 +6,7 @@ import { day, money } from '@/lib/db'
 import { slug, type Venue } from '@/lib/directory'
 import type { Gig } from '@/lib/gigs'
 
-const props = defineProps<{ gig: Gig; clashNames?: { name: string; date: string }[]; hideNotes?: boolean }>()
+const props = defineProps<{ gig: Gig; clashNames?: { name: string; date: string }[]; hideNotes?: boolean; me?: string }>()
 
 const address = ref('')
 let stop: Unsubscribe = () => {}
@@ -28,6 +28,7 @@ onUnmounted(() => stop())
 
 const map = computed(() => `https://www.google.com/maps/search/${encodeURIComponent(address.value || props.gig.venue)}`)
 const pay = computed(() => props.gig.money?.perSinger ?? 0)
+const paidOn = computed(() => (props.me ? props.gig.money?.paidOut?.[props.me] : undefined))
 </script>
 
 <template>
@@ -49,7 +50,10 @@ const pay = computed(() => props.gig.money?.perSinger ?? 0)
     </div>
     <div>
       <dt>Your pay</dt>
-      <dd><strong>{{ pay ? money(pay) : 'Not set yet' }}</strong></dd>
+      <dd>
+        <strong>{{ pay ? money(pay) : 'Not set yet' }}</strong>
+        <span v-if="paidOn" class="ok"> · paid {{ day(paidOn, { month: 'short', day: 'numeric' }) }}</span>
+      </dd>
     </div>
     <div v-if="clashNames?.length" class="clash">
       <dt>Heads up</dt>

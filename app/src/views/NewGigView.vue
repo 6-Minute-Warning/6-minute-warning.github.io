@@ -5,12 +5,13 @@ import { doc, orderBy, runTransaction, serverTimestamp } from 'firebase/firestor
 import AppHeader from '@/components/AppHeader.vue'
 import SearchSelect from '@/components/SearchSelect.vue'
 import { db } from '@/lib/firebase'
-import { logEvent, useCollection } from '@/lib/db'
+import { logEvent, money, useCollection } from '@/lib/db'
 import { LINEUP_SIZE, openCall } from '@/lib/call'
 import { blankPresenter, mergeNames, presenterTask, slug, usualPartner, venueTask, type Presenter, type Venue } from '@/lib/directory'
 import { DEFAULT_TIME, gigId, newGig, presentersOf, timeOptions, venuesOf, type Gig } from '@/lib/gigs'
 import { MAX_DATE_OPTIONS, normalizeOptions } from '@/lib/options'
 import type { PersonRecord } from '@/lib/people'
+import { ROUND_TO, shareOf } from '@/lib/payout'
 import { useAuth } from '@/stores/auth'
 
 const auth = useAuth()
@@ -48,6 +49,9 @@ watch(
   },
 )
 
+const feeAmount = computed(() => Math.max(0, Math.round(Number(draft.value.fee) || 0)))
+const calculatedPay = computed(() => shareOf(feeAmount.value))
+const payByHand = computed(() => draft.value.perSinger !== '' && draft.value.perSinger != null)
 const moreDates = ref<string[]>([])
 const options = computed(() => normalizeOptions([draft.value.date, ...moreDates.value]))
 const picker = (e: Event) => (e.target as HTMLInputElement).showPicker?.()
@@ -66,8 +70,9 @@ async function addGig() {
   const dates = options.value
   const date = dates[0] ?? d.date
   const fields = { name: d.name, date, time: d.time, venue: known(venues.value, d.venue) ?? d.venue.trim(), contact }
-  const fee = Math.max(0, Math.round(Number(d.fee) || 0))
-  const perSinger = Math.max(0, Math.round(Number(d.perSinger) || 0))
+  const fee = feeAmount.value
+  const payManual = payByHand.value
+  const perSinger = payManual ? Math.max(0, Math.round(Number(d.perSinger) || 0)) : calculatedPay.value
   const call = d.ask ? { call: openCall(members.value.map((p) => p.id), auth.email, Date.now()) } : {}
   const id = gigId(d.name, date)
   const gigRef = doc(db, 'gigs', id)
@@ -81,7 +86,7 @@ async function addGig() {
       const venueExists = venueRef ? (await tx.get(venueRef)).exists() : true
       const presenterExists = presenterRef ? (await tx.get(presenterRef)).exists() : true
       const gig = newGig(fields)
-      tx.set(gigRef, { ...gig, ...(dates.length > 1 ? { dateOptions: dates } : {}), sets: d.sets.trim(), money: { ...gig.money, fee, perSinger }, ...call, createdAt: serverTimestamp(), createdBy: auth.email })
+      tx.set(gigRef, { ...gig, ...(dates.length > 1 ? { dateOptions: dates } : {}), sets: d.sets.trim(), money: { ...gig.money, fee, perSinger, payManual }, ...call, createdAt: serverTimestamp(), createdBy: auth.email })
       if (venueRef && !venueExists) {
         tx.set(venueRef, { name: fields.venue, address: '' })
         tx.set(doc(db, 'tasks', `venue-${venueId}`), { ...venueTask(venueId, fields.venue, auth.email), createdAt: serverTimestamp() })
@@ -144,10 +149,17 @@ async function addGig() {
       <fieldset>
         <legend>Pay and sets</legend>
         <div class="pair">
-          <label>Sets<input v-model="draft.sets" maxlength="60" placeholder="2 × 45 min" /></label>
-          <label>Pay per singer<input v-model="draft.perSinger" type="number" min="0" step="25" inputmode="numeric" placeholder="300" /></label>
+          <label>Total fee<input v-model="draft.fee" type="number" min="0" step="50" inputmode="numeric" placeholder="3100" /></label>
+          <label>Pay per singer<input v-model="draft.perSinger" type="number" min="0" step="25" inputmode="numeric" :placeholder="calculatedPay ? String(calculatedPay) : 'Calculated'" /></label>
         </div>
-        <label class="fee">Total fee<input v-model="draft.fee" type="number" min="0" step="50" inputmode="numeric" placeholder="3100" /></label>
+        <p v-if="payByHand" class="hint pay">
+          <strong>Set by hand.</strong> Calculated: {{ money(calculatedPay) }}.
+          <button type="button" class="link" @click="draft.perSinger = ''">Calculate it instead</button>
+        </p>
+        <p v-else-if="feeAmount" class="hint pay">
+          <strong>{{ money(calculatedPay) }} each</strong>: fee ÷ 8, rounded down to {{ money(ROUND_TO) }}. Expenses added on the gig page lower it.
+        </p>
+        <label class="sets">Sets<input v-model="draft.sets" maxlength="60" placeholder="2 × 45 min" /></label>
         <p class="muted hint">Singers see their pay, the sets and the time when they're asked. Only managers see the total fee.</p>
       </fieldset>
 
@@ -213,8 +225,13 @@ label {
   gap: 14px;
 }
 
-.fee {
-  max-width: 200px;
+.sets {
+  max-width: 260px;
+}
+
+.pay {
+  margin: -6px 0 0;
+  font-size: 0.9rem;
 }
 
 .dates {

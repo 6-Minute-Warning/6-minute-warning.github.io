@@ -31,7 +31,7 @@ export interface Gig {
   stage: Stage
   notes: string
   contact: { name: string; email: string; phone: string }
-  money: { fee: number; deposit: number; paid: number; merch: number; perSinger?: number }
+  money: { fee: number; deposit: number; paid: number; merch: number; perSinger?: number; payManual?: boolean; paidOut?: Record<string, string> }
   contract: ContractState
   performers: string[]
   soundTech: string

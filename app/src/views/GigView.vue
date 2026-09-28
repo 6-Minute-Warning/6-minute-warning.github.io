@@ -8,6 +8,7 @@ import DateBlock from '@/components/DateBlock.vue'
 import DateRace from '@/components/DateRace.vue'
 import GigFacts from '@/components/GigFacts.vue'
 import LineupDial from '@/components/LineupDial.vue'
+import PayoutCard from '@/components/PayoutCard.vue'
 import RehearsalsCard from '@/components/RehearsalsCard.vue'
 import SubFinder from '@/components/SubFinder.vue'
 import { db } from '@/lib/firebase'
@@ -74,10 +75,6 @@ const subbingFor = computed(() => {
   const s = summary.value
   if (!s || s.state === 'full' || s.state === 'abandoned') return []
   return (gig.value?.call?.subbing ?? []).filter((pid) => s.no.includes(pid))
-})
-const shares = computed(() => {
-  const count = gig.value?.performers?.length ?? 0
-  return count ? Math.round((gig.value?.money?.fee ?? 0) / count) : 0
 })
 
 async function act(done: string, work: () => Promise<unknown>) {
@@ -219,7 +216,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
           <DateBlock :date="gig.date" :dates="gig.dateOptions" />
           <h1>{{ gig.name }}</h1>
         </div>
-        <GigFacts :gig="gig" :clash-names="clashNames" hide-notes />
+        <GigFacts :gig="gig" :clash-names="clashNames" :me="me" hide-notes />
       </header>
 
       <section v-if="showShare && gig.call" class="card share">
@@ -392,7 +389,6 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
               </select>
             </label>
             <label>Sets<input :value="gig.sets ?? ''" maxlength="60" placeholder="2 × 45 min" @change="save({ sets: ($event.target as HTMLInputElement).value.trim() }, 'the sets')" /></label>
-            <label>Pay per singer<input type="number" min="0" step="25" :value="gig.money?.perSinger || ''" @change="save({ money: { ...gig.money, perSinger: Math.max(0, Number(($event.target as HTMLInputElement).value) || 0) } }, 'the pay')" /></label>
             <label>Call time<input :value="gig.callTime ?? ''" maxlength="40" placeholder="5:30pm" @change="save({ callTime: ($event.target as HTMLInputElement).value.trim() }, 'the call time')" /></label>
             <label>Outfit<input :value="gig.outfit ?? ''" maxlength="120" placeholder="Blacks" @change="save({ outfit: ($event.target as HTMLInputElement).value.trim() }, 'the outfit')" /></label>
           </div>
@@ -407,8 +403,6 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
               <dd>{{ money(gig.money?.paid ?? 0) }}</dd>
               <dt>Owed</dt>
               <dd><strong>{{ money(balance(gig)) }}</strong></dd>
-              <dt v-if="shares">Each</dt>
-              <dd v-if="shares">{{ money(shares) }}</dd>
             </dl>
             <template v-if="gig.contact?.name || gig.contact?.email || gig.contact?.phone">
               <h3>Presenter</h3>
@@ -438,6 +432,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
             </label>
           </div>
         </div>
+        <PayoutCard :id="id" :gig="gig" :name-of="nameOf" />
       </section>
     </template>
   </main>
@@ -659,6 +654,15 @@ textarea {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-text-muted);
+}
+
+.manage {
+  display: grid;
+  gap: 16px;
+}
+
+.manage .section {
+  margin-bottom: 0;
 }
 
 .cards {
