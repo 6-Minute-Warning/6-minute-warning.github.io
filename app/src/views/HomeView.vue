@@ -7,6 +7,7 @@ import DateBlock from '@/components/DateBlock.vue'
 import GigFacts from '@/components/GigFacts.vue'
 import PollCard from '@/components/PollCard.vue'
 import RehearsalAsk from '@/components/RehearsalAsk.vue'
+import RequestCard from '@/components/RequestCard.vue'
 import TaskRow from '@/components/TaskRow.vue'
 import type { Task } from '@/lib/directory'
 import { today, useCollection } from '@/lib/db'
@@ -34,6 +35,8 @@ const later = computed(() => booked.value.slice(1, 6))
 const tasks = auth.isManager ? useCollection<Task>('tasks', where('open', '==', true)).rows : computed(() => [] as (Task & { id: string })[])
 const rehearsalAsks = computed(() => (auth.isDirector ? live.value.filter((g) => needsRehearsalAnswer(g, now)) : []))
 const count = computed(() => needsMe.value.length + tasks.value.length + rehearsalAsks.value.length)
+const requests = computed(() => tasks.value.filter((t) => t.kind === 'request'))
+const chores = computed(() => tasks.value.filter((t) => t.kind !== 'request'))
 
 function askedBy(g: GigRow) {
   const email = g.call?.openedBy?.toLowerCase() ?? ''
@@ -59,8 +62,9 @@ function ago(g: GigRow) {
       <template v-else>
         <PollCard v-for="g in needsMe" :key="g.id" :gig="g" :all-gigs="gigs" :me="me" :name-of="nameOf" :asked-by="askedBy(g)" :ago="ago(g)" />
         <RehearsalAsk v-for="g in rehearsalAsks" :key="`rehearsals-${g.id}`" :gig="g" :people="people" :today="now" />
-        <ul v-if="tasks.length" class="tasks card">
-          <TaskRow v-for="t in tasks" :id="t.id" :key="t.id" :task="t" />
+        <RequestCard v-for="t in requests" :id="t.id" :key="t.id" :task="t" :all-gigs="gigs" />
+        <ul v-if="chores.length" class="tasks card">
+          <TaskRow v-for="t in chores" :id="t.id" :key="t.id" :task="t" />
         </ul>
         <p v-if="!count" class="clear">You're all caught up.</p>
       </template>

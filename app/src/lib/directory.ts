@@ -1,4 +1,4 @@
-import { personId } from './people'
+import { personId } from './people.ts'
 
 export interface Venue {
   name: string
@@ -14,7 +14,7 @@ export interface Presenter {
   techPhone: string
 }
 
-export type TaskKind = 'venue' | 'presenter'
+export type TaskKind = 'venue' | 'presenter' | 'request'
 
 export interface Task {
   kind: TaskKind

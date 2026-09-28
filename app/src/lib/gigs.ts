@@ -40,6 +40,8 @@ export interface Gig {
   sets?: string
   call?: Call
   rehearsals?: Rehearsals
+  createdBy?: string
+  via?: 'assistant'
 }
 
 export interface GigRow extends Gig {

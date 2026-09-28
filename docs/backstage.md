@@ -80,6 +80,65 @@ The payout card on the gig's Manage section holds the fee, the expenses, the wor
 
 New gig is a button at the top of Gigs that opens its own page. Saving asks the band by default and lands on the gig with a Send to WhatsApp step. Venue and Presenter are search boxes over every venue and presenter used before; typing loosely still finds them. Picking a venue fills in the presenter most often booked there, and picking a presenter fills in their usual venue, when that field is still empty. Typing a name that isn't on the list adds it and opens the matching to-do. Time is a list of half hours starting at 7:30pm.
 
+## Gig requests from the assistant
+
+Brett's assistant, a person or an AI agent, adds gig requests without the web app. Each request lands like a gig made on New gig: tentative, the venue and presenter matched to ones used before (loose match, as in the search boxes) or added with a to-do, and the band asked only when the request says so. Every request also gets a manager to-do on Home, a card showing the dates, facts, contact, fee and any gig already on those days, with Open gig and Mark checked. The gig page shows a From the assistant chip, and the gig records who sent it in `createdBy`.
+
+There is no server to run, so it works on Firebase's free Spark plan. The assistant signs in as its own Backstage user and writes to Firestore directly; the security rules limit that user.
+
+### One-time setup (Brett)
+
+1. Firebase console, Authentication, Sign-in method: add Email/Password.
+2. Pick an address only you control, such as assistant@6minutewarning.com, and a long random password. Give both to the assistant as `BACKSTAGE_EMAIL` and `BACKSTAGE_PASSWORD`.
+3. Run `BACKSTAGE_EMAIL=… BACKSTAGE_PASSWORD=… node tools/gig-request.mts --setup`, then open the verification link it sends to that inbox.
+4. On the Access page, add the address with the Assistant role.
+
+To cut the assistant off, remove the address on the Access page. To change the password, use Authentication, Users in the Firebase console.
+
+### Sending a request
+
+Node 22.18 or later, from a checkout of this repo:
+
+```
+export BACKSTAGE_EMAIL=assistant@6minutewarning.com BACKSTAGE_PASSWORD=…
+node tools/gig-request.mts --dry-run request.json   # prints the plan; saves nothing
+node tools/gig-request.mts request.json             # use - for stdin
+```
+
+```json
+{
+  "name": "Festival of Trees Gala",
+  "dates": ["2026-12-12", "2026-12-05"],
+  "time": "7:30pm",
+  "venue": "Winspear Centre",
+  "presenter": { "name": "Lee Park", "email": "lee@example.com", "phone": "780-555-0199" },
+  "fee": 3100,
+  "perSinger": 300,
+  "sets": "2 × 45 min",
+  "notes": "Lee emailed manager@ on Sept 28. 400 guests, dinner first.",
+  "ask": false
+}
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `name` | yes | Up to 120 characters |
+| `date` or `dates` | yes | `YYYY-MM-DD`. `dates` lists up to 6 possible days in any order; the gig is filed under the earliest and keeps them all in `dateOptions` |
+| `time` | no | Show time. `7:30 PM`, `19:30` and `7:30pm` all become `7:30pm`; anything else is kept as written. Blank means not set yet |
+| `venue` | no | Matched to an existing venue; a new name adds the venue and an "add the address" to-do |
+| `presenter` | no | A name, or `{ name, email, phone }`. Matched to an existing presenter; a new one is added with a "complete contact and tech details" to-do. With a known venue and no presenter, the presenter most often booked there is filled in, and the other way round |
+| `fee` | no | Total fee in dollars; only managers see it |
+| `perSinger` | no | Each singer's pay in dollars |
+| `sets` | no | Up to 60 characters, such as `2 × 45 min` |
+| `notes` | no | Up to 2000 characters; singers see these on the gig |
+| `ask` | no | `true` opens the band poll for every active member. Default `false`: a manager asks the band from the gig page after checking the request |
+
+The script prints the new gig's id and link, whether it added a venue or presenter, and how many members it asked. Unknown fields, bad dates and negative amounts are refused with every problem listed. A gig with the same name and earliest date is refused with a link to the existing one.
+
+### What the rules allow
+
+The Assistant role can create a gig only if it is tentative, has no contract, lineup or money received, carries `createdBy` equal to the assistant's address, and comes with its `tasks/request-<gig id>` to-do in the same write. It can add venues (without an address), presenters and their to-dos, and write to the event log. `firestore/rules.test.ts` covers this. Other clients can use the Firestore REST API the same way: sign in with `accounts:signInWithPassword`, then send every document the script sends in one `documents:commit`, as listed by `planRequest` in `app/src/lib/request.ts`.
+
 ## On phones
 
 Backstage installs to the home screen: on Android, Chrome's menu, Install app; on iPhone, Safari's Share, Add to Home Screen. The manifest's colours come from `theme/theme.css` at build time.
@@ -102,7 +161,7 @@ Data, for anything that writes gigs, such as the API:
 
 | Field | Holds |
 |---|---|
-| `gigs/{id}.dateOptions` | 2 to 6 `YYYY-MM-DD` strings, sorted. Absent on a gig with one date. Only managers set or remove it. |
+| `gigs/{id}.dateOptions` | 2 to 6 `YYYY-MM-DD` strings, sorted, the first equal to `date`. Absent on a gig with one date. Managers and the assistant set it when adding a gig; only managers remove it. |
 | `gigs/{id}.date` | The earliest possible date until one is locked, so date sorting and queries keep working. The id is made from it. |
 | `gigs/{id}/answers/{personId}` | On a gig with possible dates: `{ dates: { 'YYYY-MM-DD': 'yes' \| 'no' \| 'later' }, times: { 'YYYY-MM-DD': timestamp }, by, at, until? }`. Every key must be one of `dateOptions`, and `times` has the same keys: when each date was last answered, which orders the yeses on that date. `until` is the earliest "know by" date while any date is `later`. A single-date answer is refused while the dates are open. On a gig with one date: `{ answer, by, at, until? }`. |
 
@@ -120,6 +179,7 @@ Merging to `main` deploys Backstage to https://six-minute-warning.web.app and re
 | Music director | Same as singer, plus set how many rehearsals each gig needs, with a to-do on Home when a lineup fills or changes |
 | Manager | All of the above, plus create and delete gigs, edit money, contract state and presenter contacts, and manage the roster, venues and payments |
 | Admin | All of the above, plus grant and remove sign-in access |
+| Assistant | Reads everything. Adds gig requests with any new venue, presenter and to-dos. Can't edit, delete or answer polls |
 
 ## Phases
 

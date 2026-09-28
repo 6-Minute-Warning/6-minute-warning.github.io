@@ -211,6 +211,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
         <p class="chips">
           <span class="chip" :class="gig.stage === 'confirmed' || gig.stage === 'done' ? 'chip--ok' : gig.stage === 'cancelled' ? 'chip--bad' : 'chip--warn'">{{ stageLabels[gig.stage] }}</span>
           <span v-if="summary" class="chip" :class="options ? 'chip--warn' : summary.state === 'full' ? 'chip--ok' : summary.state === 'abandoned' ? 'chip--bad' : 'chip--warn'">{{ options ? 'Picking a date' : callStateLabels[summary.state] }}</span>
+          <span v-if="gig.via === 'assistant'" class="chip">From the assistant</span>
         </p>
         <div class="title">
           <DateBlock :date="gig.date" :dates="gig.dateOptions" />
