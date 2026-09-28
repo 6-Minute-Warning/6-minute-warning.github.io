@@ -15,7 +15,7 @@ import RequestCard from '@/components/RequestCard.vue'
 import TaskRow from '@/components/TaskRow.vue'
 import type { Task } from '@/lib/directory'
 import { day, today, useCollection } from '@/lib/db'
-import type { Gig, GigRow } from '@/lib/gigs'
+import { outfitLabel, type Gig, type GigRow } from '@/lib/gigs'
 import { byNewest, type Inquiry } from '@/lib/inquiries'
 import type { PersonRecord } from '@/lib/people'
 import { myPersonId, useMyAnswers } from '@/lib/poll'
@@ -120,7 +120,7 @@ function ago(g: GigRow) {
         </div>
         <div class="body">
           <GigFacts :gig="next" />
-          <p v-if="next.outfit" class="outfit"><span class="label">Outfit</span> {{ next.outfit }}</p>
+          <p class="outfit"><span class="label">Outfit</span> {{ outfitLabel(next.outfit) }}</p>
           <p class="lineup muted">With {{ next.performers.filter((p) => p !== me).map((p) => nameOf(p).split(' ')[0]).join(', ') || 'nobody yet' }}</p>
         </div>
       </RouterLink>

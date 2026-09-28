@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { balance, clashes, gigId, presentersOf, timeOptions, venuesOf, importWrite, isUpcoming, planGigImport, toContract, toStage } from '@/lib/gigs'
+import { balance, clashes, outfitLabel, gigId, presentersOf, timeOptions, venuesOf, importWrite, isUpcoming, planGigImport, toContract, toStage } from '@/lib/gigs'
 
 describe('gig helpers', () => {
   it('builds ids from date and name', () => {
@@ -111,5 +111,11 @@ describe('gig import', () => {
     ]
     expect(clashes(gigs, { id: 'new', date: '2026-11-28' }, 'kyle').map((g) => g.id)).toEqual(['a'])
     expect(clashes(gigs, { id: 'new', date: '2026-11-28' }, '')).toEqual([])
+  })
+
+  it('labels outfits, defaulting to blue shirt and white tie and keeping old free text', () => {
+    expect(outfitLabel(undefined)).toBe('Suits · blue shirt, white tie')
+    expect(outfitLabel('casual')).toBe('Casual')
+    expect(outfitLabel('Blacks')).toBe('Blacks')
   })
 })
