@@ -42,6 +42,7 @@ export interface Gig {
   dateOptions?: string[]
   createdBy?: string
   via?: 'assistant'
+  tour?: string
 }
 
 export interface GigRow extends Gig {

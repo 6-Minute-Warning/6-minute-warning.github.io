@@ -279,6 +279,61 @@ describe('rehearsals needed', () => {
   })
 })
 
+describe('tours', () => {
+  const tour = (extra: Record<string, unknown> = {}) => ({
+    name: 'SING! in Japan', start: '2027-05-10', end: '2027-05-24', rough: true, places: 'Tokyo', days: [{ date: '2027-05-10', kind: 'travel', place: '' }],
+    version: 1, covered: 'Flights', notCovered: 'Meals', perSinger: 0, commitBy: '', notes: '', stage: 'planning',
+    call: { openedBy: 'manager@example.com', openedAt: 1, asked: ['kyle'], subbing: [] }, ...extra,
+  })
+  const answer = (value: string, extra: Record<string, unknown> = {}, by = 'member@example.com') => ({ answer: value, by, at: serverTimestamp(), version: 1, ...extra })
+
+  beforeEach(() => env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'tours/t1'), tour())))
+
+  it('managers create and plan tours; the shape is checked', async () => {
+    const db = as('manager@example.com')
+    await assertSucceeds(setDoc(doc(db, 'tours/t2'), tour({ commitBy: '2027-01-15' })))
+    await assertSucceeds(updateDoc(doc(db, 'tours/t1'), { stage: 'committed', lineup: { '2027-05-12': ['kyle'] } }))
+    await assertFails(setDoc(doc(db, 'tours/t3'), tour({ end: '2027-05-01' })))
+    await assertFails(setDoc(doc(db, 'tours/t3'), tour({ stage: 'maybe' })))
+    await assertFails(setDoc(doc(db, 'tours/t3'), tour({ commitBy: 'soon' })))
+    await assertFails(setDoc(doc(db, 'tours/t3'), tour({ secret: true })))
+  })
+
+  it('singers read tours and can only mark who needs a sub', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(getDoc(doc(db, 'tours/t1')))
+    await assertFails(setDoc(doc(db, 'tours/t2'), tour()))
+    await assertFails(updateDoc(doc(db, 'tours/t1'), { perSinger: 900 }))
+    await assertFails(updateDoc(doc(db, 'tours/t1'), { stage: 'committed' }))
+    await assertFails(updateDoc(doc(db, 'tours/t1'), { 'call.asked': ['kyle', 'me'] }))
+    await assertSucceeds(updateDoc(doc(db, 'tours/t1'), { 'call.subbing': ['kyle'] }))
+    await assertFails(deleteDoc(doc(db, 'tours/t1')))
+  })
+
+  it('answers are all, some days, no or later, signed as the writer', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(setDoc(doc(db, 'tours/t1/answers/kyle'), answer('all')))
+    await assertSucceeds(setDoc(doc(db, 'tours/t1/answers/kyle'), answer('some', { days: ['2027-05-11', '2027-05-12'], note: 'Back for work on the 13th' })))
+    await assertSucceeds(setDoc(doc(db, 'tours/t1/answers/kyle'), answer('later', { until: '2027-01-10' })))
+    await assertSucceeds(setDoc(doc(db, 'tours/t1/answers/sub-sam'), answer('no')))
+    await assertSucceeds(deleteDoc(doc(db, 'tours/t1/answers/sub-sam')))
+  })
+
+  it('tour answers cannot be forged or malformed', async () => {
+    const db = as('member@example.com')
+    await assertFails(setDoc(doc(db, 'tours/t1/answers/kyle'), answer('all', {}, 'admin@example.com')))
+    await assertFails(setDoc(doc(db, 'tours/t1/answers/kyle'), answer('yes')))
+    await assertFails(setDoc(doc(db, 'tours/t1/answers/kyle'), answer('some')))
+    await assertFails(setDoc(doc(db, 'tours/t1/answers/kyle'), answer('some', { days: [] })))
+    await assertFails(setDoc(doc(db, 'tours/t1/answers/kyle'), answer('all', { days: ['2027-05-11'] })))
+    await assertFails(setDoc(doc(db, 'tours/t1/answers/kyle'), answer('later')))
+    await assertFails(setDoc(doc(db, 'tours/t1/answers/kyle'), answer('later', { until: 'soon' })))
+    await assertFails(setDoc(doc(db, 'tours/t1/answers/kyle'), answer('all', { note: 'x'.repeat(201) })))
+    await assertFails(setDoc(doc(db, 'tours/t1/answers/kyle'), { answer: 'all', by: 'member@example.com', at: serverTimestamp() }))
+    await assertFails(setDoc(doc(as('stranger@example.com'), 'tours/t1/answers/kyle'), answer('all', {}, 'stranger@example.com')))
+  })
+})
+
 describe('venues, presenters and to-dos', () => {
   it('members read them but only managers write', async () => {
     const member = as('member@example.com')
