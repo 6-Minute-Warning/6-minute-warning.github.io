@@ -5,13 +5,16 @@ import { orderBy, where } from 'firebase/firestore'
 import AppHeader from '@/components/AppHeader.vue'
 import DateBlock from '@/components/DateBlock.vue'
 import GigFacts from '@/components/GigFacts.vue'
+import InquiryCard from '@/components/InquiryCard.vue'
 import PollCard from '@/components/PollCard.vue'
+import PushPrompt from '@/components/PushPrompt.vue'
 import RehearsalAsk from '@/components/RehearsalAsk.vue'
 import RequestCard from '@/components/RequestCard.vue'
 import TaskRow from '@/components/TaskRow.vue'
 import type { Task } from '@/lib/directory'
 import { today, useCollection } from '@/lib/db'
 import type { Gig, GigRow } from '@/lib/gigs'
+import { byNewest, type Inquiry } from '@/lib/inquiries'
 import type { PersonRecord } from '@/lib/people'
 import { myPersonId, useMyAnswers } from '@/lib/poll'
 import { needsRehearsalAnswer } from '@/lib/rehearsals'
@@ -33,7 +36,10 @@ const next = computed(() => booked.value[0] as GigRow | undefined)
 const later = computed(() => booked.value.slice(1, 6))
 const tasks = auth.isManager ? useCollection<Task>('tasks', where('open', '==', true)).rows : computed(() => [] as (Task & { id: string })[])
 const rehearsalAsks = computed(() => (auth.isDirector ? live.value.filter((g) => needsRehearsalAnswer(g, now)) : []))
-const count = computed(() => needsMe.value.length + tasks.value.length + rehearsalAsks.value.length)
+const inquiries = auth.isManager ? useCollection<Inquiry>('inquiries', where('status', 'in', ['new', 'replied'])).rows : computed(() => [] as (Inquiry & { id: string })[])
+const owedReplies = computed(() => byNewest(inquiries.value.filter((i) => i.status === 'new')))
+const leads = computed(() => byNewest(inquiries.value.filter((i) => i.status === 'replied')))
+const count = computed(() => needsMe.value.length + tasks.value.length + rehearsalAsks.value.length + owedReplies.value.length)
 const requests = computed(() => tasks.value.filter((t) => t.kind === 'request'))
 const chores = computed(() => tasks.value.filter((t) => t.kind !== 'request'))
 
@@ -54,11 +60,13 @@ function ago(g: GigRow) {
   <main class="page home">
     <h1>Hi {{ auth.access?.name?.split(' ')[0] }}</h1>
     <p v-if="error" class="error" role="alert">✕ {{ error }}</p>
+    <PushPrompt v-if="auth.isManager" :topics="['inquiries']" what="new booking inquiries" />
 
     <section class="block">
       <h2 class="eyebrow" :class="{ hot: count }">Needs you{{ count ? ` · ${count}` : '' }}</h2>
       <p v-if="loading" class="muted">Loading…</p>
       <template v-else>
+        <InquiryCard v-for="i in owedReplies" :id="i.id" :key="i.id" :inquiry="i" />
         <PollCard v-for="g in needsMe" :key="g.id" :gig="g" :all-gigs="gigs" :me="me" :name-of="nameOf" :asked-by="askedBy(g)" :ago="ago(g)" />
         <RehearsalAsk v-for="g in rehearsalAsks" :key="`rehearsals-${g.id}`" :gig="g" :people="people" :today="now" />
         <RequestCard v-for="t in requests" :id="t.id" :key="t.id" :task="t" :all-gigs="gigs" />
@@ -67,6 +75,11 @@ function ago(g: GigRow) {
         </ul>
         <p v-if="!count" class="clear">You're all caught up.</p>
       </template>
+    </section>
+
+    <section v-if="leads.length" class="block">
+      <h2 class="eyebrow">Leads · waiting on them</h2>
+      <InquiryCard v-for="i in leads" :id="i.id" :key="i.id" :inquiry="i" />
     </section>
 
     <section v-if="next" class="block">

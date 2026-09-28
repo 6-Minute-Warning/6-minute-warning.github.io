@@ -424,3 +424,66 @@ describe('the assistant registers gig requests', () => {
     await assertFails(updateDoc(doc(db, `tasks/request-${p.id}`), { open: false }))
   })
 })
+
+describe('booking inquiries', () => {
+  const inquiry = { name: 'Jane Doe', email: 'jane@example.com', message: 'Our wedding', status: 'new', source: 'website' }
+  const handled = (status: string, by = 'manager@example.com') => ({ status, handledBy: by, handledAt: serverTimestamp() })
+
+  beforeEach(() =>
+    env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'inquiries/i1'), inquiry)
+    }),
+  )
+
+  it('only managers read them', async () => {
+    await assertSucceeds(getDoc(doc(as('manager@example.com'), 'inquiries/i1')))
+    await assertSucceeds(getDocs(collection(as(OWNER), 'inquiries')))
+    await assertFails(getDoc(doc(as('member@example.com'), 'inquiries/i1')))
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'inquiries/i1')))
+  })
+
+  it('nobody creates or deletes one from the app; the booking form script writes them', async () => {
+    await assertFails(setDoc(doc(as('manager@example.com'), 'inquiries/i2'), inquiry))
+    await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(), 'inquiries/i2'), inquiry))
+    await assertFails(deleteDoc(doc(as('manager@example.com'), 'inquiries/i1')))
+  })
+
+  it('a manager moves one along and signs it', async () => {
+    const db = as('manager@example.com')
+    await assertSucceeds(updateDoc(doc(db, 'inquiries/i1'), handled('replied')))
+    await assertSucceeds(updateDoc(doc(db, 'inquiries/i1'), { ...handled('booked'), gig: '2026-10-01-wedding' }))
+    await assertFails(updateDoc(doc(db, 'inquiries/i1'), handled('lost')))
+    await assertFails(updateDoc(doc(db, 'inquiries/i1'), handled('replied', 'admin@example.com')))
+    await assertFails(updateDoc(doc(db, 'inquiries/i1'), { ...handled('replied'), message: 'edited' }))
+    await assertFails(updateDoc(doc(as('member@example.com'), 'inquiries/i1'), handled('spam', 'member@example.com')))
+  })
+})
+
+describe('push tokens', () => {
+  const token = (email: string, topics: string[] = []) => ({ token: 'fcm-token', email, topics, device: 'Chrome on Android', updatedAt: serverTimestamp() })
+
+  it('a member saves their own device, for member topics only', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(setDoc(doc(db, 'pushTokens/t1'), token('member@example.com')))
+    await assertFails(setDoc(doc(db, 'pushTokens/t2'), token('manager@example.com')))
+    await assertFails(setDoc(doc(db, 'pushTokens/t3'), token('member@example.com', ['inquiries'])))
+    await assertFails(setDoc(doc(db, 'pushTokens/t4'), { ...token('member@example.com'), extra: 1 }))
+  })
+
+  it('managers get inquiry notifications', async () => {
+    await assertSucceeds(setDoc(doc(as('manager@example.com'), 'pushTokens/t1'), token('manager@example.com', ['inquiries'])))
+    await assertSucceeds(setDoc(doc(as(OWNER), 'pushTokens/t2'), token(OWNER, ['inquiries'])))
+  })
+
+  it('nobody reads tokens, and only the owner deletes theirs', async () => {
+    await assertSucceeds(setDoc(doc(as('manager@example.com'), 'pushTokens/t1'), token('manager@example.com', ['inquiries'])))
+    await assertFails(getDoc(doc(as('manager@example.com'), 'pushTokens/t1')))
+    await assertFails(getDocs(collection(as('admin@example.com'), 'pushTokens')))
+    await assertFails(deleteDoc(doc(as('member@example.com'), 'pushTokens/t1')))
+    await assertSucceeds(deleteDoc(doc(as('manager@example.com'), 'pushTokens/t1')))
+  })
+
+  it('strangers save nothing', async () => {
+    await assertFails(setDoc(doc(as('stranger@example.com'), 'pushTokens/t1'), token('stranger@example.com')))
+  })
+})
