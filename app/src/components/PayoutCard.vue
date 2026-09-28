@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { addDoc, collection, deleteDoc, deleteField, doc, FieldPath, getDocsFromServer, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { day, logEvent, money, today, useCollection } from '@/lib/db'
-import { SHARES, SINGER_SEATS, ROUND_TO, expenseKinds, expenseLabels, isManualPay, payout, shareOf, type Expense, type ExpenseKind, type PayoutLine } from '@/lib/payout'
+import { SHARES, SINGER_SEATS, expenseKinds, expenseLabels, isManualPay, payout, shareOf, type Expense, type ExpenseKind, type PayoutLine } from '@/lib/payout'
 import type { Gig } from '@/lib/gigs'
 import { useAuth } from '@/stores/auth'
 import { useToast } from '@/stores/toast'
@@ -86,6 +86,8 @@ function removeExpense(e: Expense & { id: string }) {
   return act(`Removed ${expenseLabels[e.kind].toLowerCase()}.`, `removed ${expenseLabels[e.kind].toLowerCase()} ${money(e.amount)}`, () => deleteDoc(doc(db, 'gigs', props.id, 'expenses', e.id)))
 }
 
+const adding = ref(false)
+const owed = computed(() => Math.max(0, (props.gig.money?.fee ?? 0) - (props.gig.money?.paid ?? 0)))
 const editing = ref(false)
 const typed = ref('')
 
@@ -134,16 +136,57 @@ function lineNote(line: PayoutLine) {
 <template>
   <section class="card payout" aria-labelledby="payout-title">
     <div class="head">
-      <h3 id="payout-title">Payout</h3>
-      <span v-if="payable.length && result.share" class="chip" :class="paidCount === payable.length ? 'chip--ok' : ''">Paid {{ paidCount }} of {{ payable.length }}</span>
+      <h3 id="payout-title">Money</h3>
+      <span v-if="payable.length && result.share" class="chip" :class="paidCount === payable.length ? 'chip--ok' : ''">Paid out {{ paidCount }} of {{ payable.length }}</span>
     </div>
 
-    <div class="inputs">
-      <label>Fee<input type="number" min="0" step="50" inputmode="decimal" :value="gig.money?.fee || ''" placeholder="0" :disabled="busy" @change="setFee(($event.target as HTMLInputElement).value)" /></label>
+    <div class="tiles">
+      <label class="tile">
+        <span class="eyebrow">Fee</span>
+        <span class="fee"><span aria-hidden="true">$</span><input type="number" min="0" step="50" inputmode="decimal" :value="gig.money?.fee || ''" placeholder="0" :disabled="busy" aria-label="Fee" @change="setFee(($event.target as HTMLInputElement).value)" /></span>
+      </label>
+      <div class="tile">
+        <span class="eyebrow">Expenses</span>
+        <strong>{{ money(result.expenses) }}</strong>
+      </div>
+      <div class="tile">
+        <span class="eyebrow">To split</span>
+        <strong>{{ money(result.net) }}</strong>
+      </div>
+      <div class="tile share">
+        <span class="eyebrow">Each share</span>
+        <strong class="accent">{{ money(result.share) }}</strong>
+      </div>
+    </div>
+
+    <p class="received muted small">
+      Deposit {{ money(gig.money?.deposit ?? 0) }} · received {{ money(gig.money?.paid ?? 0) }} ·
+      <strong :class="{ owed: owed > 0 }">owed {{ money(owed) }}</strong>
+    </p>
+
+    <div class="rule small">
+      <p v-if="result.net > 0" class="muted">
+        {{ money(result.net) }} ÷ {{ SHARES }} = {{ money(result.exact) }}<template v-if="result.exact !== result.calculated">, rounded down to {{ money(result.calculated) }}</template>
+      </p>
+      <p v-else-if="result.fee" class="warn">Expenses cover the whole fee. Nothing to split.</p>
+      <p v-if="manual">
+        <span class="chip chip--warn">Share set by hand</span>
+        <template v-if="result.calculated !== result.share"> The rule gives {{ money(result.calculated) }}.</template>
+        <button type="button" class="link" :disabled="busy" @click="useCalculated">Use the rule</button>
+      </p>
+      <form v-if="editing" class="row" @submit.prevent="setByHand">
+        <label class="amt">Share<input v-model="typed" type="number" min="0" step="25" inputmode="numeric" required /></label>
+        <button type="submit" class="btn" :disabled="busy">Save</button>
+        <button type="button" class="link" @click="editing = false">Cancel</button>
+      </form>
+      <button v-else type="button" class="link" @click="startEditing">{{ manual ? 'Change the share' : 'Set the share by hand' }}</button>
     </div>
 
     <div class="expenses">
-      <h4 class="eyebrow">Expenses</h4>
+      <div class="subhead">
+        <h4 class="eyebrow">Expenses</h4>
+        <button v-if="!adding" type="button" class="link" @click="adding = true">+ Add expense</button>
+      </div>
       <ul v-if="expenses.length" class="list">
         <li v-for="e in expenses" :key="e.id">
           <span class="what"><strong>{{ expenseLabels[e.kind] }}</strong><span v-if="e.description" class="muted"> · {{ e.description }}</span></span>
@@ -151,8 +194,8 @@ function lineNote(line: PayoutLine) {
           <button type="button" class="link" :disabled="busy" :aria-label="`Remove ${expenseLabels[e.kind]} ${money(e.amount)}`" @click="removeExpense(e)">Remove</button>
         </li>
       </ul>
-      <p v-else-if="ready" class="muted small">None. Expenses come off the fee before the split.</p>
-      <form class="add" @submit.prevent="addExpense">
+      <p v-else-if="ready && !adding" class="muted small">None yet. Expenses come off the fee before the split.</p>
+      <form v-if="adding" class="add" @submit.prevent="addExpense">
         <label>Kind
           <select v-model="draft.kind">
             <option v-for="k in expenseKinds" :key="k" :value="k">{{ expenseLabels[k] }}</option>
@@ -160,60 +203,117 @@ function lineNote(line: PayoutLine) {
         </label>
         <label class="grow">What for<input v-model="draft.description" maxlength="120" placeholder="Van to Banff" /></label>
         <label class="amt">Amount<input v-model="draft.amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="600" required /></label>
-        <button type="submit" class="btn btn--ghost" :disabled="busy">Add</button>
-      </form>
-    </div>
-
-    <div class="math" aria-live="polite">
-      <p>
-        {{ money(result.fee) }} fee − {{ money(result.expenses) }} expenses = <strong>{{ money(result.net) }}</strong> to split
-      </p>
-      <p v-if="result.net > 0">
-        ÷ {{ SHARES }} = {{ money(result.exact) }}<template v-if="result.exact !== result.calculated">, rounded down to the nearest {{ money(ROUND_TO) }}</template>: <strong>{{ money(result.calculated) }}</strong> a share
-      </p>
-      <p v-else-if="result.fee" class="warn">Expenses cover the whole fee. Nothing to split.</p>
-    </div>
-
-    <div class="pay">
-      <div class="share">
-        <span class="eyebrow">Pay per singer</span>
-        <strong class="display big">{{ money(result.share) }}</strong>
-        <span class="chip" :class="manual ? 'chip--warn' : ''">{{ manual ? 'Set by hand' : 'Calculated' }}</span>
-      </div>
-      <p v-if="manual" class="small">
-        <template v-if="result.calculated !== result.share">The rule would pay {{ money(result.calculated) }}. </template>
-        <button type="button" class="link" :disabled="busy" @click="useCalculated">Calculate it instead</button>
-      </p>
-      <form v-if="editing" class="row" @submit.prevent="setByHand">
-        <label class="amt">Pay per singer<input v-model="typed" type="number" min="0" step="25" inputmode="numeric" required /></label>
-        <button type="submit" class="btn" :disabled="busy">Save</button>
-        <button type="button" class="link" @click="editing = false">Cancel</button>
-      </form>
-      <button v-else type="button" class="link" @click="startEditing">{{ manual ? 'Change' : 'Set by hand' }}</button>
-    </div>
-
-    <ul class="lines">
-      <li v-for="line in result.lines" :key="`${line.role}-${line.key}`" :class="{ group: line.role === 'group', open: line.role === 'singer' && !line.person }">
-        <label v-if="payable.includes(line)" class="check">
-          <input type="checkbox" :checked="!!paidOut[line.key]" :disabled="busy" @change="markPaid(line, ($event.target as HTMLInputElement).checked)" />
-          <span class="sr-only">{{ lineName(line) }} paid</span>
-        </label>
-        <span v-else class="check" aria-hidden="true"></span>
-        <span class="who">
-          <strong>{{ lineName(line) }}</strong>
-          <span v-if="lineNote(line)" class="muted note" :class="{ warn: line.role === 'group' && result.group < 0 }">{{ lineNote(line) }}</span>
-          <span v-if="paidOut[line.key]" class="ok note">Paid {{ day(paidOut[line.key] ?? '', { month: 'short', day: 'numeric' }) }}</span>
+        <span class="row">
+          <button type="submit" class="btn" :disabled="busy">Add</button>
+          <button type="button" class="link" @click="adding = false">Done</button>
         </span>
-        <span class="amount" :class="{ warn: line.amount < 0 }">{{ money(line.amount) }}</span>
-      </li>
-    </ul>
-    <p v-if="result.soundTechShareToGroup" class="muted small">No sound tech: their share goes to the group. Add one under Who's on it.</p>
+      </form>
+    </div>
+
+    <div>
+      <h4 class="eyebrow">Payout</h4>
+      <ul class="lines">
+        <li v-for="line in result.lines" :key="`${line.role}-${line.key}`" :class="{ group: line.role === 'group', open: line.role === 'singer' && !line.person }">
+          <label v-if="payable.includes(line)" class="check">
+            <input type="checkbox" :checked="!!paidOut[line.key]" :disabled="busy" @change="markPaid(line, ($event.target as HTMLInputElement).checked)" />
+            <span class="sr-only">{{ lineName(line) }} paid</span>
+          </label>
+          <span v-else class="check" aria-hidden="true"></span>
+          <span class="who">
+            <strong>{{ lineName(line) }}</strong>
+            <span v-if="lineNote(line)" class="muted note" :class="{ warn: line.role === 'group' && result.group < 0 }">{{ lineNote(line) }}</span>
+            <span v-if="paidOut[line.key]" class="ok note">Paid {{ day(paidOut[line.key] ?? '', { month: 'short', day: 'numeric' }) }}</span>
+          </span>
+          <span class="amount" :class="{ warn: line.amount < 0 }">{{ money(line.amount) }}</span>
+        </li>
+      </ul>
+    </div>
+    <p v-if="result.soundTechShareToGroup" class="muted small">No sound tech yet: their share goes to the group.</p>
     <p v-if="openSeats" class="muted small">{{ openSeats }} of {{ singerCount }} singer seats open. Their shares are held.</p>
     <p v-if="singerCount > SINGER_SEATS" class="warn small">{{ singerCount }} singers, but the split assumes {{ SINGER_SEATS }}. The extra pay comes from the group account.</p>
   </section>
 </template>
 
 <style scoped>
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tile {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.tile strong,
+.fee {
+  font-family: var(--font-display);
+  font-stretch: var(--display-stretch);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.fee {
+  display: flex;
+  align-items: baseline;
+}
+
+.fee input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px dashed var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--color-text);
+}
+
+.accent {
+  color: var(--color-accent-strong) !important;
+}
+
+.received,
+.rule p {
+  margin: 0;
+}
+
+.owed {
+  color: var(--color-warning);
+}
+
+.rule {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.subhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.subhead h4,
+.payout h4 {
+  margin: 0 0 6px;
+}
+
+@media (max-width: 560px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .payout {
   display: grid;
   gap: 16px;
@@ -247,10 +347,6 @@ label select {
   text-transform: none;
   color: var(--color-text);
   min-width: 0;
-}
-
-.inputs {
-  max-width: 200px;
 }
 
 .expenses {
@@ -310,37 +406,6 @@ label select {
   .add .btn {
     grid-column: 1 / -1;
   }
-}
-
-.math {
-  display: grid;
-  gap: 2px;
-  padding: 12px 14px;
-  border-radius: var(--radius);
-  background: var(--color-bg);
-  font-variant-numeric: tabular-nums;
-}
-
-.math p {
-  margin: 0;
-}
-
-.pay {
-  display: grid;
-  gap: 6px;
-  justify-items: start;
-}
-
-.share {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 12px;
-}
-
-.big {
-  font-size: 1.8rem;
-  color: var(--color-accent-strong);
 }
 
 .row {

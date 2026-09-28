@@ -11,10 +11,10 @@ import PayoutCard from '@/components/PayoutCard.vue'
 import RehearsalsCard from '@/components/RehearsalsCard.vue'
 import SubFinder from '@/components/SubFinder.vue'
 import { db } from '@/lib/firebase'
-import { day, logEvent, money, useCollection } from '@/lib/db'
+import { day, logEvent, useCollection } from '@/lib/db'
 import { LINEUP_SIZE, callMessage, callStateLabels, openCall, subCandidates, subMessage, whatsappLink, type Answer } from '@/lib/call'
 import { answersFromAttendees, calendarToken, eventBody, readEvent, saveEvent } from '@/lib/calendar'
-import { balance, clashes, contractLabels, contractStates, stageLabels, stages, type ContractState, type Gig, type Stage } from '@/lib/gigs'
+import { DEFAULT_OUTFIT, clashes, contractLabels, contractStates, outfitLabel, outfits, stageLabels, type ContractState, type Gig, type Stage } from '@/lib/gigs'
 import type { PersonRecord } from '@/lib/people'
 import { myPersonId, usePoll } from '@/lib/poll'
 import { useAuth } from '@/stores/auth'
@@ -176,6 +176,9 @@ function togglePerformer(personId: string, on: boolean) {
   return save({ performers: [...next] }, 'the lineup')
 }
 
+const pipeline: Stage[] = ['tentative', 'contracting', 'confirmed', 'done']
+const stepIndex = computed(() => pipeline.indexOf(gig.value?.stage ?? 'tentative'))
+
 const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
   !a ? 'Waiting' : a.answer === 'yes' ? 'In' : a.answer === 'no' ? "Can't" : `By ${day(a.until ?? '', { month: 'short', day: 'numeric' })}`
 </script>
@@ -199,6 +202,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
           <h1>{{ gig.name }}</h1>
         </div>
         <GigFacts :gig="gig" :clash-names="clashNames" :me="me" hide-notes />
+        <RouterLink v-if="gig.tour" :to="`/tours/${gig.tour}`" class="back">Part of a tour. The lineup is set there →</RouterLink>
       </header>
 
       <section v-if="showShare && gig.call" class="card share">
@@ -211,7 +215,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
         </div>
       </section>
 
-      <section v-if="!gig.call" class="card ask">
+      <section v-if="!gig.call && !gig.tour" class="card ask">
         <h2>Who can play?</h2>
         <p class="muted">Ask the {{ members.length }} members. {{ LINEUP_SIZE }} yeses fill the lineup.</p>
         <button type="button" class="btn" :disabled="busy || !members.length" @click="askBand">Ask the band</button>
@@ -273,7 +277,13 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
         <h2 class="eyebrow">On the night</h2>
         <dl class="kv">
           <dt>Outfit</dt>
-          <dd>{{ gig.outfit || 'Not set yet' }}</dd>
+          <dd>
+            <select v-if="auth.isManager" class="outfit" :value="gig.outfit || DEFAULT_OUTFIT" aria-label="Outfit" :disabled="busy" @change="save({ outfit: ($event.target as HTMLSelectElement).value }, 'the outfit')">
+              <option v-for="(label, key) in outfits" :key="key" :value="key">{{ label }}</option>
+              <option v-if="gig.outfit && !(gig.outfit in outfits)" :value="gig.outfit">{{ gig.outfit }}</option>
+            </select>
+            <template v-else>{{ outfitLabel(gig.outfit) }}</template>
+          </dd>
           <dt>Sound</dt>
           <dd>{{ gig.soundTech ? nameOf(gig.soundTech) : 'Nobody yet' }}</dd>
         </dl>
@@ -313,74 +323,247 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
         </div>
       </section>
 
-      <section v-if="auth.isManager" class="manage">
-        <h2 class="section">Manage</h2>
-        <div class="cards">
-          <div class="card">
-            <label>Stage
-              <select :value="gig.stage" @change="save({ stage: ($event.target as HTMLSelectElement).value as Stage }, 'the stage')">
-                <option v-for="s in stages" :key="s" :value="s">{{ stageLabels[s] }}</option>
-              </select>
-            </label>
-            <label>Contract
-              <select :value="gig.contract" @change="save({ contract: ($event.target as HTMLSelectElement).value as ContractState }, 'the contract state')">
-                <option v-for="c in contractStates" :key="c" :value="c">{{ contractLabels[c] }}</option>
-              </select>
-            </label>
-            <label>Sets<input :value="gig.sets ?? ''" maxlength="60" placeholder="2 × 45 min" @change="save({ sets: ($event.target as HTMLInputElement).value.trim() }, 'the sets')" /></label>
-            <label>Call time<input :value="gig.callTime ?? ''" maxlength="40" placeholder="5:30pm" @change="save({ callTime: ($event.target as HTMLInputElement).value.trim() }, 'the call time')" /></label>
-            <label>Outfit<input :value="gig.outfit ?? ''" maxlength="120" placeholder="Blacks" @change="save({ outfit: ($event.target as HTMLInputElement).value.trim() }, 'the outfit')" /></label>
+      <section v-if="auth.isManager" class="manage" aria-labelledby="manage-title">
+        <h2 id="manage-title" class="eyebrow">Manage</h2>
+
+        <div class="card status">
+          <div class="steps" role="group" aria-label="Stage">
+            <button
+              v-for="(s, i) in pipeline"
+              :key="s"
+              type="button"
+              class="step"
+              :class="{ done: stepIndex > i, current: gig.stage === s }"
+              :aria-pressed="gig.stage === s"
+              :disabled="busy"
+              @click="save({ stage: s }, 'the stage')"
+            >
+              <span class="num" aria-hidden="true">{{ stepIndex > i ? '✓' : i + 1 }}</span>{{ stageLabels[s] }}
+            </button>
           </div>
-          <div class="card">
-            <h3>Money</h3>
-            <dl class="kv">
-              <dt>Fee</dt>
-              <dd>{{ money(gig.money?.fee ?? 0) }}</dd>
-              <dt>Deposit</dt>
-              <dd>{{ money(gig.money?.deposit ?? 0) }}</dd>
-              <dt>Paid</dt>
-              <dd>{{ money(gig.money?.paid ?? 0) }}</dd>
-              <dt>Owed</dt>
-              <dd><strong>{{ money(balance(gig)) }}</strong></dd>
-            </dl>
-            <template v-if="gig.contact?.name || gig.contact?.email || gig.contact?.phone">
-              <h3>Presenter</h3>
-              <p class="contact">
-                <strong>{{ gig.contact.name }}</strong>
-                <a v-if="gig.contact.email" :href="`mailto:${gig.contact.email}`">{{ gig.contact.email }}</a>
-                <a v-if="gig.contact.phone" :href="`tel:${gig.contact.phone.replace(/[^0-9+]/g, '')}`">{{ gig.contact.phone }}</a>
-              </p>
-            </template>
-          </div>
-          <div class="card">
-            <h3>Who's on it</h3>
-            <p class="muted small">Fills itself from the poll. Change it here by hand if you need to.</p>
-            <ul class="people">
-              <li v-for="p in singers" :key="p.id">
-                <label class="check">
-                  <input type="checkbox" :checked="gig.performers?.includes(p.id)" @change="togglePerformer(p.id, ($event.target as HTMLInputElement).checked)" />
-                  {{ p.name }} <span class="muted">{{ p.status === 'sub' ? 'sub' : p.part }}</span>
-                </label>
-              </li>
-            </ul>
-            <label>Sound tech
-              <select :value="gig.soundTech ?? ''" @change="save({ soundTech: ($event.target as HTMLSelectElement).value }, 'the sound tech')">
-                <option value="">Nobody yet</option>
-                <option v-for="c in crew" :key="c.id" :value="c.id">{{ c.name }}</option>
-              </select>
-            </label>
+          <div class="contract">
+            <span class="eyebrow">Contract</span>
+            <div class="pills" role="group" aria-label="Contract">
+              <button
+                v-for="c in contractStates"
+                :key="c"
+                type="button"
+                class="pill"
+                :aria-pressed="gig.contract === c"
+                :disabled="busy"
+                @click="save({ contract: c as ContractState }, 'the contract state')"
+              >
+                {{ contractLabels[c] }}
+              </button>
+            </div>
+            <button v-if="gig.stage !== 'cancelled'" type="button" class="link cancel" :disabled="busy" @click="save({ stage: 'cancelled' }, 'the stage')">Cancel gig</button>
+            <span v-else class="chip chip--bad">Cancelled</span>
           </div>
         </div>
-        <PayoutCard :id="id" :gig="gig" :name-of="nameOf" />
+
+        <div class="manage-grid">
+          <div class="col">
+            <div class="card">
+              <h3>The show</h3>
+              <div class="fields">
+                <label>Sets<input :value="gig.sets ?? ''" maxlength="60" placeholder="2 × 45 min" @change="save({ sets: ($event.target as HTMLInputElement).value.trim() }, 'the sets')" /></label>
+                <label>Call time<input :value="gig.callTime ?? ''" maxlength="40" placeholder="5:30pm" @change="save({ callTime: ($event.target as HTMLInputElement).value.trim() }, 'the call time')" /></label>
+                <label>Sound tech
+                  <select :value="gig.soundTech ?? ''" @change="save({ soundTech: ($event.target as HTMLSelectElement).value }, 'the sound tech')">
+                    <option value="">Nobody yet</option>
+                    <option v-for="c in crew" :key="c.id" :value="c.id">{{ c.name }}</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="card presenter">
+              <h3>Presenter</h3>
+              <template v-if="gig.contact?.name || gig.contact?.email || gig.contact?.phone">
+                <p class="who"><strong>{{ gig.contact.name || 'No name' }}</strong></p>
+                <div class="row">
+                  <a v-if="gig.contact.email" class="btn btn--ghost" :href="`mailto:${gig.contact.email}?subject=${encodeURIComponent(`6 Minute Warning: ${gig.name}`)}`">Email</a>
+                  <a v-if="gig.contact.phone" class="btn btn--ghost" :href="`tel:${gig.contact.phone.replace(/[^0-9+]/g, '')}`">Call</a>
+                </div>
+                <p class="muted small">{{ [gig.contact.email, gig.contact.phone].filter(Boolean).join(' · ') }}</p>
+              </template>
+              <p v-else class="muted small">No presenter on this gig.</p>
+            </div>
+
+            <details class="card by-hand">
+              <summary>Adjust the lineup by hand</summary>
+              <p class="muted small">The poll fills this. Change it only when someone was booked outside the poll.</p>
+              <ul class="people">
+                <li v-for="p in singers" :key="p.id">
+                  <label class="check">
+                    <input type="checkbox" :checked="gig.performers?.includes(p.id)" @change="togglePerformer(p.id, ($event.target as HTMLInputElement).checked)" />
+                    {{ p.name }} <span class="muted">{{ p.status === 'sub' ? 'sub' : p.part }}</span>
+                  </label>
+                </li>
+              </ul>
+            </details>
+          </div>
+
+          <PayoutCard :id="id" :gig="gig" :name-of="nameOf" />
+        </div>
       </section>
     </template>
   </main>
 </template>
 
 <style scoped>
+.manage {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.status {
+  display: grid;
+  gap: 16px;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.step .num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid currentColor;
+  font-size: 0.75rem;
+}
+
+.step.done {
+  color: var(--color-text);
+}
+
+.step.current {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+.contract {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill {
+  min-height: 36px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pill[aria-pressed='true'] {
+  border-color: var(--color-text);
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+}
+
+.cancel {
+  margin-left: auto;
+  color: var(--color-danger);
+}
+
+.manage-grid {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+.col {
+  display: grid;
+  gap: 16px;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.fields input,
+.fields select {
+  width: 100%;
+  min-width: 0;
+}
+
+.presenter .who {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.by-hand summary {
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 32px;
+}
+
+@media (min-width: 900px) {
+  .manage-grid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 .gig {
   display: grid;
   gap: 16px;
+  max-width: 1080px;
+}
+
+.gig > :not(.manage) {
+  width: 100%;
   max-width: 760px;
 }
 
