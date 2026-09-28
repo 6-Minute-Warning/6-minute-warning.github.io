@@ -197,6 +197,10 @@ describe('band poll', () => {
     await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), answer('maybe')))
     await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { answer: 'yes', by: 'member@example.com', at: 0 }))
     await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { ...answer('yes'), extra: true }))
+    await assertSucceeds(setDoc(doc(db, 'gigs/g1/answers/kyle'), { ...answer('later'), until: '2026-10-02' }))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), answer('later')))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { ...answer('yes'), until: '2026-10-02' }))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { ...answer('later'), until: 'soon' }))
     await assertFails(setDoc(doc(as('stranger@example.com'), 'gigs/g1/answers/kyle'), answer('yes', 'stranger@example.com')))
   })
 
@@ -206,6 +210,12 @@ describe('band poll', () => {
     await assertSucceeds(updateDoc(doc(db, 'gigs/g1'), { 'call.subbing': ['kyle'] }))
     await assertSucceeds(updateDoc(doc(db, 'gigs/g1'), { 'call.abandoned': true, stage: 'cancelled' }))
     await assertSucceeds(updateDoc(doc(db, 'gigs/g1'), { 'call.abandoned': false }))
+  })
+
+  it('a gig can be created with a poll, but not a malformed one', async () => {
+    const db = as('manager@example.com')
+    await assertSucceeds(setDoc(doc(db, 'gigs/g2'), { name: 'New', call }))
+    await assertFails(setDoc(doc(db, 'gigs/g3'), { name: 'New', call: { ...call, extra: 1 } }))
   })
 
   it('a malformed poll is refused', async () => {

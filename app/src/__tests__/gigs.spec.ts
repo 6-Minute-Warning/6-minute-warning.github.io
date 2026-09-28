@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { balance, gigId, presentersOf, timeOptions, venuesOf, importWrite, isUpcoming, planGigImport, toContract, toStage } from '@/lib/gigs'
+import { balance, clashes, gigId, presentersOf, timeOptions, venuesOf, importWrite, isUpcoming, planGigImport, toContract, toStage } from '@/lib/gigs'
 
 describe('gig helpers', () => {
   it('builds ids from date and name', () => {
@@ -100,5 +100,16 @@ describe('gig import', () => {
       { contact: { name: '', email: 'nobody@x.ca', phone: '' } },
     ]
     expect(presentersOf(gigs)).toEqual([{ name: 'Pat Lee', email: 'pat@x.ca', phone: '780' }])
+  })
+
+  it('finds gigs a person is booked on the same day or the day either side', () => {
+    const gigs = [
+      { id: 'a', date: '2026-11-27', stage: 'confirmed' as const, performers: ['kyle'] },
+      { id: 'b', date: '2026-11-28', stage: 'cancelled' as const, performers: ['kyle'] },
+      { id: 'c', date: '2026-11-30', stage: 'confirmed' as const, performers: ['kyle'] },
+      { id: 'd', date: '2026-11-28', stage: 'tentative' as const, performers: ['joe'] },
+    ]
+    expect(clashes(gigs, { id: 'new', date: '2026-11-28' }, 'kyle').map((g) => g.id)).toEqual(['a'])
+    expect(clashes(gigs, { id: 'new', date: '2026-11-28' }, '')).toEqual([])
   })
 })

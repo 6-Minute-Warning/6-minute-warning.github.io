@@ -13,6 +13,7 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: () => import('@/views/HomeView.vue'), meta: { access: 'member' } },
     { path: '/gigs', name: 'gigs', component: () => import('@/views/GigsView.vue'), meta: { access: 'member' } },
+    { path: '/gigs/new', name: 'new-gig', component: () => import('@/views/NewGigView.vue'), meta: { access: 'member' } },
     { path: '/gigs/:id', name: 'gig', component: () => import('@/views/GigView.vue'), meta: { access: 'member' } },
     { path: '/roster', name: 'roster', component: () => import('@/views/RosterView.vue'), meta: { access: 'member' } },
     { path: '/access', name: 'access', component: () => import('@/views/AccessView.vue'), meta: { access: 'admin' } },
