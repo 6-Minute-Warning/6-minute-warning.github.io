@@ -126,7 +126,6 @@ service cloud.firestore {
         && d.contact.keys().hasOnly(['name', 'email', 'phone'])
         && short(d.contact.name, 120) && short(d.contact.email, 160) && short(d.contact.phone, 40)
         && d.stage == 'tentative' && d.contract == 'none' && d.performers == [] && d.soundTech == ''
-        && (!('outfit' in d) || d.outfit in ['suits-blue', 'suits-white', 'casual', 'both'])
         && d.money.keys().hasOnly(['fee', 'deposit', 'paid', 'merch', 'perSinger'])
         && d.money.fee is int && d.money.fee >= 0 && d.money.perSinger is int && d.money.perSinger >= 0
         && d.money.deposit == 0 && d.money.paid == 0 && d.money.merch == 0
