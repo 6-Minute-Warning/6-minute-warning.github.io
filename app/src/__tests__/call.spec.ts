@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { callMessage, openCall, subCandidates, summarize, whatsappLink, type AnswerRecord } from '@/lib/call'
+import { callMessage, initials, openCall, subCandidates, subMessage, summarize, whatsappLink, type AnswerRecord } from '@/lib/call'
 import { answersFromAttendees, eventBody, startTime } from '@/lib/calendar'
 import type { PersonRecord } from '@/lib/people'
 
@@ -35,6 +35,19 @@ describe('band poll', () => {
     expect(s.lineup).toContain('sam')
   })
 
+  it('counts a "know by" answer as still waiting and keeps its date', () => {
+    const s = summarize(openCall(six, 'me', 0), { a: { answer: 'later', by: 'x', at: 1, until: '2026-10-02' } })
+    expect(s.waiting).toContain('a')
+    expect(s.later).toEqual({ a: '2026-10-02' })
+    expect(s.state).toBe('waiting')
+  })
+
+  it('writes a sub request and initials', () => {
+    expect(subMessage({ name: 'Gala', when: 'Sat, Nov 28', venue: '' }, 'Bass')).toBe('Hi! 6 Minute Warning needs a Bass for Gala, Sat, Nov 28. Can you do it?')
+    expect(initials('Kyle  Carter')).toBe('KC')
+    expect(initials('Bernard')).toBe('B')
+  })
+
   it('abandoned wins over everything', () => {
     expect(summarize({ ...openCall(six, 'me', 0), abandoned: true }, {}).state).toBe('abandoned')
   })
@@ -48,7 +61,7 @@ describe('band poll', () => {
 
   it('builds a WhatsApp link with the message encoded', () => {
     const text = callMessage({ name: 'Gala', when: 'Sat, Nov 28, 2026', venue: 'Hall & Co' }, 'https://x/gigs/1')
-    expect(text).toBe('6MW gig: Gala, Sat, Nov 28, 2026 at Hall & Co. Can you make it? Answer Yes or No in Backstage: https://x/gigs/1')
+    expect(text).toBe('6MW gig: Gala, Sat, Nov 28, 2026 at Hall & Co. Can you make it? Tap to answer: https://x/gigs/1')
     expect(whatsappLink(text)).toContain('Hall%20%26%20Co')
   })
 })

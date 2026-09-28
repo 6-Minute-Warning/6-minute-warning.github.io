@@ -68,7 +68,8 @@ service cloud.firestore {
 
     match /gigs/{id} {
       allow read: if isMember();
-      allow create, delete: if isManager();
+      allow create: if isManager() && validCall();
+      allow delete: if isManager();
       allow update: if validCall() && (isManager()
         || (isMember()
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['money', 'contract', 'contact'])
@@ -77,8 +78,10 @@ service cloud.firestore {
 
       function validAnswer() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['answer', 'by', 'at'])
-          && d.answer in ['yes', 'no']
+        return d.keys().hasOnly(['answer', 'by', 'at', 'until'])
+          && d.answer in ['yes', 'no', 'later']
+          && (d.answer == 'later') == ('until' in d)
+          && (!('until' in d) || (d.until is string && d.until.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
           && d.by == email()
           && d.at == request.time;
       }

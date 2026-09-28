@@ -41,13 +41,21 @@ Contracts go out as a normal email with the PDF attached. The app enforces the s
 
 Contracts that presenters send use the same record, uploaded instead of generated.
 
+## Look
+
+Backstage uses the public site's identity: Archivo at 125% width for headings, uppercase buttons and small blue letter-spaced labels, the wordmark with a Backstage tag, and blue date blocks. The lineup shows as a six-segment dial drawn from the 6 in the logo. Colours and fonts come from `theme/theme.css`.
+
 ## Home
 
-Home is the signed-in person's to-do list. Polls waiting on their answer come first and can be answered there. Managers also see a to-do for every new venue (its address) and new presenter (their contact and tech contact details), which stays until someone fills it in. Polls already answered are listed under Open polls.
+Home is the signed-in person's to-do list. Under Needs you, each poll carries what a singer needs to answer it: day and date, show and call time, sets, venue and address, their pay, who is already in, and a warning when they are already booked that day or the day either side. They answer I'm in, Can't make it, or pick the date they will know by. Managers also get a to-do for every new venue and presenter. Next up shows their next booked gig with call time, outfit and who they sing with; Coming up lists the rest.
+
+## Gig page
+
+The top shows the date, name and the same decision facts, then the dial and the answer buttons. When someone can't make it, anyone chooses Find a sub or Drop the gig. Find a sub offers one sub at a time, same part first, with Call and Text buttons that fill in the ask, then They said yes or Said no. Everyone's answers sits in a closed section for recording answers given elsewhere. Managers get a Manage section: stage, contract, sets, pay per singer, call time, outfit, money, presenter, lineup and sound tech.
 
 ## Adding a gig
 
-Venue and Presenter are search boxes over every venue and presenter used before; typing loosely still finds them. Picking a venue fills in the presenter most often booked there, and picking a presenter fills in their usual venue, when that field is still empty. Typing a name that isn't on the list adds it and opens the matching to-do. Time is a list of half hours starting at 7:30pm.
+New gig is a button at the top of Gigs that opens its own page. Saving asks the band by default and lands on the gig with a Send to WhatsApp step. Venue and Presenter are search boxes over every venue and presenter used before; typing loosely still finds them. Picking a venue fills in the presenter most often booked there, and picking a presenter fills in their usual venue, when that field is still empty. Typing a name that isn't on the list adds it and opens the matching to-do. Time is a list of half hours starting at 7:30pm.
 
 ## On phones
 

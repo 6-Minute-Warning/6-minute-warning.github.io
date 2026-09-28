@@ -29,10 +29,13 @@ export interface Gig {
   stage: Stage
   notes: string
   contact: { name: string; email: string; phone: string }
-  money: { fee: number; deposit: number; paid: number; merch: number }
+  money: { fee: number; deposit: number; paid: number; merch: number; perSinger?: number }
   contract: ContractState
   performers: string[]
   soundTech: string
+  callTime?: string
+  outfit?: string
+  sets?: string
   call?: Call
 }
 
@@ -81,6 +84,14 @@ export function presentersOf(gigs: Pick<Gig, 'contact'>[]): Contact[] {
     })
   }
   return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function clashes<G extends Pick<Gig, 'date' | 'stage' | 'performers'> & { id: string }>(gigs: G[], gig: { id: string; date: string }, person: string): G[] {
+  if (!person || !gig.date) return []
+  const day = Date.parse(`${gig.date}T12:00:00Z`)
+  return gigs.filter(
+    (g) => g.id !== gig.id && g.stage !== 'cancelled' && g.performers?.includes(person) && Math.abs(Date.parse(`${g.date}T12:00:00Z`) - day) <= 86400000,
+  )
 }
 
 export const DEFAULT_TIME = '7:30pm'

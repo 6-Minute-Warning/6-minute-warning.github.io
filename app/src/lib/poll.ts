@@ -51,7 +51,7 @@ export function usePoll(gigId: string, gig: Readonly<Ref<Gig | null>>, by: () =>
     if (!g?.call) return
     const s = summarize(g.call, next)
     const current = g.performers ?? []
-    const performers = s.state === 'full' ? s.lineup : current.filter((id) => next[id]?.answer !== 'no')
+    const performers = s.state === 'full' ? s.lineup : current.filter((id) => next[id]?.answer !== 'no' && next[id]?.answer !== 'later')
     if (performers.join() === current.join()) return
     await updateDoc(doc(db, 'gigs', gigId), { performers })
     if (log && s.state === 'full') await logEvent(gigId, 'call', `lineup full: ${s.lineup.map(nameOf).join(', ')}`, by())
@@ -65,18 +65,19 @@ export function usePoll(gigId: string, gig: Readonly<Ref<Gig | null>>, by: () =>
     { immediate: true },
   )
 
-  async function answer(personId: string, value: Answer | null) {
-    if (answers.value[personId]?.answer === value) return
+  async function answer(personId: string, value: Answer | null, until?: string) {
+    if (answers.value[personId]?.answer === value && answers.value[personId]?.until === until) return
     const answerRef = doc(db, 'gigs', gigId, 'answers', personId)
     const next = { ...answers.value }
     if (value) {
-      await setDoc(answerRef, { answer: value, by: by(), at: serverTimestamp() })
-      next[personId] = { answer: value, by: by(), at: Date.now() }
+      const extra = value === 'later' && until ? { until } : {}
+      await setDoc(answerRef, { answer: value, by: by(), at: serverTimestamp(), ...extra })
+      next[personId] = { answer: value, by: by(), at: Date.now(), ...extra }
     } else {
       await deleteDoc(answerRef)
       delete next[personId]
     }
-    await logEvent(gigId, 'answer', `${nameOf(personId)}: ${value ?? 'cleared'}`, by())
+    await logEvent(gigId, 'answer', `${nameOf(personId)}: ${value === 'later' ? `will know by ${until}` : (value ?? 'cleared')}`, by())
     await syncLineup(next, true)
   }
 

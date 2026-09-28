@@ -2,12 +2,13 @@ import type { PersonRecord } from './people'
 
 export const LINEUP_SIZE = 6
 
-export type Answer = 'yes' | 'no'
+export type Answer = 'yes' | 'no' | 'later'
 
 export interface AnswerRecord {
   answer: Answer
   by: string
   at: number
+  until?: string
 }
 
 export interface Call {
@@ -23,10 +24,10 @@ export type CallState = 'waiting' | 'decide' | 'subbing' | 'full' | 'abandoned'
 
 export const callStateLabels: Record<CallState, string> = {
   waiting: 'Waiting on answers',
-  decide: 'Deciding: sub or abandon',
-  subbing: 'Looking for a sub',
+  decide: 'Someone can\'t make it',
+  subbing: 'Finding a sub',
   full: 'Lineup full',
-  abandoned: 'Abandoned',
+  abandoned: 'Dropped',
 }
 
 export interface CallSummary {
@@ -35,6 +36,7 @@ export interface CallSummary {
   spare: string[]
   no: string[]
   waiting: string[]
+  later: Record<string, string>
   undecided: string[]
 }
 
@@ -50,7 +52,8 @@ export function summarize(call: Call, answers: Record<string, AnswerRecord>): Ca
   const lineup = yes.slice(0, LINEUP_SIZE)
   const spare = yes.slice(LINEUP_SIZE)
   const no = call.asked.filter((id) => answers[id]?.answer === 'no')
-  const waiting = call.asked.filter((id) => !answers[id])
+  const waiting = call.asked.filter((id) => !answers[id] || answers[id].answer === 'later')
+  const later = Object.fromEntries(call.asked.filter((id) => answers[id]?.answer === 'later').map((id) => [id, answers[id]!.until ?? '']))
   const undecided = no.filter((id) => !call.subbing.includes(id))
 
   let state: CallState = 'waiting'
@@ -59,7 +62,7 @@ export function summarize(call: Call, answers: Record<string, AnswerRecord>): Ca
   else if (undecided.length) state = 'decide'
   else if (no.length) state = 'subbing'
 
-  return { state, lineup, spare, no, waiting, undecided }
+  return { state, lineup, spare, no, waiting, later, undecided }
 }
 
 export function subCandidates<P extends PersonRecord & { id: string }>(people: P[], outId: string, answers: Record<string, AnswerRecord>): P[] {
@@ -76,5 +79,19 @@ export function whatsappLink(text: string) {
 
 export function callMessage(gig: { name: string; when: string; venue: string }, link: string) {
   const where = gig.venue ? ` at ${gig.venue}` : ''
-  return `6MW gig: ${gig.name}, ${gig.when}${where}. Can you make it? Answer Yes or No in Backstage: ${link}`
+  return `6MW gig: ${gig.name}, ${gig.when}${where}. Can you make it? Tap to answer: ${link}`
+}
+
+export function subMessage(gig: { name: string; when: string; venue: string }, part: string) {
+  const where = gig.venue ? ` at ${gig.venue}` : ''
+  return `Hi! 6 Minute Warning needs a ${part || 'sub'} for ${gig.name}, ${gig.when}${where}. Can you do it?`
+}
+
+export function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join('')
 }
