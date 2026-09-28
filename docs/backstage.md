@@ -186,6 +186,12 @@ Merging to `main` deploys Backstage to https://six-minute-warning.web.app and re
 | Admin | All of the above, plus grant and remove sign-in access |
 | Assistant | Reads everything. Adds gig requests with any new venue, presenter and to-dos. Can't edit, delete or answer polls |
 
+## View as
+
+An admin can pick a role or a person under View as in the account menu and see Backstage as they would: their Home to-dos and polls, gig pages without Manage, no Access tab. A bar under the header names who is being viewed and has Stop; every button and field on the page is disabled meanwhile, so nothing is recorded as them, and the Firestore rules still check the admin's real sign-in.
+
+Every role check reads `auth.access` or a flag computed from it in `stores/auth.ts` (`isManager`, `canBook` and the rest), which already holds the viewed role and person, so a new role check belongs there as another computed. Only the account menu reads `auth.realAccess` and `auth.realEmail`.
+
 ## Phases
 
 | ID | Phase | Ships |
