@@ -15,6 +15,7 @@ const router = createRouter({
     { path: '/gigs', name: 'gigs', component: () => import('@/views/GigsView.vue'), meta: { access: 'member' } },
     { path: '/gigs/new', name: 'new-gig', component: () => import('@/views/NewGigView.vue'), meta: { access: 'member' } },
     { path: '/gigs/:id', name: 'gig', component: () => import('@/views/GigView.vue'), meta: { access: 'member' } },
+    { path: '/rehearsals', name: 'rehearsals', component: () => import('@/views/RehearsalsView.vue'), meta: { access: 'member' } },
     { path: '/roster', name: 'roster', component: () => import('@/views/RosterView.vue'), meta: { access: 'member' } },
     { path: '/access', name: 'access', component: () => import('@/views/AccessView.vue'), meta: { access: 'admin' } },
     { path: '/sign-in', name: 'sign-in', component: () => import('@/views/SignInView.vue'), meta: { access: 'guest' } },

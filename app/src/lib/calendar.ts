@@ -4,7 +4,7 @@ import type { Gig } from './gigs'
 import type { Answer } from './call'
 
 export const BAND_CALENDAR = 'l2bn21umhm590bt5b10354e30s@group.calendar.google.com'
-const TIME_ZONE = 'America/Edmonton'
+export const TIME_ZONE = 'America/Edmonton'
 const SHOW_HOURS = 3
 
 export interface EventPerson {
@@ -127,4 +127,12 @@ export async function saveEvent(token: string, eventId: string, body: ReturnType
     method: 'PATCH',
     body: JSON.stringify({ ...body, attendees }),
   })
+}
+
+export async function removeEvent(token: string, eventId: string) {
+  const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(BAND_CALENDAR)}/events/${encodeURIComponent(eventId)}?sendUpdates=all`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`The band calendar refused to remove the event (${res.status}).`)
 }

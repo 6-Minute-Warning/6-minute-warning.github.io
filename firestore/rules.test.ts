@@ -438,6 +438,72 @@ describe('gig expenses and payouts', () => {
   })
 })
 
+describe('rehearsals', () => {
+  const rehearsal = { date: '2026-10-04', start: '2:00pm', end: '5:00pm', place: 'Studio B', address: '', gigs: [], notes: 'Setup at 1:30pm', createdBy: 'joseph@example.com' }
+  const reply = (value: string, by = 'member@example.com') => ({ answer: value, by, at: serverTimestamp() })
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore()
+      await setDoc(doc(db, 'users/joseph@example.com'), { name: 'Joseph', role: 'member', duties: ['scheduler'] })
+      await setDoc(doc(db, 'users/assistant@example.com'), { name: 'Assistant', role: 'assistant' })
+      await setDoc(doc(db, 'rehearsals/r1'), rehearsal)
+    })
+  })
+
+  it('the scheduler books, moves and cancels rehearsals without being a manager', async () => {
+    const db = as('joseph@example.com')
+    await assertSucceeds(setDoc(doc(db, 'rehearsals/r2'), { ...rehearsal, gigs: ['g1'] }))
+    await assertSucceeds(updateDoc(doc(db, 'rehearsals/r1'), { start: '3:00pm', place: "Joseph's place" }))
+    await assertSucceeds(deleteDoc(doc(db, 'rehearsals/r2')))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { money: { fee: 1 } }))
+  })
+
+  it('managers can book rehearsals too', async () => {
+    await assertSucceeds(setDoc(doc(as('manager@example.com'), 'rehearsals/r3'), rehearsal))
+  })
+
+  it('other singers read rehearsals but cannot book or change them', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(getDoc(doc(db, 'rehearsals/r1')))
+    await assertFails(setDoc(doc(db, 'rehearsals/r4'), rehearsal))
+    await assertFails(updateDoc(doc(db, 'rehearsals/r1'), { place: 'Elsewhere' }))
+    await assertFails(deleteDoc(doc(db, 'rehearsals/r1')))
+    await assertFails(getDoc(doc(as('stranger@example.com'), 'rehearsals/r1')))
+  })
+
+  it('a rehearsal must match its shape', async () => {
+    const db = as('joseph@example.com')
+    await assertFails(setDoc(doc(db, 'rehearsals/bad1'), { ...rehearsal, date: 'Sunday' }))
+    await assertFails(setDoc(doc(db, 'rehearsals/bad2'), { ...rehearsal, gigs: 'g1' }))
+    await assertFails(setDoc(doc(db, 'rehearsals/bad3'), { ...rehearsal, extra: true }))
+    await assertFails(setDoc(doc(db, 'rehearsals/bad4'), { ...rehearsal, notes: 'x'.repeat(2001) }))
+    await assertFails(setDoc(doc(db, 'rehearsals/bad5'), { ...rehearsal, gigs: Array.from({ length: 11 }, (_, i) => `g${i}`) }))
+  })
+
+  it('any singer says whether they can make it, signed as themselves', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(setDoc(doc(db, 'rehearsals/r1/replies/kyle'), reply('no')))
+    await assertSucceeds(setDoc(doc(db, 'rehearsals/r1/replies/kyle'), reply('yes')))
+    await assertSucceeds(getDocs(collection(db, 'rehearsals/r1/replies')))
+    await assertSucceeds(deleteDoc(doc(db, 'rehearsals/r1/replies/kyle')))
+    await assertFails(setDoc(doc(db, 'rehearsals/r1/replies/kyle'), reply('no', 'admin@example.com')))
+    await assertFails(setDoc(doc(db, 'rehearsals/r1/replies/kyle'), reply('maybe')))
+    await assertFails(setDoc(doc(db, 'rehearsals/r1/replies/kyle'), { answer: 'no', by: 'member@example.com', at: 0 }))
+    await assertFails(setDoc(doc(as('stranger@example.com'), 'rehearsals/r1/replies/kyle'), reply('no', 'stranger@example.com')))
+    await assertFails(setDoc(doc(as('assistant@example.com'), 'rehearsals/r1/replies/kyle'), reply('no', 'assistant@example.com')))
+    await assertFails(setDoc(doc(as('assistant@example.com'), 'rehearsals/r5'), rehearsal))
+  })
+
+  it('only admins hand out the scheduler duty, and only known duties', async () => {
+    await assertSucceeds(updateDoc(doc(as('admin@example.com'), 'users/member@example.com'), { duties: ['scheduler'] }))
+    await assertFails(updateDoc(doc(as('admin@example.com'), 'users/member@example.com'), { duties: ['treasurer'] }))
+    await assertFails(updateDoc(doc(as('admin@example.com'), 'users/member@example.com'), { duties: 'scheduler' }))
+    await assertFails(updateDoc(doc(as('manager@example.com'), 'users/member@example.com'), { duties: ['scheduler'] }))
+    await assertFails(updateDoc(doc(as('member@example.com'), 'users/member@example.com'), { duties: ['scheduler'] }))
+  })
+})
+
 describe('the assistant registers gig requests', () => {
   const ASSISTANT = 'assistant@example.com'
   const directory = { gigs: [], venues: [], presenters: [], people: [{ id: 'kyle', name: 'Kyle', status: 'active' as const, part: 'Bass', phone: '', emails: [] }] }
@@ -524,5 +590,68 @@ describe('the assistant registers gig requests', () => {
     await assertSucceeds(commit(db, p))
     await assertFails(updateDoc(doc(db, 'venues/glass-hall'), { address: '1 Main St' }))
     await assertFails(updateDoc(doc(db, `tasks/request-${p.id}`), { open: false }))
+  })
+})
+
+describe('booking inquiries', () => {
+  const inquiry = { name: 'Jane Doe', email: 'jane@example.com', message: 'Our wedding', status: 'new', source: 'website' }
+  const handled = (status: string, by = 'manager@example.com') => ({ status, handledBy: by, handledAt: serverTimestamp() })
+
+  beforeEach(() =>
+    env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'inquiries/i1'), inquiry)
+    }),
+  )
+
+  it('only managers read them', async () => {
+    await assertSucceeds(getDoc(doc(as('manager@example.com'), 'inquiries/i1')))
+    await assertSucceeds(getDocs(collection(as(OWNER), 'inquiries')))
+    await assertFails(getDoc(doc(as('member@example.com'), 'inquiries/i1')))
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'inquiries/i1')))
+  })
+
+  it('nobody creates or deletes one from the app; the booking form script writes them', async () => {
+    await assertFails(setDoc(doc(as('manager@example.com'), 'inquiries/i2'), inquiry))
+    await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(), 'inquiries/i2'), inquiry))
+    await assertFails(deleteDoc(doc(as('manager@example.com'), 'inquiries/i1')))
+  })
+
+  it('a manager moves one along and signs it', async () => {
+    const db = as('manager@example.com')
+    await assertSucceeds(updateDoc(doc(db, 'inquiries/i1'), handled('replied')))
+    await assertSucceeds(updateDoc(doc(db, 'inquiries/i1'), { ...handled('booked'), gig: '2026-10-01-wedding' }))
+    await assertFails(updateDoc(doc(db, 'inquiries/i1'), handled('lost')))
+    await assertFails(updateDoc(doc(db, 'inquiries/i1'), handled('replied', 'admin@example.com')))
+    await assertFails(updateDoc(doc(db, 'inquiries/i1'), { ...handled('replied'), message: 'edited' }))
+    await assertFails(updateDoc(doc(as('member@example.com'), 'inquiries/i1'), handled('spam', 'member@example.com')))
+  })
+})
+
+describe('push tokens', () => {
+  const token = (email: string, topics: string[] = []) => ({ token: 'fcm-token', email, topics, device: 'Chrome on Android', updatedAt: serverTimestamp() })
+
+  it('a member saves their own device, for member topics only', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(setDoc(doc(db, 'pushTokens/t1'), token('member@example.com')))
+    await assertFails(setDoc(doc(db, 'pushTokens/t2'), token('manager@example.com')))
+    await assertFails(setDoc(doc(db, 'pushTokens/t3'), token('member@example.com', ['inquiries'])))
+    await assertFails(setDoc(doc(db, 'pushTokens/t4'), { ...token('member@example.com'), extra: 1 }))
+  })
+
+  it('managers get inquiry notifications', async () => {
+    await assertSucceeds(setDoc(doc(as('manager@example.com'), 'pushTokens/t1'), token('manager@example.com', ['inquiries'])))
+    await assertSucceeds(setDoc(doc(as(OWNER), 'pushTokens/t2'), token(OWNER, ['inquiries'])))
+  })
+
+  it('nobody reads tokens, and only the owner deletes theirs', async () => {
+    await assertSucceeds(setDoc(doc(as('manager@example.com'), 'pushTokens/t1'), token('manager@example.com', ['inquiries'])))
+    await assertFails(getDoc(doc(as('manager@example.com'), 'pushTokens/t1')))
+    await assertFails(getDocs(collection(as('admin@example.com'), 'pushTokens')))
+    await assertFails(deleteDoc(doc(as('member@example.com'), 'pushTokens/t1')))
+    await assertSucceeds(deleteDoc(doc(as('manager@example.com'), 'pushTokens/t1')))
+  })
+
+  it('strangers save nothing', async () => {
+    await assertFails(setDoc(doc(as('stranger@example.com'), 'pushTokens/t1'), token('stranger@example.com')))
   })
 })

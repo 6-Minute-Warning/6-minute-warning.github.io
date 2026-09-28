@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { doc, orderBy, runTransaction, serverTimestamp } from 'firebase/firestore'
+import { useRoute, useRouter } from 'vue-router'
+import { doc, getDoc, orderBy, runTransaction, serverTimestamp } from 'firebase/firestore'
 import AppHeader from '@/components/AppHeader.vue'
 import SearchSelect from '@/components/SearchSelect.vue'
 import { db } from '@/lib/firebase'
@@ -10,6 +10,7 @@ import { LINEUP_SIZE, openCall } from '@/lib/call'
 import { blankPresenter, mergeNames, presenterTask, slug, usualPartner, venueTask, type Presenter, type Venue } from '@/lib/directory'
 import { DEFAULT_TIME, gigId, newGig, presentersOf, timeOptions, venuesOf, type Gig } from '@/lib/gigs'
 import { MAX_DATE_OPTIONS, normalizeOptions } from '@/lib/options'
+import { gigDraft, type Inquiry } from '@/lib/inquiries'
 import type { PersonRecord } from '@/lib/people'
 import { ROUND_TO, shareOf } from '@/lib/payout'
 import { useAuth } from '@/stores/auth'
@@ -55,6 +56,19 @@ const payByHand = computed(() => draft.value.perSinger !== '' && draft.value.per
 const moreDates = ref<string[]>([])
 const options = computed(() => normalizeOptions([draft.value.date, ...moreDates.value]))
 const picker = (e: Event) => (e.target as HTMLInputElement).showPicker?.()
+const route = useRoute()
+const inquiryId = typeof route.query.inquiry === 'string' ? route.query.inquiry : ''
+const inquiry = ref<Inquiry | null>(null)
+if (inquiryId && auth.isManager) {
+  getDoc(doc(db, 'inquiries', inquiryId))
+    .then((snap) => {
+      const found = snap.data() as Inquiry | undefined
+      if (!found || !['new', 'replied'].includes(found.status)) return
+      inquiry.value = found
+      if (!draft.value.name) Object.assign(draft.value, gigDraft(found))
+    })
+    .catch((e) => (addError.value = e instanceof Error ? e.message : String(e)))
+}
 
 const times = timeOptions()
 const addError = ref('')
@@ -95,6 +109,7 @@ async function addGig() {
         tx.set(presenterRef, blankPresenter(contact))
         tx.set(doc(db, 'tasks', `presenter-${presenterId}`), { ...presenterTask(presenterId, contact.name, auth.email), createdAt: serverTimestamp() })
       }
+      if (inquiry.value) tx.update(doc(db, 'inquiries', inquiryId), { status: 'booked', gig: id, handledBy: auth.email, handledAt: serverTimestamp() })
     })
     await logEvent(id, 'created', d.name, auth.email)
     if (d.ask) await logEvent(id, 'call', 'asked the band', auth.email)
@@ -113,6 +128,11 @@ async function addGig() {
   <main class="page new">
     <RouterLink to="/gigs" class="back">← Gigs</RouterLink>
     <h1>New gig</h1>
+    <aside v-if="inquiry" class="from card">
+      <p class="eyebrow">From {{ inquiry.name }}'s inquiry</p>
+      <p v-if="inquiry.budget"><strong>Budget:</strong> {{ inquiry.budget }}</p>
+      <p class="said">{{ inquiry.message }}</p>
+    </aside>
     <form class="form" @submit.prevent="addGig">
       <fieldset>
         <legend>What and when</legend>
@@ -189,6 +209,26 @@ async function addGig() {
 
 .new h1 {
   margin: 8px 0 16px;
+}
+
+.from {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.from p {
+  margin: 0;
+}
+
+.said {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--color-text-muted);
 }
 
 .form {
