@@ -3,15 +3,17 @@ import { addDoc, collection, onSnapshot, query, serverTimestamp, type QueryConst
 import { db } from './firebase'
 import { normalizePerson, seatLookup, type PersonRecord } from './people'
 
+/** `ready` waits for the server, since a cached first snapshot can hold only the documents read one by one. */
 export function useCollection<T>(name: string, ...constraints: QueryConstraint[]): { rows: Ref<(T & { id: string })[]>; error: Ref<string>; ready: Ref<boolean> } {
   const rows = ref([]) as Ref<(T & { id: string })[]>
   const error = ref('')
   const ready = ref(false)
   const stop = onSnapshot(
     query(collection(db, name), ...constraints),
+    { includeMetadataChanges: true },
     (snap) => {
       rows.value = snap.docs.map((d) => ({ id: d.id, ...(d.data() as T) }))
-      ready.value = true
+      if (!snap.metadata.fromCache) ready.value = true
     },
     (e) => (error.value = e.message),
   )
