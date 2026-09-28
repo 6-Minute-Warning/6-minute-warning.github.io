@@ -346,6 +346,32 @@ describe('venues, presenters and to-dos', () => {
     await assertFails(updateDoc(doc(member, 'tasks/venue-hall'), { open: false }))
     await assertFails(getDoc(doc(as('stranger@example.com'), 'presenters/pat')))
   })
+
+  const followUp = { kind: 'followup', reason: 'reply', target: 'pat', title: 'Wants a quote', name: 'Pat', email: 'pat@example.com', due: '2026-10-01', open: true, createdBy: 'manager@example.com' }
+
+  it('managers add, snooze and close follow-ups; members only read them', async () => {
+    const manager = as('manager@example.com')
+    await assertSucceeds(setDoc(doc(manager, 'tasks/f1'), { ...followUp, inquiry: 'i1', createdAt: serverTimestamp() }))
+    await assertSucceeds(updateDoc(doc(manager, 'tasks/f1'), { snoozedUntil: '2026-10-08' }))
+    await assertSucceeds(updateDoc(doc(manager, 'tasks/f1'), { open: false, doneBy: 'manager@example.com', doneAt: serverTimestamp() }))
+    await assertSucceeds(setDoc(doc(manager, 'tasks/followup-g1-chase'), { ...followUp, reason: 'gig', gig: 'g1', step: 'chase', snoozedUntil: '2026-10-03' }))
+    await assertSucceeds(getDoc(doc(as('member@example.com'), 'tasks/f1')))
+    await assertFails(setDoc(doc(as('member@example.com'), 'tasks/f2'), followUp))
+  })
+
+  it('a malformed follow-up is refused', async () => {
+    const manager = as('manager@example.com')
+    await assertFails(setDoc(doc(manager, 'tasks/f1'), { ...followUp, reason: 'gossip' }))
+    await assertFails(setDoc(doc(manager, 'tasks/f1'), { ...followUp, due: 'soon' }))
+    await assertFails(setDoc(doc(manager, 'tasks/f1'), { ...followUp, snoozedUntil: 'next week' }))
+    await assertFails(setDoc(doc(manager, 'tasks/f1'), { ...followUp, step: 'lunch' }))
+    await assertFails(setDoc(doc(manager, 'tasks/f1'), { ...followUp, extra: 1 }))
+    await assertSucceeds(setDoc(doc(manager, 'tasks/f1'), followUp))
+    await assertFails(updateDoc(doc(manager, 'tasks/f1'), { kind: 'venue', extra: 1 }))
+    await assertFails(updateDoc(doc(manager, 'tasks/f1'), { inquiry: 7 }))
+    await assertFails(updateDoc(doc(manager, 'tasks/venue-hall'), { kind: 'followup' }))
+    await assertSucceeds(setDoc(doc(manager, 'tasks/venue-hall'), { kind: 'venue', target: 'hall', open: true, extra: 1 }))
+  })
 })
 
 describe('gig expenses and payouts', () => {
