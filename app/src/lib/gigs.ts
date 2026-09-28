@@ -98,9 +98,8 @@ export function clashes<G extends Pick<Gig, 'date' | 'stage' | 'performers'> & {
 
 export const DEFAULT_TIME = '7:30pm'
 
-export function timeOptions(): string[] {
-  const start = 19 * 60 + 30
-  return Array.from({ length: 48 }, (_, i) => {
+export function timeOptions(start = 19 * 60 + 30, count = 48): string[] {
+  return Array.from({ length: count }, (_, i) => {
     const minutes = (start + i * 30) % (24 * 60)
     const hour = Math.floor(minutes / 60)
     const shown = hour % 12 || 12

@@ -18,6 +18,7 @@ const auth = useAuth()
       <nav aria-label="Main">
         <RouterLink to="/">Home</RouterLink>
         <RouterLink to="/gigs">Gigs</RouterLink>
+        <RouterLink to="/rehearsals">Rehearsals</RouterLink>
         <RouterLink to="/roster">Roster</RouterLink>
         <RouterLink v-if="auth.isAdmin" to="/access">Access</RouterLink>
       </nav>
@@ -165,7 +166,7 @@ nav a.router-link-exact-active::after {
   nav {
     grid-column: 1 / -1;
     grid-row: 2;
-    gap: 24px;
+    gap: 18px;
   }
 
   .tag {
