@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
-import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch, type Firestore } from 'firebase/firestore'
+import { planRequest, readRequest, type RequestPlan } from '../app/src/lib/request.ts'
 
 const OWNER = 'brett@6minutewarning.com'
 let env: RulesTestEnvironment
@@ -332,5 +333,94 @@ describe('gig expenses and payouts', () => {
     expect(snap.data()?.money.paidOut.ana).toBe('2026-10-04')
     await assertFails(updateDoc(doc(member, 'gigs/g1'), { 'money.perSinger': 900 }))
     await assertFails(updateDoc(doc(member, 'gigs/g1'), { 'money.paidOut.ben': '2026-10-04' }))
+  })
+})
+
+describe('the assistant registers gig requests', () => {
+  const ASSISTANT = 'assistant@example.com'
+  const directory = { gigs: [], venues: [], presenters: [], people: [{ id: 'kyle', name: 'Kyle', status: 'active' as const, part: 'Bass', phone: '', emails: [] }] }
+  const plan = (fields: Record<string, unknown> = {}, by = ASSISTANT) => {
+    const { request, errors } = readRequest({ name: 'Tree Gala', dates: ['2026-12-05', '2026-12-12'], venue: 'Glass Hall', presenter: { name: 'Pat Lee', email: 'pat@example.com' }, fee: 3000, perSinger: 300, ...fields })
+    if (!request) throw new Error(errors.join('; '))
+    return planRequest(request, directory, by, 1)
+  }
+  function commit(db: ReturnType<typeof as>, p: RequestPlan, change: (path: string, data: Record<string, unknown>) => Record<string, unknown> | null = (_, d) => d) {
+    const batch = writeBatch(db as unknown as Firestore)
+    for (const w of p.writes) {
+      const data = change(w.path, w.data)
+      if (data) batch.set(doc(db, w.path), w.stamped ? { ...data, createdAt: serverTimestamp() } : data)
+    }
+    for (const e of p.events) batch.set(doc(collection(db, 'events')), { gig: p.id, ...e, by: ASSISTANT, at: serverTimestamp() })
+    return batch.commit()
+  }
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), `users/${ASSISTANT}`), { name: 'Robin', role: 'assistant' }))
+  })
+
+  it('admins can give an address the Assistant role', async () => {
+    await assertSucceeds(setDoc(doc(as('admin@example.com'), 'users/helper@example.com'), { name: 'Helper', role: 'assistant' }))
+  })
+
+  it('creates a tentative gig with its new venue, presenter and to-dos in one write', async () => {
+    const db = as(ASSISTANT)
+    const p = plan()
+    await assertSucceeds(commit(db, p))
+    await assertSucceeds(getDoc(doc(db, `gigs/${p.id}`)))
+    await assertSucceeds(getDocs(collection(db, 'people')))
+  })
+
+  it('can ask the band when it creates the gig', async () => {
+    await assertSucceeds(commit(as(ASSISTANT), plan({ ask: true })))
+  })
+
+  it('must leave a to-do for the managers', async () => {
+    await assertFails(commit(as(ASSISTANT), plan(), (path, d) => (path.startsWith('tasks/request-') ? null : d)))
+  })
+
+  it('cannot skip past tentative, record money received or sign as someone else', async () => {
+    const db = as(ASSISTANT)
+    const gig = (edit: Record<string, unknown>) => (path: string, d: Record<string, unknown>) => (path.startsWith('gigs/') ? { ...d, ...edit } : d)
+    await assertFails(commit(db, plan(), gig({ stage: 'confirmed' })))
+    await assertFails(commit(db, plan(), gig({ contract: 'signed' })))
+    await assertFails(commit(db, plan(), gig({ money: { fee: 3000, deposit: 0, paid: 3000, merch: 0 } })))
+    await assertFails(commit(db, plan(), gig({ performers: ['kyle'] })))
+    await assertFails(commit(db, plan({}, 'manager@example.com')))
+  })
+
+  it('cannot reuse an old to-do to skip a new one', async () => {
+    const db = as(ASSISTANT)
+    const p = plan()
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), `tasks/request-${p.id}`), { kind: 'request', target: p.id, open: false }))
+    await assertFails(commit(db, p, (path, d) => (path.startsWith('tasks/request-') ? null : d)))
+  })
+
+  it('cannot add malformed details or a to-do with nothing behind it', async () => {
+    const db = as(ASSISTANT)
+    const gig = (edit: Record<string, unknown>) => (path: string, d: Record<string, unknown>) => (path.startsWith('gigs/') ? { ...d, ...edit } : d)
+    await assertFails(commit(db, plan(), gig({ money: { fee: -5, deposit: 0, paid: 0, merch: 0, perSinger: 0 } })))
+    await assertFails(commit(db, plan(), gig({ notes: 'x'.repeat(2001) })))
+    await assertFails(commit(db, plan(), gig({ dateOptions: ['2026-12-05', 'soon'] })))
+    await assertFails(setDoc(doc(db, 'tasks/venue-nowhere'), { kind: 'venue', target: 'nowhere', title: 'x', open: true, createdBy: ASSISTANT, createdAt: serverTimestamp() }))
+    await assertFails(setDoc(doc(db, 'venues/Not A Slug'), { name: 'Hall', address: '' }))
+  })
+
+  it('cannot change or delete anything that already exists', async () => {
+    const db = as(ASSISTANT)
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { notes: 'Changed' }))
+    await assertFails(deleteDoc(doc(db, 'gigs/g1')))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { answer: 'yes', by: ASSISTANT, at: serverTimestamp() }))
+    await assertFails(setDoc(doc(db, 'people/kyle'), { name: 'Kyle', status: 'active', part: 'Bass', phone: '', emails: [] }))
+    await assertFails(setDoc(doc(db, 'payments/p1'), { gig: 'g1', amount: 100 }))
+    await assertFails(setDoc(doc(db, 'users/new@example.com'), { name: 'New', role: 'admin' }))
+    await assertFails(setDoc(doc(db, 'tasks/request-g1'), { kind: 'request', target: 'g1', title: 'x', open: true, createdBy: ASSISTANT, createdAt: serverTimestamp() }))
+  })
+
+  it('cannot fill in a venue address or close a to-do', async () => {
+    const db = as(ASSISTANT)
+    const p = plan()
+    await assertSucceeds(commit(db, p))
+    await assertFails(updateDoc(doc(db, 'venues/glass-hall'), { address: '1 Main St' }))
+    await assertFails(updateDoc(doc(db, `tasks/request-${p.id}`), { open: false }))
   })
 })

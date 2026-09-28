@@ -1,4 +1,4 @@
-import { normalizeEmail, type Role } from './access'
+import { normalizeEmail, type Role } from './access.ts'
 
 export const WORKSPACE_DOMAIN = '6minutewarning.com'
 

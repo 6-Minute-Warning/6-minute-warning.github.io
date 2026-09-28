@@ -39,6 +39,9 @@ export interface Gig {
   sets?: string
   call?: Call
   rehearsals?: Rehearsals
+  dateOptions?: string[]
+  createdBy?: string
+  via?: 'assistant'
 }
 
 export interface GigRow extends Gig {
