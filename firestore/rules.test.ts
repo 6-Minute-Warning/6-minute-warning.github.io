@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
 import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 
@@ -289,5 +289,48 @@ describe('venues, presenters and to-dos', () => {
     await assertFails(setDoc(doc(member, 'presenters/pat'), { name: 'Me' }))
     await assertFails(updateDoc(doc(member, 'tasks/venue-hall'), { open: false }))
     await assertFails(getDoc(doc(as('stranger@example.com'), 'presenters/pat')))
+  })
+})
+
+describe('gig expenses and payouts', () => {
+  const expense = () => ({ kind: 'travel', description: 'Van to Banff', amount: 600, by: 'manager@example.com', at: serverTimestamp() })
+
+  it('managers record, read and remove expenses', async () => {
+    const db = as('manager@example.com')
+    await assertSucceeds(setDoc(doc(db, 'gigs/g1/expenses/x1'), expense()))
+    await assertSucceeds(setDoc(doc(db, 'gigs/g1/expenses/x2'), { ...expense(), kind: 'hotel', amount: 189.5 }))
+    await assertSucceeds(getDocs(collection(db, 'gigs/g1/expenses')))
+    await assertSucceeds(deleteDoc(doc(db, 'gigs/g1/expenses/x1')))
+  })
+
+  it('singers cannot see or touch expenses', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'gigs/g1/expenses/x1'), { kind: 'meals', description: '', amount: 80 }))
+    const db = as('member@example.com')
+    await assertFails(getDoc(doc(db, 'gigs/g1/expenses/x1')))
+    await assertFails(getDocs(collection(db, 'gigs/g1/expenses')))
+    await assertFails(setDoc(doc(db, 'gigs/g1/expenses/x2'), { ...expense(), by: 'member@example.com' }))
+    await assertFails(deleteDoc(doc(db, 'gigs/g1/expenses/x1')))
+  })
+
+  it('expenses must be well formed and signed by the manager', async () => {
+    const db = as('manager@example.com')
+    await assertFails(setDoc(doc(db, 'gigs/g1/expenses/x'), { ...expense(), kind: 'bribes' }))
+    await assertFails(setDoc(doc(db, 'gigs/g1/expenses/x'), { ...expense(), amount: 0 }))
+    await assertFails(setDoc(doc(db, 'gigs/g1/expenses/x'), { ...expense(), amount: -5 }))
+    await assertFails(setDoc(doc(db, 'gigs/g1/expenses/x'), { ...expense(), amount: '600' }))
+    await assertFails(setDoc(doc(db, 'gigs/g1/expenses/x'), { ...expense(), description: 'x'.repeat(121) }))
+    await assertFails(setDoc(doc(db, 'gigs/g1/expenses/x'), { ...expense(), by: 'someone@example.com' }))
+    await assertFails(setDoc(doc(db, 'gigs/g1/expenses/x'), { ...expense(), extra: true }))
+  })
+
+  it('singers read their pay and paid flag but cannot set them', async () => {
+    const manager = as('manager@example.com')
+    await assertSucceeds(updateDoc(doc(manager, 'gigs/g1'), { money: { fee: 3100, perSinger: 300, payManual: false, paidOut: {} } }))
+    await assertSucceeds(updateDoc(doc(manager, 'gigs/g1'), { 'money.paidOut.ana': '2026-10-04' }))
+    const member = as('member@example.com')
+    const snap = await assertSucceeds(getDoc(doc(member, 'gigs/g1')))
+    expect(snap.data()?.money.paidOut.ana).toBe('2026-10-04')
+    await assertFails(updateDoc(doc(member, 'gigs/g1'), { 'money.perSinger': 900 }))
+    await assertFails(updateDoc(doc(member, 'gigs/g1'), { 'money.paidOut.ben': '2026-10-04' }))
   })
 })
