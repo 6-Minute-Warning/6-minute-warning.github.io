@@ -18,7 +18,7 @@ Sign-in is Google only. A person can use Backstage only if their email has a doc
 
 | Collection | Holds |
 |---|---|
-| `gigs` | name, date, times, venue, presenter contact, stage, fee, deposit, format, outfit, performers |
+| `gigs` | name, date, times, venue, presenter contact, stage, fee, deposit, format, outfit, performers, rehearsals needed (count, note, who set it) |
 | `contracts` | gig, status, generated PDF, sent date and recipient, reminders, signed copy |
 | `payments` | gig, kind (deposit, balance, merch), amount, due date, received date |
 | `people` | members and subs, part, who a sub covers, contact |
@@ -49,6 +49,22 @@ Backstage uses the public site's identity: Archivo at 125% width for headings, u
 
 Home is the signed-in person's to-do list. Under Needs you, each poll carries what a singer needs to answer it: day and date, show and call time, sets, venue and address, their pay, who is already in, and a warning when they are already booked that day or the day either side. They answer I'm in, Can't make it, or pick the date they will know by. Managers also get a to-do for every new venue and presenter. Next up shows their next booked gig with call time, outfit and who they sing with; Coming up lists the rest.
 
+## Rehearsals needed
+
+The music director says how many rehearsals the band needs before each gig. When a gig's lineup fills, or changes after the last answer (a sub comes in, someone drops), the music director gets a to-do on Home: the date and time left, who is singing with subs marked, the set length, the last answer and who has joined or left since. The answer is a number and an optional note, such as "2 full + 1 sectional for Sam". A first guess can go in on the gig page before the lineup is known. Everyone sees the number on the gig page; the music director and managers can change it there.
+
+It is stored on the gig as `rehearsals`:
+
+| Field | Holds |
+|---|---|
+| `needed` | whole number of rehearsals, 0 to 20 |
+| `note` | free text, up to 200 characters |
+| `by` | email of whoever answered |
+| `at` | server time of the answer |
+| `lineupKey` | the performer ids the answer was for, sorted and comma-joined |
+
+The answer is for the current lineup when `lineupKey` equals `lineupKey(gig.performers)` from `app/src/lib/rehearsals.ts`; `needsRehearsalAnswer` says when the director owes a new one. Rehearsal booking reads `needed` as the target count.
+
 ## Gig page
 
 The top shows the date, name and the same decision facts, then the dial and the answer buttons. When someone can't make it, anyone chooses Find a sub or Drop the gig. Find a sub offers one sub at a time, same part first, with Call and Text buttons that fill in the ask, then They said yes or Said no. Everyone's answers sits in a closed section for recording answers given elsewhere. Managers get a Manage section: stage, contract, sets, pay per singer, call time, outfit, money, presenter, lineup and sound tech.
@@ -78,7 +94,7 @@ Merging to `main` deploys Backstage to https://six-minute-warning.web.app and re
 | Role | Can do |
 |---|---|
 | Singer | Read gigs and the roster, edit gig notes and the lineup, add to the event log |
-| Music director | Same as singer until set lists arrive |
+| Music director | Same as singer, plus set how many rehearsals each gig needs, with a to-do on Home when a lineup fills or changes |
 | Manager | All of the above, plus create and delete gigs, edit money, contract state and presenter contacts, and manage the roster, venues and payments |
 | Admin | All of the above, plus grant and remove sign-in access |
 

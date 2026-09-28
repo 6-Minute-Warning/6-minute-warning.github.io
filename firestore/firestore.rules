@@ -26,6 +26,10 @@ service cloud.firestore {
       return isOwner() || (isMember() && get(userDoc()).data.role in ['admin', 'manager']);
     }
 
+    function isDirector() {
+      return isMember() && get(userDoc()).data.role == 'director';
+    }
+
     function isAdmin() {
       return isOwner() || (isMember() && get(userDoc()).data.role == 'admin');
     }
@@ -66,11 +70,29 @@ service cloud.firestore {
         && c.calendarEventId is string);
     }
 
+    function validRehearsals() {
+      let r = request.resource.data.rehearsals;
+      return !('rehearsals' in request.resource.data) || (
+        r is map
+        && r.keys().hasOnly(['needed', 'note', 'by', 'at', 'lineupKey'])
+        && r.keys().hasAll(['needed', 'note', 'by', 'at', 'lineupKey'])
+        && r.needed is int && r.needed >= 0 && r.needed <= 20
+        && r.note is string && r.note.size() <= 200
+        && r.by == email()
+        && r.at == request.time
+        && r.lineupKey is string && r.lineupKey.size() <= 2000);
+    }
+
+    function rehearsalsOk() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['rehearsals'])
+        || ((isManager() || isDirector()) && 'rehearsals' in request.resource.data && validRehearsals());
+    }
+
     match /gigs/{id} {
       allow read: if isMember();
-      allow create: if isManager() && validCall();
+      allow create: if isManager() && validCall() && validRehearsals();
       allow delete: if isManager();
-      allow update: if validCall() && (isManager()
+      allow update: if validCall() && rehearsalsOk() && (isManager()
         || (isMember()
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['money', 'contract', 'contact'])
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stage']) || abandons())

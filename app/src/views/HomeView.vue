@@ -6,12 +6,14 @@ import AppHeader from '@/components/AppHeader.vue'
 import DateBlock from '@/components/DateBlock.vue'
 import GigFacts from '@/components/GigFacts.vue'
 import PollCard from '@/components/PollCard.vue'
+import RehearsalAsk from '@/components/RehearsalAsk.vue'
 import TaskRow from '@/components/TaskRow.vue'
 import type { Task } from '@/lib/directory'
 import { today, useCollection } from '@/lib/db'
 import type { Gig, GigRow } from '@/lib/gigs'
 import type { PersonRecord } from '@/lib/people'
 import { myPersonId, useMyAnswers } from '@/lib/poll'
+import { needsRehearsalAnswer } from '@/lib/rehearsals'
 import { useAuth } from '@/stores/auth'
 
 const auth = useAuth()
@@ -29,7 +31,8 @@ const booked = computed(() => live.value.filter((g) => g.performers?.includes(me
 const next = computed(() => booked.value[0] as GigRow | undefined)
 const later = computed(() => booked.value.slice(1, 6))
 const tasks = auth.isManager ? useCollection<Task>('tasks', where('open', '==', true)).rows : computed(() => [] as (Task & { id: string })[])
-const count = computed(() => needsMe.value.length + tasks.value.length)
+const rehearsalAsks = computed(() => (auth.isDirector ? live.value.filter((g) => needsRehearsalAnswer(g, now)) : []))
+const count = computed(() => needsMe.value.length + tasks.value.length + rehearsalAsks.value.length)
 
 function askedBy(g: GigRow) {
   const email = g.call?.openedBy?.toLowerCase() ?? ''
@@ -54,6 +57,7 @@ function ago(g: GigRow) {
       <p v-if="loading" class="muted">Loading…</p>
       <template v-else>
         <PollCard v-for="g in needsMe" :key="g.id" :gig="g" :all-gigs="gigs" :me="me" :name-of="nameOf" :asked-by="askedBy(g)" :ago="ago(g)" />
+        <RehearsalAsk v-for="g in rehearsalAsks" :key="`rehearsals-${g.id}`" :gig="g" :people="people" :today="now" />
         <ul v-if="tasks.length" class="tasks card">
           <TaskRow v-for="t in tasks" :id="t.id" :key="t.id" :task="t" />
         </ul>

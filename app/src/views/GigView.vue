@@ -7,6 +7,7 @@ import AnswerCard from '@/components/AnswerCard.vue'
 import DateBlock from '@/components/DateBlock.vue'
 import GigFacts from '@/components/GigFacts.vue'
 import LineupDial from '@/components/LineupDial.vue'
+import RehearsalsCard from '@/components/RehearsalsCard.vue'
 import SubFinder from '@/components/SubFinder.vue'
 import { db } from '@/lib/firebase'
 import { day, logEvent, money, useCollection } from '@/lib/db'
@@ -267,6 +268,8 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
           <button type="button" class="btn btn--ghost" :disabled="busy" @click="drop(false)">Reopen the poll</button>
         </div>
       </section>
+
+      <RehearsalsCard v-if="gig.stage !== 'cancelled'" :gig-id="id" :gig="gig" :people="people" :can-edit="auth.isDirector || auth.isManager" />
 
       <section class="card details">
         <h2 class="eyebrow">On the night</h2>
