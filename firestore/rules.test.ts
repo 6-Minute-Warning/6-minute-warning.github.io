@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing'
-import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc, writeBatch, type Firestore } from 'firebase/firestore'
+import { planRequest, readRequest, type RequestPlan } from '../app/src/lib/request.ts'
 
 const OWNER = 'brett@6minutewarning.com'
 let env: RulesTestEnvironment
@@ -343,6 +344,7 @@ describe('rehearsals', () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore()
       await setDoc(doc(db, 'users/joseph@example.com'), { name: 'Joseph', role: 'member', duties: ['scheduler'] })
+      await setDoc(doc(db, 'users/assistant@example.com'), { name: 'Assistant', role: 'assistant' })
       await setDoc(doc(db, 'rehearsals/r1'), rehearsal)
     })
   })
@@ -387,6 +389,8 @@ describe('rehearsals', () => {
     await assertFails(setDoc(doc(db, 'rehearsals/r1/replies/kyle'), reply('maybe')))
     await assertFails(setDoc(doc(db, 'rehearsals/r1/replies/kyle'), { answer: 'no', by: 'member@example.com', at: 0 }))
     await assertFails(setDoc(doc(as('stranger@example.com'), 'rehearsals/r1/replies/kyle'), reply('no', 'stranger@example.com')))
+    await assertFails(setDoc(doc(as('assistant@example.com'), 'rehearsals/r1/replies/kyle'), reply('no', 'assistant@example.com')))
+    await assertFails(setDoc(doc(as('assistant@example.com'), 'rehearsals/r5'), rehearsal))
   })
 
   it('only admins hand out the scheduler duty, and only known duties', async () => {
@@ -395,5 +399,157 @@ describe('rehearsals', () => {
     await assertFails(updateDoc(doc(as('admin@example.com'), 'users/member@example.com'), { duties: 'scheduler' }))
     await assertFails(updateDoc(doc(as('manager@example.com'), 'users/member@example.com'), { duties: ['scheduler'] }))
     await assertFails(updateDoc(doc(as('member@example.com'), 'users/member@example.com'), { duties: ['scheduler'] }))
+  })
+})
+
+describe('the assistant registers gig requests', () => {
+  const ASSISTANT = 'assistant@example.com'
+  const directory = { gigs: [], venues: [], presenters: [], people: [{ id: 'kyle', name: 'Kyle', status: 'active' as const, part: 'Bass', phone: '', emails: [] }] }
+  const plan = (fields: Record<string, unknown> = {}, by = ASSISTANT) => {
+    const { request, errors } = readRequest({ name: 'Tree Gala', dates: ['2026-12-05', '2026-12-12'], venue: 'Glass Hall', presenter: { name: 'Pat Lee', email: 'pat@example.com' }, fee: 3000, perSinger: 300, ...fields })
+    if (!request) throw new Error(errors.join('; '))
+    return planRequest(request, directory, by, 1)
+  }
+  function commit(db: ReturnType<typeof as>, p: RequestPlan, change: (path: string, data: Record<string, unknown>) => Record<string, unknown> | null = (_, d) => d) {
+    const batch = writeBatch(db as unknown as Firestore)
+    for (const w of p.writes) {
+      const data = change(w.path, w.data)
+      if (data) batch.set(doc(db, w.path), w.stamped ? { ...data, createdAt: serverTimestamp() } : data)
+    }
+    for (const e of p.events) batch.set(doc(collection(db, 'events')), { gig: p.id, ...e, by: ASSISTANT, at: serverTimestamp() })
+    return batch.commit()
+  }
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), `users/${ASSISTANT}`), { name: 'Robin', role: 'assistant' }))
+  })
+
+  it('admins can give an address the Assistant role', async () => {
+    await assertSucceeds(setDoc(doc(as('admin@example.com'), 'users/helper@example.com'), { name: 'Helper', role: 'assistant' }))
+  })
+
+  it('creates a tentative gig with its new venue, presenter and to-dos in one write', async () => {
+    const db = as(ASSISTANT)
+    const p = plan()
+    await assertSucceeds(commit(db, p))
+    await assertSucceeds(getDoc(doc(db, `gigs/${p.id}`)))
+    await assertSucceeds(getDocs(collection(db, 'people')))
+  })
+
+  it('can ask the band when it creates the gig', async () => {
+    await assertSucceeds(commit(as(ASSISTANT), plan({ ask: true })))
+  })
+
+  it('must leave a to-do for the managers', async () => {
+    await assertFails(commit(as(ASSISTANT), plan(), (path, d) => (path.startsWith('tasks/request-') ? null : d)))
+  })
+
+  it('cannot skip past tentative, record money received or sign as someone else', async () => {
+    const db = as(ASSISTANT)
+    const gig = (edit: Record<string, unknown>) => (path: string, d: Record<string, unknown>) => (path.startsWith('gigs/') ? { ...d, ...edit } : d)
+    await assertFails(commit(db, plan(), gig({ stage: 'confirmed' })))
+    await assertFails(commit(db, plan(), gig({ contract: 'signed' })))
+    await assertFails(commit(db, plan(), gig({ money: { fee: 3000, deposit: 0, paid: 3000, merch: 0 } })))
+    await assertFails(commit(db, plan(), gig({ performers: ['kyle'] })))
+    await assertFails(commit(db, plan({}, 'manager@example.com')))
+  })
+
+  it('cannot reuse an old to-do to skip a new one', async () => {
+    const db = as(ASSISTANT)
+    const p = plan()
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), `tasks/request-${p.id}`), { kind: 'request', target: p.id, open: false }))
+    await assertFails(commit(db, p, (path, d) => (path.startsWith('tasks/request-') ? null : d)))
+  })
+
+  it('cannot add malformed details or a to-do with nothing behind it', async () => {
+    const db = as(ASSISTANT)
+    const gig = (edit: Record<string, unknown>) => (path: string, d: Record<string, unknown>) => (path.startsWith('gigs/') ? { ...d, ...edit } : d)
+    await assertFails(commit(db, plan(), gig({ money: { fee: -5, deposit: 0, paid: 0, merch: 0, perSinger: 0 } })))
+    await assertFails(commit(db, plan(), gig({ notes: 'x'.repeat(2001) })))
+    await assertFails(commit(db, plan(), gig({ dateOptions: ['2026-12-05', 'soon'] })))
+    await assertFails(setDoc(doc(db, 'tasks/venue-nowhere'), { kind: 'venue', target: 'nowhere', title: 'x', open: true, createdBy: ASSISTANT, createdAt: serverTimestamp() }))
+    await assertFails(setDoc(doc(db, 'venues/Not A Slug'), { name: 'Hall', address: '' }))
+  })
+
+  it('cannot change or delete anything that already exists', async () => {
+    const db = as(ASSISTANT)
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { notes: 'Changed' }))
+    await assertFails(deleteDoc(doc(db, 'gigs/g1')))
+    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { answer: 'yes', by: ASSISTANT, at: serverTimestamp() }))
+    await assertFails(setDoc(doc(db, 'people/kyle'), { name: 'Kyle', status: 'active', part: 'Bass', phone: '', emails: [] }))
+    await assertFails(setDoc(doc(db, 'payments/p1'), { gig: 'g1', amount: 100 }))
+    await assertFails(setDoc(doc(db, 'users/new@example.com'), { name: 'New', role: 'admin' }))
+    await assertFails(setDoc(doc(db, 'tasks/request-g1'), { kind: 'request', target: 'g1', title: 'x', open: true, createdBy: ASSISTANT, createdAt: serverTimestamp() }))
+  })
+
+  it('cannot fill in a venue address or close a to-do', async () => {
+    const db = as(ASSISTANT)
+    const p = plan()
+    await assertSucceeds(commit(db, p))
+    await assertFails(updateDoc(doc(db, 'venues/glass-hall'), { address: '1 Main St' }))
+    await assertFails(updateDoc(doc(db, `tasks/request-${p.id}`), { open: false }))
+  })
+})
+
+describe('booking inquiries', () => {
+  const inquiry = { name: 'Jane Doe', email: 'jane@example.com', message: 'Our wedding', status: 'new', source: 'website' }
+  const handled = (status: string, by = 'manager@example.com') => ({ status, handledBy: by, handledAt: serverTimestamp() })
+
+  beforeEach(() =>
+    env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'inquiries/i1'), inquiry)
+    }),
+  )
+
+  it('only managers read them', async () => {
+    await assertSucceeds(getDoc(doc(as('manager@example.com'), 'inquiries/i1')))
+    await assertSucceeds(getDocs(collection(as(OWNER), 'inquiries')))
+    await assertFails(getDoc(doc(as('member@example.com'), 'inquiries/i1')))
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'inquiries/i1')))
+  })
+
+  it('nobody creates or deletes one from the app; the booking form script writes them', async () => {
+    await assertFails(setDoc(doc(as('manager@example.com'), 'inquiries/i2'), inquiry))
+    await assertFails(setDoc(doc(env.unauthenticatedContext().firestore(), 'inquiries/i2'), inquiry))
+    await assertFails(deleteDoc(doc(as('manager@example.com'), 'inquiries/i1')))
+  })
+
+  it('a manager moves one along and signs it', async () => {
+    const db = as('manager@example.com')
+    await assertSucceeds(updateDoc(doc(db, 'inquiries/i1'), handled('replied')))
+    await assertSucceeds(updateDoc(doc(db, 'inquiries/i1'), { ...handled('booked'), gig: '2026-10-01-wedding' }))
+    await assertFails(updateDoc(doc(db, 'inquiries/i1'), handled('lost')))
+    await assertFails(updateDoc(doc(db, 'inquiries/i1'), handled('replied', 'admin@example.com')))
+    await assertFails(updateDoc(doc(db, 'inquiries/i1'), { ...handled('replied'), message: 'edited' }))
+    await assertFails(updateDoc(doc(as('member@example.com'), 'inquiries/i1'), handled('spam', 'member@example.com')))
+  })
+})
+
+describe('push tokens', () => {
+  const token = (email: string, topics: string[] = []) => ({ token: 'fcm-token', email, topics, device: 'Chrome on Android', updatedAt: serverTimestamp() })
+
+  it('a member saves their own device, for member topics only', async () => {
+    const db = as('member@example.com')
+    await assertSucceeds(setDoc(doc(db, 'pushTokens/t1'), token('member@example.com')))
+    await assertFails(setDoc(doc(db, 'pushTokens/t2'), token('manager@example.com')))
+    await assertFails(setDoc(doc(db, 'pushTokens/t3'), token('member@example.com', ['inquiries'])))
+    await assertFails(setDoc(doc(db, 'pushTokens/t4'), { ...token('member@example.com'), extra: 1 }))
+  })
+
+  it('managers get inquiry notifications', async () => {
+    await assertSucceeds(setDoc(doc(as('manager@example.com'), 'pushTokens/t1'), token('manager@example.com', ['inquiries'])))
+    await assertSucceeds(setDoc(doc(as(OWNER), 'pushTokens/t2'), token(OWNER, ['inquiries'])))
+  })
+
+  it('nobody reads tokens, and only the owner deletes theirs', async () => {
+    await assertSucceeds(setDoc(doc(as('manager@example.com'), 'pushTokens/t1'), token('manager@example.com', ['inquiries'])))
+    await assertFails(getDoc(doc(as('manager@example.com'), 'pushTokens/t1')))
+    await assertFails(getDocs(collection(as('admin@example.com'), 'pushTokens')))
+    await assertFails(deleteDoc(doc(as('member@example.com'), 'pushTokens/t1')))
+    await assertSucceeds(deleteDoc(doc(as('manager@example.com'), 'pushTokens/t1')))
+  })
+
+  it('strangers save nothing', async () => {
+    await assertFails(setDoc(doc(as('stranger@example.com'), 'pushTokens/t1'), token('stranger@example.com')))
   })
 })

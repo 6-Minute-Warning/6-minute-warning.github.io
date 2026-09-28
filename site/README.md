@@ -30,7 +30,7 @@ Adding an entry to `services` in `src/data/services.ts` creates a new event page
 
 ## Booking form
 
-The form posts to a Google Apps Script web app that emails `manager@6minutewarning.com`. Until `bookingEndpoint` in `src/data/site.ts` is set, the form opens the visitor's mail app instead.
+The form posts to a Google Apps Script web app that emails `manager@6minutewarning.com`, puts the inquiry on the managers' Backstage Home and sends their phones a notification. Until `bookingEndpoint` in `src/data/site.ts` is set, the form opens the visitor's mail app instead.
 
 1. Signed in to the 6MW Google account, create a project at script.google.com.
 2. Paste `apps-script/Code.gs` into `Code.gs`. In Project Settings, tick "Show appsscript.json" and paste `apps-script/appsscript.json`.
@@ -38,7 +38,7 @@ The form posts to a Google Apps Script web app that emails `manager@6minutewarni
 4. Deploy → New deployment → Web app. Execute as: Me. Who has access: Anyone.
 5. Copy the `/exec` URL into `bookingEndpoint` and push.
 
-Spam handling: a hidden honeypot field and a 3-second minimum fill time, measured in the visitor's browser. Suspected spam sends no email; with `SHEET_ID` set it is still logged to the sheet, marked `spam`, so a misjudged real inquiry can be recovered.
+Spam handling: a hidden honeypot field and a 3-second minimum fill time, measured in the visitor's browser, catch bots; those send no email and, with `SHEET_ID` set, are logged to the sheet as `spam`. A message that reads like spam (three or more links, a link in the name, SEO or crypto pitches, mostly in a script such as Cyrillic or Chinese) is still emailed, with `[Likely spam]` in the subject, but stays off Backstage and sends no notification. `site/apps-script/README.md` has the Backstage and notification setup.
 
 ## DNS (Namecheap)
 

@@ -28,6 +28,8 @@ Sign-in is Google only. A person can use Backstage only if their email has a doc
 | `tasks` | to-dos shown on a manager's Home, such as a new venue's missing address |
 | `rehearsals` | date, start, end, place, address, the gig ids it prepares for (`gigs`, empty for a whole-band rehearsal), notes, band calendar event; `replies/{person}` holds each singer's yes or no |
 | `events` | every status change on a gig, for the timeline and calendar sync |
+| `inquiries` | booking form submissions: who, event type, date, place, budget, message, and status: new, replied, booked, declined (Not a fit) or spam |
+| `pushTokens` | one per device that gets notifications: its Firebase Cloud Messaging token, whose it is, and the topics it gets |
 
 ## Contract process
 
@@ -49,7 +51,7 @@ Backstage uses the public site's identity: Archivo at 125% width for headings, u
 
 ## Home
 
-Home is the signed-in person's to-do list. Under Needs you, each poll carries what a singer needs to answer it: day and date, show and call time, sets, venue and address, their pay, who is already in, and a warning when they are already booked that day or the day either side. They answer I'm in, Can't make it, or pick the date they will know by. Managers also get a to-do for every new venue and presenter. Next rehearsal and Next gig show the next of each, sooner one first; Coming up lists the rest of both by date.
+Home is the signed-in person's to-do list. Under Needs you, each poll carries what a singer needs to answer it: day and date, show and call time, sets, venue and address, their pay, who is already in, and a warning when they are already booked that day or the day either side. They answer I'm in, Can't make it, or pick the date they will know by. Managers also get a to-do for every new venue and presenter, and every booking inquiry from the website that isn't spam, with Reply (opens a drafted email), Turn into a gig (opens New gig filled in from the inquiry), Not a fit (optionally sending a polite no) and Spam. Replying moves an inquiry to Leads, where it stays until it becomes a gig or not a fit. Next rehearsal and Next gig show the next of each, sooner one first; Coming up lists the rest of both by date.
 
 ## Rehearsals
 
@@ -62,7 +64,7 @@ Whoever Books rehearsals gets these to-dos on Home. They are derived from the re
 - Book the next rehearsal, when nothing is booked from today on.
 - Book N more rehearsals before a gig, when the music director's `rehearsals.needed` on the gig is more than the rehearsals listing that gig on or before its date.
 
-Push reminders for these to-dos wait on 6MW-48 (needs Firebase Blaze). A scheduled function can call `schedulerTodos()` in `app/src/lib/schedule.ts` and notify whoever holds the `scheduler` duty.
+Push reminders for these to-dos belong to 6MW-48. The `pushTokens` route works without Blaze: a daily Apps Script can apply the rules in `schedulerTodos()` (`app/src/lib/schedule.ts`) and notify a scheduler topic.
 
 ## Rehearsals needed
 
@@ -94,9 +96,72 @@ The payout card on the gig's Manage section holds the fee, the expenses, the wor
 
 New gig is a button at the top of Gigs that opens its own page. Saving asks the band by default and lands on the gig with a Send to WhatsApp step. Venue and Presenter are search boxes over every venue and presenter used before; typing loosely still finds them. Picking a venue fills in the presenter most often booked there, and picking a presenter fills in their usual venue, when that field is still empty. Typing a name that isn't on the list adds it and opens the matching to-do. Time is a list of half hours starting at 7:30pm.
 
+## Gig requests from the assistant
+
+Brett's assistant, a person or an AI agent, adds gig requests without the web app. Each request lands like a gig made on New gig: tentative, the venue and presenter matched to ones used before (loose match, as in the search boxes) or added with a to-do, and the band asked only when the request says so. Every request also gets a manager to-do on Home, a card showing the dates, facts, contact, fee and any gig already on those days, with Open gig and Mark checked. The gig page shows a From the assistant chip, and the gig records who sent it in `createdBy`.
+
+There is no server to run, so it works on Firebase's free Spark plan. The assistant signs in as its own Backstage user and writes to Firestore directly; the security rules limit that user.
+
+### One-time setup (Brett)
+
+1. Firebase console, Authentication, Sign-in method: add Email/Password.
+2. Pick an address only you control, such as assistant@6minutewarning.com, and a long random password. Give both to the assistant as `BACKSTAGE_EMAIL` and `BACKSTAGE_PASSWORD`.
+3. Run `BACKSTAGE_EMAIL=… BACKSTAGE_PASSWORD=… node tools/gig-request.mts --setup`, then open the verification link it sends to that inbox.
+4. On the Access page, add the address with the Assistant role.
+
+To cut the assistant off, remove the address on the Access page. To change the password, use Authentication, Users in the Firebase console.
+
+### Sending a request
+
+Node 22.18 or later, from a checkout of this repo:
+
+```
+export BACKSTAGE_EMAIL=assistant@6minutewarning.com BACKSTAGE_PASSWORD=…
+node tools/gig-request.mts --dry-run request.json   # prints the plan; saves nothing
+node tools/gig-request.mts request.json             # use - for stdin
+```
+
+```json
+{
+  "name": "Festival of Trees Gala",
+  "dates": ["2026-12-12", "2026-12-05"],
+  "time": "7:30pm",
+  "venue": "Winspear Centre",
+  "presenter": { "name": "Lee Park", "email": "lee@example.com", "phone": "780-555-0199" },
+  "fee": 3100,
+  "perSinger": 300,
+  "sets": "2 × 45 min",
+  "notes": "Lee emailed manager@ on Sept 28. 400 guests, dinner first.",
+  "ask": false
+}
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `name` | yes | Up to 120 characters |
+| `date` or `dates` | yes | `YYYY-MM-DD`. `dates` lists up to 6 possible days in any order; the gig is filed under the earliest and keeps them all in `dateOptions` |
+| `time` | no | Show time. `7:30 PM`, `19:30` and `7:30pm` all become `7:30pm`; anything else is kept as written. Blank means not set yet |
+| `venue` | no | Matched to an existing venue; a new name adds the venue and an "add the address" to-do |
+| `presenter` | no | A name, or `{ name, email, phone }`. Matched to an existing presenter; a new one is added with a "complete contact and tech details" to-do. With a known venue and no presenter, the presenter most often booked there is filled in, and the other way round |
+| `fee` | no | Total fee in dollars; only managers see it |
+| `perSinger` | no | Each singer's pay in dollars |
+| `sets` | no | Up to 60 characters, such as `2 × 45 min` |
+| `notes` | no | Up to 2000 characters; singers see these on the gig |
+| `ask` | no | `true` opens the band poll for every active member. Default `false`: a manager asks the band from the gig page after checking the request |
+
+The script prints the new gig's id and link, whether it added a venue or presenter, and how many members it asked. Unknown fields, bad dates and negative amounts are refused with every problem listed. A gig with the same name and earliest date is refused with a link to the existing one.
+
+### What the rules allow
+
+The Assistant role can create a gig only if it is tentative, has no contract, lineup or money received, carries `createdBy` equal to the assistant's address, and comes with its `tasks/request-<gig id>` to-do in the same write. It can add venues (without an address), presenters and their to-dos, and write to the event log. `firestore/rules.test.ts` covers this. Other clients can use the Firestore REST API the same way: sign in with `accounts:signInWithPassword`, then send every document the script sends in one `documents:commit`, as listed by `planRequest` in `app/src/lib/request.ts`.
+
 ## On phones
 
 Backstage installs to the home screen: on Android, Chrome's menu, Install app; on iPhone, Safari's Share, Add to Home Screen. The manifest's colours come from `theme/theme.css` at build time.
+
+## Notifications
+
+Managers turn on notifications from Home, once per phone. On iPhone that works only after Add to Home Screen. Each device saves a token to `pushTokens`; the booking form's Apps Script reads the tokens for a topic and sends through the Firebase Cloud Messaging HTTP API, with no Cloud Functions, so the Spark plan is enough. `app/public/sw.js` shows the notification and opens the link it carries. Setup is in `site/apps-script/README.md`.
 
 ## Band poll
 
@@ -119,6 +184,7 @@ Merging to `main` deploys Backstage to https://six-minute-warning.web.app and re
 | Books rehearsals (a duty, on any role) | Book, edit and cancel rehearsals |
 | Manager | All of the above, plus create and delete gigs, edit money, contract state and presenter contacts, and manage the roster, venues and payments |
 | Admin | All of the above, plus grant and remove sign-in access |
+| Assistant | Reads everything. Adds gig requests with any new venue, presenter and to-dos. Can't edit, delete or answer polls |
 
 ## Phases
 

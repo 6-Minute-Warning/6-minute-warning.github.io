@@ -2,7 +2,7 @@ import { initializeApp } from 'firebase/app'
 import { connectAuthEmulator, getAuth } from 'firebase/auth'
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
 
-const app = initializeApp({
+export const app = initializeApp({
   apiKey: 'AIzaSyDit_axJ1UnfGOkZmrZuNddBfRXPwuqIgY',
   authDomain: 'six-minute-warning.firebaseapp.com',
   projectId: 'six-minute-warning',

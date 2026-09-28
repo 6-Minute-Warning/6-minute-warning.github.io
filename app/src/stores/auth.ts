@@ -4,6 +4,7 @@ import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut as fbS
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
 import { OWNER_EMAIL, normalizeEmail, type AccessRecord } from '@/lib/access'
+import { forgetDevice } from '@/lib/push'
 
 export type AuthStatus = 'loading' | 'signed-out' | 'no-access' | 'member' | 'error'
 
@@ -64,6 +65,7 @@ export const useAuth = defineStore('auth', () => {
   }
 
   async function signOut() {
+    await forgetDevice()
     await fbSignOut(auth)
   }
 
