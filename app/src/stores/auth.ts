@@ -18,6 +18,8 @@ export const useAuth = defineStore('auth', () => {
   const isAdmin = computed(() => access.value?.role === 'admin')
   const isManager = computed(() => access.value?.role === 'admin' || access.value?.role === 'manager')
   const isDirector = computed(() => access.value?.role === 'director')
+  const isScheduler = computed(() => !!access.value?.duties?.includes('scheduler'))
+  const canBook = computed(() => isManager.value || isScheduler.value)
 
   let ready: Promise<void> | undefined
 
@@ -67,5 +69,5 @@ export const useAuth = defineStore('auth', () => {
     await fbSignOut(auth)
   }
 
-  return { user, access, status, error, email, isAdmin, isManager, isDirector, init, signIn, signOut }
+  return { user, access, status, error, email, isAdmin, isManager, isDirector, isScheduler, canBook, init, signIn, signOut }
 })

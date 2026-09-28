@@ -11,10 +11,18 @@ export const roleLabels: Record<Role, string> = {
   assistant: 'Assistant',
 }
 
+export const duties = ['scheduler'] as const
+export type Duty = (typeof duties)[number]
+
+export const dutyLabels: Record<Duty, string> = {
+  scheduler: 'Books rehearsals',
+}
+
 export interface AccessRecord {
   name: string
   role: Role
   person?: string
+  duties?: Duty[]
 }
 
 export function normalizeEmail(email: string) {

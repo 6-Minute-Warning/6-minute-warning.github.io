@@ -34,6 +34,10 @@ service cloud.firestore {
       return isOwner() || (isMember() && get(userDoc()).data.role == 'admin');
     }
 
+    function isScheduler() {
+      return isManager() || (isMember() && 'scheduler' in get(userDoc()).data.get('duties', []));
+    }
+
     function isAssistant() {
       return signedIn() && !isOwner() && exists(userDoc()) && get(userDoc()).data.role == 'assistant';
     }
@@ -44,8 +48,9 @@ service cloud.firestore {
 
     function validUser() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['name', 'role', 'person', 'addedAt', 'addedBy'])
+      return d.keys().hasOnly(['name', 'role', 'person', 'duties', 'addedAt', 'addedBy'])
         && (!('person' in d) || (d.person is string && d.person.size() <= 80))
+        && (!('duties' in d) || (d.duties is list && d.duties.hasOnly(['scheduler'])))
         && d.role in ['admin', 'manager', 'director', 'member', 'assistant']
         && d.name is string && d.name.size() <= 120;
     }
@@ -237,6 +242,40 @@ service cloud.firestore {
       allow read: if isMember();
       allow write: if isManager();
       allow create: if isAssistant() && id.matches('^[a-z0-9-]+$') && newVenue();
+    }
+
+    function validRehearsal() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['date', 'start', 'end', 'place', 'address', 'gigs', 'notes', 'calendarEventId', 'createdBy', 'createdAt'])
+        && d.date is string && d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.start is string && d.start.size() <= 20
+        && d.end is string && d.end.size() <= 20
+        && d.place is string && d.place.size() <= 160
+        && d.address is string && d.address.size() <= 240
+        && d.gigs is list && d.gigs.size() <= 10
+        && d.notes is string && d.notes.size() <= 2000
+        && (!('createdBy' in d) || d.createdBy is string)
+        && (!('calendarEventId' in d) || (d.calendarEventId is string && d.calendarEventId.size() <= 1024));
+    }
+
+    match /rehearsals/{id} {
+      allow read: if isMember();
+      allow create, update: if isScheduler() && validRehearsal();
+      allow delete: if isScheduler();
+
+      function validReply() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['answer', 'by', 'at'])
+          && d.answer in ['yes', 'no']
+          && d.by == email()
+          && d.at == request.time;
+      }
+
+      match /replies/{person} {
+        allow read: if isMember();
+        allow delete: if isSinger();
+        allow create, update: if isSinger() && validReply();
+      }
     }
 
     match /events/{id} {

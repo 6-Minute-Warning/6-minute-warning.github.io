@@ -12,7 +12,7 @@ The band's management app, replacing Notion. First priority: gigs, contracts and
 
 ## Access
 
-Sign-in is Google only. A person can use Backstage only if their email has a document in `users/` (keyed by lowercase email) with a role: admin, manager, director or member. brett@6minutewarning.com is the owner and becomes an admin on first sign-in; admins add everyone else on the Access page. A person can have several addresses (Gmail and firstname@6minutewarning.com); each address has its own `users/` record pointing at the same `people/` entry, and any of them signs in as that person with the same role. `node tools/notion-people.mjs` exports the Notion People list to `.local/people-import.json` (git-ignored), and admins import that file on the Access page: active members get their Notion address plus firstname@6minutewarning.com, subs join the roster without sign-in access, and existing roles are kept. Member emails live in Firestore, never in this public repo. `firestore/firestore.rules` enforces this, and `firestore/rules.test.ts` covers it.
+Sign-in is Google only. A person can use Backstage only if their email has a document in `users/` (keyed by lowercase email) with a role: admin, manager, director or member. brett@6minutewarning.com is the owner and becomes an admin on first sign-in; admins add everyone else on the Access page. A person can have several addresses (Gmail and firstname@6minutewarning.com); each address has its own `users/` record pointing at the same `people/` entry, and any of them signs in as that person with the same role. A person can also hold duties on top of their role; the only duty is `scheduler` (Books rehearsals), stored as `duties` on each of their `users/` records and ticked by an admin on the Access page. `node tools/notion-people.mjs` exports the Notion People list to `.local/people-import.json` (git-ignored), and admins import that file on the Access page: active members get their Notion address plus firstname@6minutewarning.com, subs join the roster without sign-in access, and existing roles are kept. Member emails live in Firestore, never in this public repo. `firestore/firestore.rules` enforces this, and `firestore/rules.test.ts` covers it.
 
 ## Records
 
@@ -26,6 +26,7 @@ Sign-in is Google only. A person can use Backstage only if their email has a doc
 | `venues` | name, address |
 | `presenters` | name, email, phone, and the tech contact's name, email and phone |
 | `tasks` | to-dos shown on a manager's Home, such as a new venue's missing address |
+| `rehearsals` | date, start, end, place, address, the gig ids it prepares for (`gigs`, empty for a whole-band rehearsal), notes, band calendar event; `replies/{person}` holds each singer's yes or no |
 | `events` | every status change on a gig, for the timeline and calendar sync |
 | `inquiries` | booking form submissions: who, event type, date, place, budget, message, and status: new, replied, booked, declined (Not a fit) or spam |
 | `pushTokens` | one per device that gets notifications: its Firebase Cloud Messaging token, whose it is, and the topics it gets |
@@ -50,7 +51,20 @@ Backstage uses the public site's identity: Archivo at 125% width for headings, u
 
 ## Home
 
-Home is the signed-in person's to-do list. Under Needs you, each poll carries what a singer needs to answer it: day and date, show and call time, sets, venue and address, their pay, who is already in, and a warning when they are already booked that day or the day either side. They answer I'm in, Can't make it, or pick the date they will know by. Managers also get a to-do for every new venue and presenter, and every booking inquiry from the website that isn't spam, with Reply (opens a drafted email), Turn into a gig (opens New gig filled in from the inquiry), Not a fit (optionally sending a polite no) and Spam. Replying moves an inquiry to Leads, where it stays until it becomes a gig or not a fit. Next up shows their next booked gig with call time, outfit and who they sing with; Coming up lists the rest.
+Home is the signed-in person's to-do list. Under Needs you, each poll carries what a singer needs to answer it: day and date, show and call time, sets, venue and address, their pay, who is already in, and a warning when they are already booked that day or the day either side. They answer I'm in, Can't make it, or pick the date they will know by. Managers also get a to-do for every new venue and presenter, and every booking inquiry from the website that isn't spam, with Reply (opens a drafted email), Turn into a gig (opens New gig filled in from the inquiry), Not a fit (optionally sending a polite no) and Spam. Replying moves an inquiry to Leads, where it stays until it becomes a gig or not a fit. Next rehearsal and Next gig show the next of each, sooner one first; Coming up lists the rest of both by date.
+
+## Rehearsals
+
+The Rehearsals page lists what's coming. Each rehearsal shows time, place with a map link, notes, what it's for, and who's coming. Everyone expected is counted as coming until they tap Can't make it; I can come after all undoes it. A whole-band rehearsal expects every active member; a rehearsal for a gig expects the singers booked on that gig, subs included, or every active member while the gig has no lineup yet.
+
+Whoever Books rehearsals (Joseph) and managers book, edit and cancel them. The booking form suggests a week after the last rehearsal, at the same time and place. Ticking the calendar box puts the rehearsal on the band calendar (`6MW rehearsal: <gig>`) and invites the singers expected.
+
+Whoever Books rehearsals gets these to-dos on Home. They are derived from the records, not stored in `tasks`, so booking clears them:
+
+- Book the next rehearsal, when nothing is booked from today on.
+- Book N more rehearsals before a gig, when the music director's `rehearsals.needed` on the gig is more than the rehearsals listing that gig on or before its date.
+
+Push reminders for these to-dos belong to 6MW-48. The `pushTokens` route works without Blaze: a daily Apps Script can apply the rules in `schedulerTodos()` (`app/src/lib/schedule.ts`) and notify a scheduler topic.
 
 ## Rehearsals needed
 
@@ -167,6 +181,7 @@ Merging to `main` deploys Backstage to https://six-minute-warning.web.app and re
 |---|---|
 | Singer | Read gigs and the roster, edit gig notes and the lineup, add to the event log |
 | Music director | Same as singer, plus set how many rehearsals each gig needs, with a to-do on Home when a lineup fills or changes |
+| Books rehearsals (a duty, on any role) | Book, edit and cancel rehearsals |
 | Manager | All of the above, plus create and delete gigs, edit money, contract state and presenter contacts, and manage the roster, venues and payments |
 | Admin | All of the above, plus grant and remove sign-in access |
 | Assistant | Reads everything. Adds gig requests with any new venue, presenter and to-dos. Can't edit, delete or answer polls |
