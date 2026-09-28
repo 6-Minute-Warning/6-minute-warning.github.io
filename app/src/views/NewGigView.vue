@@ -9,6 +9,7 @@ import { logEvent, money, useCollection } from '@/lib/db'
 import { LINEUP_SIZE, openCall } from '@/lib/call'
 import { blankPresenter, mergeNames, presenterTask, slug, usualPartner, venueTask, type Presenter, type Venue } from '@/lib/directory'
 import { DEFAULT_TIME, gigId, newGig, presentersOf, timeOptions, venuesOf, type Gig } from '@/lib/gigs'
+import { MAX_DATE_OPTIONS, normalizeOptions } from '@/lib/options'
 import { gigDraft, type Inquiry } from '@/lib/inquiries'
 import type { PersonRecord } from '@/lib/people'
 import { ROUND_TO, shareOf } from '@/lib/payout'
@@ -52,6 +53,9 @@ watch(
 const feeAmount = computed(() => Math.max(0, Math.round(Number(draft.value.fee) || 0)))
 const calculatedPay = computed(() => shareOf(feeAmount.value))
 const payByHand = computed(() => draft.value.perSinger !== '' && draft.value.perSinger != null)
+const moreDates = ref<string[]>([])
+const options = computed(() => normalizeOptions([draft.value.date, ...moreDates.value]))
+const picker = (e: Event) => (e.target as HTMLInputElement).showPicker?.()
 const route = useRoute()
 const inquiryId = typeof route.query.inquiry === 'string' ? route.query.inquiry : ''
 const inquiry = ref<Inquiry | null>(null)
@@ -77,12 +81,14 @@ async function addGig() {
   const presenterName = known(presenterNames.value, d.presenter)
   const picked = presenters.value.find((p) => p.name === presenterName)
   const contact = presenterIsNew.value ? { name: d.presenter.trim(), email: d.email.trim(), phone: d.phone.trim() } : picked
-  const fields = { name: d.name, date: d.date, time: d.time, venue: known(venues.value, d.venue) ?? d.venue.trim(), contact }
+  const dates = options.value
+  const date = dates[0] ?? d.date
+  const fields = { name: d.name, date, time: d.time, venue: known(venues.value, d.venue) ?? d.venue.trim(), contact }
   const fee = feeAmount.value
   const payManual = payByHand.value
   const perSinger = payManual ? Math.max(0, Math.round(Number(d.perSinger) || 0)) : calculatedPay.value
   const call = d.ask ? { call: openCall(members.value.map((p) => p.id), auth.email, Date.now()) } : {}
-  const id = gigId(d.name, d.date)
+  const id = gigId(d.name, date)
   const gigRef = doc(db, 'gigs', id)
   const venueId = venueIsNew.value ? slug(fields.venue) : ''
   const presenterId = presenterIsNew.value && contact ? slug(contact.name) : ''
@@ -94,7 +100,7 @@ async function addGig() {
       const venueExists = venueRef ? (await tx.get(venueRef)).exists() : true
       const presenterExists = presenterRef ? (await tx.get(presenterRef)).exists() : true
       const gig = newGig(fields)
-      tx.set(gigRef, { ...gig, sets: d.sets.trim(), money: { ...gig.money, fee, perSinger, payManual }, ...call, createdAt: serverTimestamp(), createdBy: auth.email })
+      tx.set(gigRef, { ...gig, ...(dates.length > 1 ? { dateOptions: dates } : {}), sets: d.sets.trim(), money: { ...gig.money, fee, perSinger, payManual }, ...call, createdAt: serverTimestamp(), createdBy: auth.email })
       if (venueRef && !venueExists) {
         tx.set(venueRef, { name: fields.venue, address: '' })
         tx.set(doc(db, 'tasks', `venue-${venueId}`), { ...venueTask(venueId, fields.venue, auth.email), createdAt: serverTimestamp() })
@@ -132,7 +138,14 @@ async function addGig() {
         <legend>What and when</legend>
         <label>Name<input v-model.trim="draft.name" required maxlength="120" placeholder="Festival of Trees Gala" /></label>
         <div class="pair">
-          <label>Date<input v-model="draft.date" type="date" required @click="($event.target as HTMLInputElement).showPicker?.()" /></label>
+          <div class="dates">
+            <label>Date<input v-model="draft.date" type="date" required @click="picker" /></label>
+            <div v-for="(_, i) in moreDates" :key="i" class="alt">
+              <label>Or<input v-model="moreDates[i]" type="date" :aria-label="`Possible date ${i + 2}`" @click="picker" /></label>
+              <button type="button" class="link" @click="moreDates.splice(i, 1)">Remove</button>
+            </div>
+            <button v-if="moreDates.length < MAX_DATE_OPTIONS - 1" type="button" class="link add" @click="moreDates.push('')">+ Another possible date</button>
+          </div>
           <label>Show time
             <select v-model="draft.time">
               <option v-for="t in times" :key="t" :value="t">{{ t }}</option>
@@ -140,6 +153,7 @@ async function addGig() {
             </select>
           </label>
         </div>
+        <p v-if="options.length > 1" class="muted hint">The band answers for each date. You lock one on the gig page.</p>
       </fieldset>
 
       <fieldset>
@@ -173,7 +187,7 @@ async function addGig() {
         <legend>The band</legend>
         <label class="check">
           <input v-model="draft.ask" type="checkbox" />
-          Ask the {{ members.length }} members now. {{ LINEUP_SIZE }} yeses fill the lineup.
+          Ask the {{ members.length }} members now. {{ LINEUP_SIZE }} yeses {{ options.length > 1 ? 'on one date fill it' : 'fill the lineup' }}.
         </label>
       </fieldset>
 
@@ -247,6 +261,7 @@ label {
 .pair {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: start;
   gap: 14px;
 }
 
@@ -257,6 +272,29 @@ label {
 .pay {
   margin: -6px 0 0;
   font-size: 0.9rem;
+}
+
+.dates {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.alt {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+
+.alt label {
+  flex: 1;
+}
+
+.alt .link,
+.add {
+  justify-self: start;
+  min-height: 36px;
+  font-size: 0.95rem;
 }
 
 .hint {

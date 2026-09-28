@@ -20,6 +20,7 @@ import { day, today, useCollection } from '@/lib/db'
 import { outfitLabel, type Gig, type GigRow } from '@/lib/gigs'
 import { byNewest, type Inquiry } from '@/lib/inquiries'
 import type { PersonRecord } from '@/lib/people'
+import { needsAnswer } from '@/lib/options'
 import { myPersonId, useMyAnswers } from '@/lib/poll'
 import { needsRehearsalAnswer } from '@/lib/rehearsals'
 import { expectedAt, schedulerTodos, upcomingRehearsals, type Rehearsal } from '@/lib/schedule'
@@ -41,7 +42,7 @@ const tourPolls = computed(() => tours.value.filter((t) => t.stage === 'planning
 const myTours = useMyTourAnswers(() => tourPolls.value.map((t) => t.id), () => me.value)
 const tourNeedsMe = computed(() => tourPolls.value.filter((t) => !isCurrent(myTours.value[t.id] ?? undefined, t) || myTours.value[t.id]?.answer === 'later'))
 const loading = computed(() => !peopleReady.value || polls.value.some((g) => !(g.id in mine.value)) || tourPolls.value.some((t) => !(t.id in myTours.value)))
-const needsMe = computed(() => polls.value.filter((g) => !mine.value[g.id] || mine.value[g.id] === 'later'))
+const needsMe = computed(() => polls.value.filter((g) => needsAnswer(g, mine.value[g.id])))
 const booked = computed(() => live.value.filter((g) => g.performers?.includes(me.value)))
 const next = computed(() => booked.value[0] as GigRow | undefined)
 const openTasks = auth.isManager ? useCollection<Task>('tasks', where('open', '==', true)).rows : computed(() => [] as (Task & { id: string })[])

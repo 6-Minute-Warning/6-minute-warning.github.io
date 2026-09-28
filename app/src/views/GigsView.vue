@@ -2,10 +2,12 @@
 import { computed, ref } from 'vue'
 import { doc, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore'
 import AppHeader from '@/components/AppHeader.vue'
+import DateDials from '@/components/DateDials.vue'
 import TourList from '@/components/TourList.vue'
 import { db } from '@/lib/firebase'
 import { day, money, today, useCollection } from '@/lib/db'
 import { balance, importWrite, isUpcoming, planGigImport, stageLabels, contractLabels, type Gig, type Stage } from '@/lib/gigs'
+import { hasOptions } from '@/lib/options'
 import { useAuth } from '@/stores/auth'
 
 const auth = useAuth()
@@ -93,9 +95,17 @@ async function applyImport() {
       </thead>
       <tbody>
         <tr v-for="g in shown" :key="g.id">
-          <td class="nowrap date" data-label="Date">
-            <span class="md">{{ day(g.date, { month: 'short', day: 'numeric' }) }}</span>
-            <span class="yr">{{ g.date.slice(0, 4) }}</span>
+          <td v-if="hasOptions(g)" class="date" data-label="Date">
+            <span class="stack">
+              <span class="md">{{ g.dateOptions!.length }} dates</span>
+              <DateDials :gig="g" />
+            </span>
+          </td>
+          <td v-else class="nowrap date" data-label="Date">
+            <span class="stack">
+              <span class="md">{{ day(g.date, { month: 'short', day: 'numeric' }) }}</span>
+              <span class="yr">{{ g.date.slice(0, 4) }}</span>
+            </span>
           </td>
           <td class="name"><RouterLink :to="`/gigs/${g.id}`">{{ g.name }}</RouterLink></td>
           <td data-label="Venue">{{ g.venue || '—' }}</td>
@@ -138,6 +148,11 @@ async function applyImport() {
   font-weight: 800;
   text-transform: uppercase;
   color: var(--color-accent-strong);
+}
+
+.stack {
+  display: grid;
+  gap: 4px;
 }
 
 .yr {
