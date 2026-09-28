@@ -25,6 +25,7 @@ Sign-in is Google only. A person can use Backstage only if their email has a doc
 | `people` | members and subs, part, who a sub covers, contact |
 | `venues` | name, address |
 | `presenters` | name, email, phone, and the tech contact's name, email and phone |
+| `tours` | name, leave and return dates, whether they're rough, places, a plan of show, travel and free days, what's covered, pay, commit-by date, poll and committed lineup; answers under `tours/{id}/answers` |
 | `tasks` | to-dos shown on a manager's Home, such as a new venue's missing address |
 | `rehearsals` | date, start, end, place, address, the gig ids it prepares for (`gigs`, empty for a whole-band rehearsal), notes, band calendar event; `replies/{person}` holds each singer's yes or no |
 | `events` | every status change on a gig, for the timeline and calendar sync |
@@ -170,6 +171,14 @@ A manager adds the gig, then anyone opens the poll on its page, which asks every
 When a member says no, anyone can choose to find a sub or abandon the gig. Finding a sub lists the subs who sing that part first, with their phone numbers; whoever calls records the answer. Abandoning cancels the gig.
 
 "Share to WhatsApp" opens WhatsApp with the gig and its link filled in. Any member can put a hold on the 6 Minute Warning Google Calendar (`6MW HOLD: <gig>`), which invites every roster address of everyone not yet marked no, then confirm it (`6MW CONFIRMED GIG: <gig>`) once the lineup is full. The description follows the band's gig event layout. "Pull calendar replies" turns accepted and declined invites into answers. Google asks for calendar access each time, and the account needs "Make changes to events" on that calendar.
+
+## Tours
+
+A tour is one record spanning every day away, travel included, with one poll for the whole span. Managers add it from New tour on Gigs; rough dates are fine. New tours start with a travel day at each end and show days between; managers mark each day Show, Travel or Free, add the city, and turn a show day into a gig once there's a venue.
+
+Singers see the tour on Home with the dates, weekdays off work, what the band pays, what they pay, what they earn, the commit-by date and who's going. They answer All of it, Can't go, Part of it (tap the days they can't be there, with an optional note), or the date they'll know by. Moving the dates asks everyone again, since an answer only counts for the dates it was given against.
+
+The tour page shows a strip of days, each with the lineup dial filling toward six; tap a day to see who's there, who's away and who hasn't answered. When someone's absence leaves show days short, anyone can find a sub for those days or for the whole tour: a sub's yes covers just the missing days. Once every show day has six, a manager commits the lineup, which records who sings each show day and fills in any linked gigs. Moving the dates after that reopens it.
 
 ## Deploys
 

@@ -202,6 +202,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
           <h1>{{ gig.name }}</h1>
         </div>
         <GigFacts :gig="gig" :clash-names="clashNames" :me="me" hide-notes />
+        <RouterLink v-if="gig.tour" :to="`/tours/${gig.tour}`" class="back">Part of a tour. The lineup is set there →</RouterLink>
       </header>
 
       <section v-if="showShare && gig.call" class="card share">
@@ -214,7 +215,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
         </div>
       </section>
 
-      <section v-if="!gig.call" class="card ask">
+      <section v-if="!gig.call && !gig.tour" class="card ask">
         <h2>Who can play?</h2>
         <p class="muted">Ask the {{ members.length }} members. {{ LINEUP_SIZE }} yeses fill the lineup.</p>
         <button type="button" class="btn" :disabled="busy || !members.length" @click="askBand">Ask the band</button>

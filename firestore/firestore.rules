@@ -175,6 +175,60 @@ service cloud.firestore {
       }
     }
 
+    function isDate(v) {
+      return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function validTourCall(c) {
+      return c is map
+        && c.keys().hasOnly(['openedBy', 'openedAt', 'asked', 'subbing'])
+        && c.asked is list && c.asked.size() <= 40
+        && c.subbing is list && c.subbing.size() <= 40;
+    }
+
+    function validTour() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'start', 'end', 'rough', 'places', 'days', 'version', 'covered', 'notCovered', 'perSinger', 'commitBy', 'notes', 'stage', 'call', 'lineup', 'createdAt', 'createdBy'])
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 120
+        && isDate(d.start) && isDate(d.end) && d.start <= d.end
+        && d.rough is bool
+        && d.days is list && d.days.size() <= 62
+        && d.version is int
+        && d.perSinger is number
+        && (d.commitBy == '' || isDate(d.commitBy))
+        && d.stage in ['planning', 'committed', 'cancelled']
+        && (!('call' in d) || validTourCall(d.call))
+        && (!('lineup' in d) || d.lineup is map);
+    }
+
+    function validTourAnswer() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['answer', 'by', 'at', 'version', 'days', 'until', 'note'])
+        && d.answer in ['all', 'some', 'no', 'later']
+        && (d.answer == 'some') == ('days' in d)
+        && (!('days' in d) || (d.days is list && d.days.size() > 0 && d.days.size() <= 62))
+        && (d.answer == 'later') == ('until' in d)
+        && (!('until' in d) || isDate(d.until))
+        && (!('note' in d) || (d.note is string && d.note.size() <= 200))
+        && d.version is int
+        && d.by == email()
+        && d.at == request.time;
+    }
+
+    match /tours/{id} {
+      allow read: if isMember();
+      allow create, update: if isManager() && validTour();
+      allow update: if isMember() && validTour()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['call'])
+        && request.resource.data.call.diff(resource.data.call).affectedKeys().hasOnly(['subbing']);
+      allow delete: if isManager();
+
+      match /answers/{person} {
+        allow read, delete: if isMember();
+        allow create, update: if isMember() && validTourAnswer();
+      }
+    }
+
     match /contracts/{id} {
       allow read: if isMember();
       allow write: if isManager();
