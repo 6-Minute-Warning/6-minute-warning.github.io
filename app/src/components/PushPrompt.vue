@@ -13,6 +13,7 @@ const busy = ref(false)
 const dismissed = ref(stored('push-dismissed'))
 const off = ref(stored('push-off'))
 const show = computed(() => {
+  if (auth.viewing) return ''
   if (state.value === 'granted') return off.value ? (dismissed.value ? '' : 'ask') : 'on'
   if (state.value === 'default') return dismissed.value ? '' : 'ask'
   if (state.value === 'install-first') return dismissed.value ? '' : 'install'

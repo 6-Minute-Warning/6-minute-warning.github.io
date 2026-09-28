@@ -20,6 +20,25 @@ watch(
 </script>
 
 <template>
-  <RouterView />
+  <div id="chrome" />
+  <fieldset :key="JSON.stringify(auth.viewing)" class="frame" :disabled="!!auth.viewing">
+    <RouterView />
+  </fieldset>
   <ToastHost />
 </template>
+
+<style scoped>
+.frame {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.frame:disabled :deep(:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+</style>
