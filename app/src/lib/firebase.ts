@@ -15,6 +15,6 @@ export const auth = getAuth(app)
 export const db = getFirestore(app)
 
 if (import.meta.env.VITE_EMULATORS === '1') {
-  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
-  connectFirestoreEmulator(db, '127.0.0.1', 8080)
+  connectAuthEmulator(auth, `http://127.0.0.1:${import.meta.env.VITE_AUTH_PORT || 9099}`, { disableWarnings: true })
+  connectFirestoreEmulator(db, '127.0.0.1', Number(import.meta.env.VITE_FIRESTORE_PORT || 8080))
 }

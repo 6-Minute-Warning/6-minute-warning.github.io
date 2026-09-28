@@ -25,6 +25,7 @@ Sign-in is Google only. A person can use Backstage only if their email has a doc
 | `people` | members and subs, part, who a sub covers, contact |
 | `venues` | name, address |
 | `presenters` | name, email, phone, and the tech contact's name, email and phone |
+| `tours` | name, leave and return dates, whether they're rough, places, a plan of show, travel and free days, what's covered, pay, commit-by date, poll and committed lineup; answers under `tours/{id}/answers` |
 | `tasks` | to-dos shown on a manager's Home, such as a new venue's missing address |
 | `rehearsals` | date, start, end, place, address, the gig ids it prepares for (`gigs`, empty for a whole-band rehearsal), notes, band calendar event; `replies/{person}` holds each singer's yes or no |
 | `events` | every status change on a gig, for the timeline and calendar sync |
@@ -186,6 +187,14 @@ Data, for anything that writes gigs, such as the API:
 | `gigs/{id}/answers/{personId}` | On a gig with possible dates: `{ dates: { 'YYYY-MM-DD': 'yes' \| 'no' \| 'later' }, times: { 'YYYY-MM-DD': timestamp }, by, at, until? }`. Every key must be one of `dateOptions`, and `times` has the same keys: when each date was last answered, which orders the yeses on that date. `until` is the earliest "know by" date while any date is `later`. A single-date answer is refused while the dates are open. On a gig with one date: `{ answer, by, at, until? }`. |
 
 Locking is one batch: the gig's `date` becomes the chosen date and `dateOptions` is deleted, each answer is rewritten as `{ answer: dates[chosen], by, at: times[chosen], until? }`, the lineup is filled if six said yes, and answers with nothing for that date are deleted. The rules accept that rewrite only when it matches the old answer for the locked date.
+
+## Tours
+
+A tour is one record spanning every day away, travel included, with one poll for the whole span. Managers add it from New tour on Gigs; rough dates are fine. New tours start with a travel day at each end and show days between; managers mark each day Show, Travel or Free, add the city, and turn a show day into a gig once there's a venue.
+
+Singers see the tour on Home with the dates, weekdays off work, what the band pays, what they pay, what they earn, the commit-by date and who's going. They answer All of it, Can't go, Part of it (tap the days they can't be there, with an optional note), or the date they'll know by. Moving the dates asks everyone again, since an answer only counts for the dates it was given against.
+
+The tour page shows a strip of days, each with the lineup dial filling toward six; tap a day to see who's there, who's away and who hasn't answered. When someone's absence leaves show days short, anyone can find a sub for those days or for the whole tour: a sub's yes covers just the missing days. Once every show day has six, a manager commits the lineup, which records who sings each show day and fills in any linked gigs. Moving the dates after that reopens it.
 
 ## Deploys
 

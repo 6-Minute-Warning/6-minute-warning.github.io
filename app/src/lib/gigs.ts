@@ -42,6 +42,7 @@ export interface Gig {
   rehearsals?: Rehearsals
   createdBy?: string
   via?: 'assistant'
+  tour?: string
 }
 
 export interface GigRow extends Gig {
@@ -63,6 +64,7 @@ export function newGig(fields: Pick<Gig, 'name' | 'date' | 'time' | 'venue'> & {
     contract: 'none',
     performers: [],
     soundTech: '',
+    outfit: DEFAULT_OUTFIT,
   }
 }
 
@@ -97,6 +99,20 @@ export function clashes<G extends Pick<Gig, 'date' | 'stage' | 'performers'> & {
   return gigs.filter(
     (g) => g.id !== gig.id && g.stage !== 'cancelled' && g.performers?.includes(person) && Math.abs(Date.parse(`${g.date}T12:00:00Z`) - day) <= 86400000,
   )
+}
+
+export const outfits = {
+  'suits-blue': 'Suits · blue shirt, white tie',
+  'suits-white': 'Suits · white shirt, blue tie',
+  casual: 'Casual',
+  both: 'Suits and casual',
+} as const
+export type Outfit = keyof typeof outfits
+export const DEFAULT_OUTFIT: Outfit = 'suits-blue'
+
+export function outfitLabel(value: string | undefined) {
+  if (!value) return outfits[DEFAULT_OUTFIT]
+  return value in outfits ? outfits[value as Outfit] : value
 }
 
 export const DEFAULT_TIME = '7:30pm'

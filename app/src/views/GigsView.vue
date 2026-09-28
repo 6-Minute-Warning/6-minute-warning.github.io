@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { doc, orderBy, serverTimestamp, writeBatch } from 'firebase/firestore'
 import AppHeader from '@/components/AppHeader.vue'
 import DateDials from '@/components/DateDials.vue'
+import TourList from '@/components/TourList.vue'
 import { db } from '@/lib/firebase'
 import { day, money, today, useCollection } from '@/lib/db'
 import { balance, importWrite, isUpcoming, planGigImport, stageLabels, contractLabels, type Gig, type Stage } from '@/lib/gigs'
@@ -65,8 +66,12 @@ async function applyImport() {
   <main class="page">
     <div class="top">
       <h1>Gigs</h1>
-      <RouterLink v-if="auth.isManager" to="/gigs/new" class="btn">New gig</RouterLink>
+      <span v-if="auth.isManager" class="adds">
+        <RouterLink to="/tours/new" class="btn btn--ghost">New tour</RouterLink>
+        <RouterLink to="/gigs/new" class="btn">New gig</RouterLink>
+      </span>
     </div>
+    <TourList />
     <p v-if="error" class="error" role="alert">✕ {{ error }}</p>
 
     <div class="stats">
@@ -164,6 +169,13 @@ async function applyImport() {
 
 .top .btn {
   text-decoration: none;
+}
+
+.adds {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 @media (max-width: 640px) {

@@ -13,15 +13,18 @@ import RehearsalCard from '@/components/RehearsalCard.vue'
 import RehearsalTodoRow from '@/components/RehearsalTodoRow.vue'
 import RequestCard from '@/components/RequestCard.vue'
 import TaskRow from '@/components/TaskRow.vue'
+import TourPollCard from '@/components/TourPollCard.vue'
 import type { Task } from '@/lib/directory'
 import { day, today, useCollection } from '@/lib/db'
-import type { Gig, GigRow } from '@/lib/gigs'
+import { outfitLabel, type Gig, type GigRow } from '@/lib/gigs'
 import { byNewest, type Inquiry } from '@/lib/inquiries'
 import type { PersonRecord } from '@/lib/people'
 import { needsAnswer } from '@/lib/options'
 import { myPersonId, useMyAnswers } from '@/lib/poll'
 import { needsRehearsalAnswer } from '@/lib/rehearsals'
 import { expectedAt, schedulerTodos, upcomingRehearsals, type Rehearsal } from '@/lib/schedule'
+import { isCurrent, type Tour } from '@/lib/tour'
+import { useMyTourAnswers } from '@/lib/tourPoll'
 import { useAuth } from '@/stores/auth'
 
 const auth = useAuth()
@@ -33,7 +36,11 @@ const nameOf = (id: string) => people.value.find((p) => p.id === id)?.name ?? id
 const live = computed(() => gigs.value.filter((g) => g.stage !== 'cancelled'))
 const polls = computed(() => live.value.filter((g) => g.call && !g.call.abandoned && g.call.asked.includes(me.value)))
 const mine = useMyAnswers(() => polls.value.map((g) => g.id), () => me.value)
-const loading = computed(() => !peopleReady.value || polls.value.some((g) => !(g.id in mine.value)))
+const { rows: tours } = useCollection<Tour>('tours', where('end', '>=', now))
+const tourPolls = computed(() => tours.value.filter((t) => t.stage === 'planning' && t.call?.asked.includes(me.value)))
+const myTours = useMyTourAnswers(() => tourPolls.value.map((t) => t.id), () => me.value)
+const tourNeedsMe = computed(() => tourPolls.value.filter((t) => !isCurrent(myTours.value[t.id] ?? undefined, t) || myTours.value[t.id]?.answer === 'later'))
+const loading = computed(() => !peopleReady.value || polls.value.some((g) => !(g.id in mine.value)) || tourPolls.value.some((t) => !(t.id in myTours.value)))
 const needsMe = computed(() => polls.value.filter((g) => needsAnswer(g, mine.value[g.id])))
 const booked = computed(() => live.value.filter((g) => g.performers?.includes(me.value)))
 const next = computed(() => booked.value[0] as GigRow | undefined)
@@ -63,16 +70,16 @@ const later = computed(() =>
 const inquiries = auth.isManager ? useCollection<Inquiry>('inquiries', where('status', 'in', ['new', 'replied'])).rows : computed(() => [] as (Inquiry & { id: string })[])
 const owedReplies = computed(() => byNewest(inquiries.value.filter((i) => i.status === 'new')))
 const leads = computed(() => byNewest(inquiries.value.filter((i) => i.status === 'replied')))
-const count = computed(() => needsMe.value.length + tasks.value.length + rehearsalAsks.value.length + owedReplies.value.length + rehearsalTodos.value.length)
+const count = computed(() => needsMe.value.length + tourNeedsMe.value.length + tasks.value.length + rehearsalAsks.value.length + owedReplies.value.length + rehearsalTodos.value.length)
 const requests = computed(() => tasks.value.filter((t) => t.kind === 'request'))
 const chores = computed(() => tasks.value.filter((t) => t.kind !== 'request'))
 
-function askedBy(g: GigRow) {
+function askedBy(g: { call?: { openedBy: string } }) {
   const email = g.call?.openedBy?.toLowerCase() ?? ''
   return people.value.find((p) => p.emails.some((e) => e.toLowerCase() === email))?.name.split(' ')[0] ?? 'the manager'
 }
 
-function ago(g: GigRow) {
+function ago(g: { call?: { openedAt: number } }) {
   const at = g.call?.openedAt ?? 0
   const days = Math.floor((Date.now() - at) / 86400000)
   return !at ? '' : days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`
@@ -91,6 +98,7 @@ function ago(g: GigRow) {
       <p v-if="loading" class="muted">Loading…</p>
       <template v-else>
         <InquiryCard v-for="i in owedReplies" :id="i.id" :key="i.id" :inquiry="i" />
+        <TourPollCard v-for="t in tourNeedsMe" :key="t.id" :tour="t" :me="me" :name-of="nameOf" :asked-by="askedBy(t)" :ago="ago(t)" />
         <PollCard v-for="g in needsMe" :key="g.id" :gig="g" :all-gigs="gigs" :me="me" :name-of="nameOf" :asked-by="askedBy(g)" :ago="ago(g)" />
         <RehearsalAsk v-for="g in rehearsalAsks" :key="`rehearsals-${g.id}`" :gig="g" :people="people" :today="now" />
         <RequestCard v-for="t in requests" :id="t.id" :key="t.id" :task="t" :all-gigs="gigs" />
@@ -121,7 +129,7 @@ function ago(g: GigRow) {
         </div>
         <div class="body">
           <GigFacts :gig="next" />
-          <p v-if="next.outfit" class="outfit"><span class="label">Outfit</span> {{ next.outfit }}</p>
+          <p class="outfit"><span class="label">Outfit</span> {{ outfitLabel(next.outfit) }}</p>
           <p class="lineup muted">With {{ next.performers.filter((p) => p !== me).map((p) => nameOf(p).split(' ')[0]).join(', ') || 'nobody yet' }}</p>
         </div>
       </RouterLink>
@@ -147,7 +155,7 @@ function ago(g: GigRow) {
       </ul>
     </section>
 
-    <p v-if="!loading && !next && !needsMe.length" class="muted">
+    <p v-if="!loading && !next && !needsMe.length && !tourNeedsMe.length" class="muted">
       No gigs on your calendar yet. See every booking under <RouterLink to="/gigs">Gigs</RouterLink>.
     </p>
   </main>
