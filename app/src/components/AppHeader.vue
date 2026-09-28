@@ -1,37 +1,53 @@
 <script setup lang="ts">
+import { ref, useTemplateRef } from 'vue'
 import { RouterLink } from 'vue-router'
 import wordmark from '@/assets/wordmark.png'
 import { initials } from '@/lib/call'
 import { roleLabels } from '@/lib/access'
+import { viewLabel } from '@/lib/viewAs'
 import { useAuth } from '@/stores/auth'
+import ViewAsPicker from './ViewAsPicker.vue'
 
 const auth = useAuth()
+const menu = useTemplateRef<HTMLDetailsElement>('menu')
+const open = ref(false)
+
+function close() {
+  if (menu.value) menu.value.open = false
+}
 </script>
 
 <template>
-  <header class="bar">
-    <div class="inner">
-      <RouterLink to="/" class="brand" aria-label="6 Minute Warning Backstage, home">
-        <img :src="wordmark" alt="" width="131" height="32" />
-        <span class="tag">Backstage</span>
-      </RouterLink>
-      <nav aria-label="Main">
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/gigs">Gigs</RouterLink>
-        <RouterLink to="/rehearsals">Rehearsals</RouterLink>
-        <RouterLink to="/roster">Roster</RouterLink>
-        <RouterLink v-if="auth.isAdmin" to="/access">Access</RouterLink>
-      </nav>
-      <details class="me">
-        <summary :aria-label="`${auth.access?.name ?? 'Account'} menu`">{{ initials(auth.access?.name ?? '?') }}</summary>
-        <div class="menu">
-          <strong>{{ auth.access?.name }}</strong>
-          <span class="muted">{{ auth.access ? roleLabels[auth.access.role] : '' }} · {{ auth.email }}</span>
-          <button type="button" class="btn btn--ghost" @click="auth.signOut()">Sign out</button>
-        </div>
-      </details>
-    </div>
-  </header>
+  <Teleport to="#chrome" defer>
+    <header class="bar">
+      <div class="inner">
+        <RouterLink to="/" class="brand" aria-label="6 Minute Warning Backstage, home">
+          <img :src="wordmark" alt="" width="131" height="32" />
+          <span class="tag">Backstage</span>
+        </RouterLink>
+        <nav aria-label="Main">
+          <RouterLink to="/">Home</RouterLink>
+          <RouterLink to="/gigs">Gigs</RouterLink>
+          <RouterLink to="/rehearsals">Rehearsals</RouterLink>
+          <RouterLink to="/roster">Roster</RouterLink>
+          <RouterLink v-if="auth.isAdmin" to="/access">Access</RouterLink>
+        </nav>
+        <details ref="menu" class="me" @toggle="open = menu?.open ?? false">
+          <summary :aria-label="`${auth.realAccess?.name ?? 'Account'} menu`">{{ initials(auth.realAccess?.name ?? '?') }}</summary>
+          <div class="menu">
+            <strong>{{ auth.realAccess?.name }}</strong>
+            <span class="muted">{{ auth.realAccess ? roleLabels[auth.realAccess.role] : '' }} · {{ auth.realEmail }}</span>
+            <ViewAsPicker v-if="auth.canViewAs && open" @picked="close" />
+            <button type="button" class="btn btn--ghost" @click="auth.signOut()">Sign out</button>
+          </div>
+        </details>
+      </div>
+      <div v-if="auth.viewing" class="viewing" role="status">
+        <p>Viewing as <strong>{{ viewLabel(auth.viewing) }}</strong><span class="muted"> · read only</span></p>
+        <button type="button" class="btn btn--ghost" @click="auth.viewAs(null)">Stop</button>
+      </div>
+    </header>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -156,6 +172,30 @@ nav a.router-link-exact-active::after {
 
 .menu .btn {
   margin-top: 8px;
+}
+
+.viewing {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--color-accent);
+  background: var(--color-surface);
+}
+
+.viewing p {
+  margin: 0;
+  text-align: center;
+}
+
+.viewing strong {
+  color: var(--color-accent-strong);
+}
+
+.viewing .btn {
+  padding: 4px 14px;
 }
 
 @media (max-width: 640px) {
