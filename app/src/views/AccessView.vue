@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
-import { arrayRemove, arrayUnion, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore'
+import { collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore'
 import AppHeader from '@/components/AppHeader.vue'
 import { db } from '@/lib/firebase'
-import { dutyLabels, duties, isValidEmail, normalizeEmail, roleLabels, roles, type AccessRecord, type Duty, type Role } from '@/lib/access'
-import { personId, planImport, type ImportPlan, type ImportedPerson } from '@/lib/people'
+import { isValidEmail, normalizeEmail, roleLabels, roles, type AccessRecord, type Role } from '@/lib/access'
+import { importWrites, jobLabels, personId, planImport, type ImportPlan, type ImportedPerson, type PersonRecord, type PlannedPerson } from '@/lib/people'
+import { useCollection } from '@/lib/db'
 import { useAuth } from '@/stores/auth'
 
 type UserRow = AccessRecord & { email: string; person?: string }
@@ -22,7 +23,7 @@ const stop = onSnapshot(
 onUnmounted(stop)
 
 const groups = computed(() => {
-  const byKey = new Map<string, { key: string; name: string; role: Role; duties: Duty[]; emails: string[] }>()
+  const byKey = new Map<string, { key: string; name: string; role: Role; duties: string[]; emails: string[] }>()
   for (const u of users.value) {
     const key = u.person ?? `email:${u.email}`
     const group = byKey.get(key) ?? { key, name: u.name, role: u.role, duties: [], emails: [] }
@@ -57,17 +58,9 @@ function removeEmail(email: string) {
   return run(() => deleteDoc(doc(db, 'users', email)))
 }
 
-function setDuty(emails: string[], duty: Duty, on: boolean) {
-  return run(async () => {
-    const batch = writeBatch(db)
-    emails.forEach((email) => batch.update(doc(db, 'users', email), { duties: on ? arrayUnion(duty) : arrayRemove(duty) }))
-    await batch.commit()
-  })
-}
-
 const newEmail = ref<Record<string, string>>({})
 
-function addEmail(group: { key: string; name: string; role: Role; duties: Duty[] }) {
+function addEmail(group: { key: string; name: string; role: Role; duties: string[] }) {
   const email = normalizeEmail(newEmail.value[group.key] ?? '')
   if (!isValidEmail(email)) return (actionError.value = 'Enter a full email address.')
   if (users.value.some((u) => u.email === email)) return (actionError.value = `${email} already has access.`)
@@ -96,7 +89,25 @@ async function addPerson() {
   }
 }
 
+const { rows: roster, ready: rosterReady } = useCollection<PersonRecord>('people')
 const plan = ref<ImportPlan | null>(null)
+const replace = ref<string[]>([])
+const fieldLabels = { voice: 'voice part', jobs: 'jobs', covers: 'who they cover' }
+
+function nameOf(id: string) {
+  return plan.value?.people.find((p) => p.id === id)?.record.name ?? roster.value.find((p) => p.id === id)?.name ?? id
+}
+
+function proposed(p: PlannedPerson) {
+  const r = p.record
+  return [r.voice, ...r.jobs.map((j) => jobLabels[j]), r.covers.length ? `covers ${r.covers.map(nameOf).join(', ')}` : ''].filter(Boolean).join(' · ')
+}
+
+function keptText(p: PlannedPerson) {
+  const c = p.current ?? {}
+  const shown = { voice: c.voice || '', jobs: (c.jobs ?? []).map((j) => jobLabels[j]).join(', '), covers: (c.covers ?? []).map(nameOf).join(', ') }
+  return p.kept.map((f) => `${fieldLabels[f]} ${shown[f]}`).join('; ')
+}
 const importError = ref('')
 const importDone = ref('')
 
@@ -110,7 +121,9 @@ async function readImport(event: Event) {
     const data = JSON.parse(await file.text()) as { people?: ImportedPerson[] }
     if (!Array.isArray(data.people)) throw new Error('This file has no "people" list. Use the file made by tools/notion-people.mjs.')
     const existing = Object.fromEntries(users.value.map((u) => [u.email, u.role])) as Record<string, Role>
-    plan.value = planImport(data.people, existing)
+    const current = Object.fromEntries(roster.value.map(({ id, ...p }) => [id, p]))
+    replace.value = []
+    plan.value = planImport(data.people, existing, current)
   } catch (e) {
     importError.value = e instanceof Error ? e.message : String(e)
   }
@@ -121,7 +134,7 @@ async function applyImport() {
   const p = plan.value
   await run(async () => {
     const batch = writeBatch(db)
-    p.people.forEach(({ id, record }) => batch.set(doc(db, 'people', id), record, { merge: true }))
+    importWrites(p, new Set(replace.value)).forEach(({ id, data }) => batch.set(doc(db, 'people', id), data, { merge: true }))
     p.access.forEach((a) => {
       const data = a.isNew
         ? { name: a.name, role: a.role, person: a.person, addedAt: serverTimestamp(), addedBy: auth.email }
@@ -166,10 +179,6 @@ async function applyImport() {
             >
               <option v-for="r in roles" :key="r" :value="r">{{ roleLabels[r] }}</option>
             </select>
-            <label v-for="d in duties" :key="d" class="duty">
-              <input type="checkbox" :checked="g.duties.includes(d)" @change="setDuty(g.emails, d, ($event.target as HTMLInputElement).checked)" />
-              {{ dutyLabels[d] }}
-            </label>
           </td>
           <td>
             <ul class="emails">
@@ -217,36 +226,39 @@ async function applyImport() {
     <h2>Import from Notion</h2>
     <div class="card">
       <p class="muted">
-        Run <code>node tools/notion-people.mjs</code> in the repo, then choose <code>.local/people-import.json</code>. Active members
-        get their Notion address and firstname@6minutewarning.com; subs join the roster without sign-in access. Existing roles are
-        kept.
+        Run <code>node tools/notion-people.mjs</code> in the repo, then choose <code>.local/people-import.json</code>. Members and
+        crew get their Notion address and firstname@6minutewarning.com; subs join the roster without sign-in access. Existing roles
+        are kept. Notion keeps voice parts, jobs and subs in one Role note, so check what the import read from it before you apply.
+        After this, Roster is where they change.
       </p>
-      <input type="file" accept="application/json" aria-label="People import file" @change="readImport" />
+      <input type="file" accept="application/json" aria-label="People import file" :disabled="!rosterReady" @change="readImport" />
       <p v-if="importError" class="error" role="alert">✕ {{ importError }}</p>
       <p v-if="importDone" class="ok" role="status">✓ {{ importDone }}</p>
       <template v-if="plan">
-        <table class="table preview">
-          <thead>
-            <tr><th>Person</th><th>Status</th><th>Addresses</th><th>Sign-in</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="p in plan.people" :key="p.id">
-              <td>{{ p.record.name }}</td>
-              <td>{{ p.record.status }}</td>
-              <td>{{ p.record.emails.join(', ') || '—' }}</td>
-              <td>
-                {{
-                  plan.access.filter((a) => a.person === p.id).length
-                    ? plan.access
-                        .filter((a) => a.person === p.id)
-                        .map((a) => (a.isNew ? '+ ' : '') + roleLabels[a.role])
-                        .join(', ')
-                    : 'No'
-                }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <ul class="review">
+          <li v-for="p in plan.people" :key="p.id" :class="{ flagged: p.review.length || p.kept.length }">
+            <p class="who">
+              <strong>{{ p.record.name }}</strong>
+              <span class="chip">{{ p.record.status }}</span>
+            </p>
+            <p class="small">{{ proposed(p) || 'No voice part or jobs read' }}</p>
+            <p class="small muted">
+              {{ p.record.emails.join(', ') || 'No address' }} ·
+              {{
+                plan.access.filter((a) => a.person === p.id).length
+                  ? `signs in as ${roleLabels[plan.access.find((a) => a.person === p.id)!.role]}${plan.access.some((a) => a.person === p.id && a.isNew) ? ' (new)' : ''}`
+                  : 'no sign-in'
+              }}
+            </p>
+            <ul v-if="p.review.length" class="notes">
+              <li v-for="r in p.review" :key="r">{{ r }}</li>
+            </ul>
+            <label v-if="p.kept.length" class="keep">
+              <input v-model="replace" type="checkbox" :value="p.id" />
+              <span>Backstage already has {{ keptText(p) }}. Tick to replace it with what Notion says.</span>
+            </label>
+          </li>
+        </ul>
         <ul v-if="plan.skipped.length" class="warn">
           <li v-for="s in plan.skipped" :key="s">! {{ s }}</li>
         </ul>
@@ -302,20 +314,6 @@ label {
   font-size: 0.9rem;
 }
 
-.duty {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.duty input {
-  width: 18px;
-  height: 18px;
-}
-
 .link {
   margin-left: 8px;
   background: none;
@@ -328,8 +326,57 @@ label {
   text-decoration: underline;
 }
 
-.preview {
+.review {
+  list-style: none;
   margin: 16px 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.review > li {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.review > li.flagged {
+  border-color: var(--color-warning);
+}
+
+.review p {
+  margin: 0;
+}
+
+.review .who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.small {
+  font-size: 0.9rem;
+}
+
+.notes {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 0.9rem;
+  color: var(--color-warning);
+}
+
+.keep {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.keep input {
+  margin-top: 4px;
 }
 
 .warn {

@@ -5,7 +5,7 @@ import AppHeader from '@/components/AppHeader.vue'
 import DateDials from '@/components/DateDials.vue'
 import TourList from '@/components/TourList.vue'
 import { db } from '@/lib/firebase'
-import { day, money, today, useCollection } from '@/lib/db'
+import { day, money, today, useCollection, usePeople } from '@/lib/db'
 import { balance, importWrite, isUpcoming, planGigImport, stageLabels, contractLabels, type Gig, type Stage } from '@/lib/gigs'
 import { hasOptions } from '@/lib/options'
 import { useAuth } from '@/stores/auth'
@@ -59,6 +59,7 @@ async function applyImport() {
     importError.value = e instanceof Error ? e.message : String(e)
   }
 }
+const { seat } = usePeople()
 </script>
 
 <template>
@@ -98,7 +99,7 @@ async function applyImport() {
           <td v-if="hasOptions(g)" class="date" data-label="Date">
             <span class="stack">
               <span class="md">{{ g.dateOptions!.length }} dates</span>
-              <DateDials :gig="g" />
+              <DateDials :gig="g" :seat="seat" />
             </span>
           </td>
           <td v-else class="nowrap date" data-label="Date">

@@ -12,12 +12,12 @@ import PayoutCard from '@/components/PayoutCard.vue'
 import RehearsalsCard from '@/components/RehearsalsCard.vue'
 import SubFinder from '@/components/SubFinder.vue'
 import { db } from '@/lib/firebase'
-import { day, logEvent, useCollection } from '@/lib/db'
+import { day, logEvent, useCollection, usePeople } from '@/lib/db'
 import { LINEUP_SIZE, callMessage, callStateLabels, openCall, subCandidates, subMessage, whatsappLink, type Answer } from '@/lib/call'
 import { answersFromAttendees, calendarToken, eventBody, readEvent, saveEvent } from '@/lib/calendar'
 import { DEFAULT_OUTFIT, clashes, contractLabels, contractStates, outfitLabel, outfits, stageLabels, type ContractState, type Gig, type Stage } from '@/lib/gigs'
 import { dateSaid, hasOptions, optionClashes, optionsText } from '@/lib/options'
-import type { PersonRecord } from '@/lib/people'
+import { askLine, pollAsked } from '@/lib/people'
 import { myPersonId, usePoll } from '@/lib/poll'
 import { useAuth } from '@/stores/auth'
 import { useToast } from '@/stores/toast'
@@ -39,17 +39,17 @@ const stop = onSnapshot(
 )
 onUnmounted(stop)
 
-const { rows: people } = useCollection<PersonRecord>('people')
+const { people, byId, seat } = usePeople()
 const { rows: sameWeek } = useCollection<Gig>('gigs')
-const byId = computed(() => new Map(people.value.map((p) => [p.id, p])))
 const nameOf = (pid: string) => byId.value.get(pid)?.name ?? pid
 const firstName = (pid: string) => nameOf(pid).split(' ')[0]
 const me = computed(() => myPersonId(auth.access?.person, auth.email, people.value))
-const members = computed(() => people.value.filter((p) => p.status === 'active'))
-const singers = computed(() => people.value.filter((p) => p.status === 'active' || p.status === 'sub'))
-const crew = computed(() => people.value.filter((p) => p.status === 'crew'))
+const toAsk = computed(() => pollAsked(people.value).ids)
+const singers = computed(() => people.value.filter((p) => (p.status === 'active' || p.status === 'sub') && seat.value(p.id) === 'singer'))
+const soundPeople = computed(() => people.value.filter((p) => seat.value(p.id) === 'sound'))
+const isSound = (pid: string) => seat.value(pid) === 'sound'
 
-const { answers, stored, summary, standings, leading, answer: saveAnswer, answerOn, lockDate, syncLineup } = usePoll(id, gig, () => auth.email, nameOf, (m) => toast.show(m, 'error'))
+const { answers, stored, summary, standings, leading, answer: saveAnswer, answerOn, lockDate, syncLineup } = usePoll(id, gig, () => auth.email, nameOf, () => seat.value, (m) => toast.show(m, 'error'))
 
 const options = computed(() => hasOptions(gig.value))
 const when = computed(() => (!gig.value ? '' : options.value ? optionsText(gig.value.dateOptions!) : day(gig.value.date)))
@@ -69,12 +69,11 @@ const waitingText = computed(() => {
 })
 const everyone = computed(() => {
   const ids = new Set([...(gig.value?.call?.asked ?? []), ...Object.keys(stored.value)])
-  return [...ids].map((pid) => ({ id: pid, name: nameOf(pid), sub: byId.value.get(pid)?.status === 'sub', answer: answers.value[pid] }))
+  return [...ids].map((pid) => ({ id: pid, name: nameOf(pid), sub: byId.value.get(pid)?.status === 'sub', sound: isSound(pid), answer: answers.value[pid] }))
 })
 const subbingFor = computed(() => {
   const s = summary.value
-  if (!s || s.state === 'full' || s.state === 'abandoned') return []
-  return (gig.value?.call?.subbing ?? []).filter((pid) => s.no.includes(pid))
+  return !s || s.state === 'abandoned' ? [] : s.seeking
 })
 
 async function act(done: string, work: () => Promise<unknown>) {
@@ -94,7 +93,7 @@ function save(patch: Partial<Gig>, what: string) {
 
 function askBand() {
   return act('The band has been asked.', async () => {
-    await updateDoc(gigRef(), { call: openCall(members.value.map((p) => p.id), auth.email, Date.now()) })
+    await updateDoc(gigRef(), { call: openCall(toAsk.value, auth.email, Date.now()) })
     await logEvent(id, 'call', 'asked the band', auth.email)
     await router.replace({ query: { share: '1' } })
   })
@@ -152,7 +151,8 @@ function bookCalendar() {
   const call = g.call
   return act(call.calendarEventId ? 'Calendar event updated.' : 'Gig is on the band calendar.', async () => {
     const full = s.state === 'full'
-    const soundTech = g.soundTech ? person(g.soundTech) : null
+    const tech = g.soundTech || s.sound
+    const soundTech = tech ? person(tech) : null
     const pool = full ? s.lineup : [...call.asked.filter((pid) => !s.no.includes(pid)), ...s.lineup]
     const invite = [...new Set(pool)].map(person).filter((p) => p !== null)
     const body = eventBody({
@@ -236,8 +236,8 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
 
       <section v-if="!gig.call && !gig.tour" class="card ask">
         <h2>Who can play?</h2>
-        <p class="muted">Ask the {{ members.length }} members. {{ LINEUP_SIZE }} yeses fill the lineup.</p>
-        <button type="button" class="btn" :disabled="busy || !members.length" @click="askBand">Ask the band</button>
+        <p class="muted">{{ askLine(people) }}</p>
+        <button type="button" class="btn" :disabled="busy || !toAsk.length" @click="askBand">Ask the band</button>
       </section>
 
       <section v-if="options" class="card lineup">
@@ -261,10 +261,11 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
 
       <section v-else-if="summary" class="card lineup">
         <div class="dialrow">
-          <LineupDial :filled="summary.lineup.length" :size="64" />
+          <LineupDial :filled="summary.lineup.length" :sound="!!summary.sound" :size="64" />
           <div class="count">
             <strong class="display">{{ summary.lineup.length }} of {{ LINEUP_SIZE }} in</strong>
             <span v-if="lineupNames.length">{{ lineupNames.map((n) => (n === nameOf(me) ? 'You' : n.split(' ')[0])).join(', ') }}</span>
+            <span :class="{ gap: !summary.sound }">{{ summary.sound ? `Sound: ${summary.sound === me ? 'you' : firstName(summary.sound)}` : 'Sound: nobody yet' }}</span>
             <span v-if="waitingText && summary.state !== 'full'" class="muted">{{ waitingText }}</span>
           </div>
         </div>
@@ -280,6 +281,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
         <div v-for="out in summary.undecided" :key="out" class="decide" role="group" :aria-label="`${nameOf(out)} can't make it`">
           <p>
             <strong>{{ out === me ? "You can't make it." : `${firstName(out)} can't make it.` }}</strong>
+            <template v-if="isSound(out)">The gig needs someone on sound.</template>
             Anyone can decide what happens next.
           </p>
           <div class="row">
@@ -298,7 +300,8 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
           :key="`sub-${out}`"
           :out="byId.get(out)"
           :candidates="subCandidates(people, out, answers)"
-          :message="subMessage({ name: gig.name, when, venue: gig.venue }, byId.get(out)?.part ?? '')"
+          :for-sound="isSound(out)"
+          :message="subMessage({ name: gig.name, when, venue: gig.venue }, isSound(out) ? 'sound tech' : (byId.get(out)?.voice ?? ''))"
           :busy="busy"
           @answer="answer"
         />
@@ -323,7 +326,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
             <template v-else>{{ outfitLabel(gig.outfit) }}</template>
           </dd>
           <dt>Sound</dt>
-          <dd>{{ gig.soundTech ? nameOf(gig.soundTech) : 'Nobody yet' }}</dd>
+          <dd :class="{ gap: !gig.soundTech }">{{ gig.soundTech ? nameOf(gig.soundTech) : 'Nobody yet' }}</dd>
         </dl>
         <label class="notes">Band notes
           <textarea :value="gig.notes" rows="3" @change="save({ notes: ($event.target as HTMLTextAreaElement).value }, 'the notes')"></textarea>
@@ -335,7 +338,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
         <p class="muted small">Record answers given by WhatsApp or phone. Tap a date to cycle through In, Can't and no answer.</p>
         <ul class="answers">
           <li v-for="p in everyone" :key="p.id">
-            <span class="who">{{ p.name }}<span v-if="p.sub" class="muted"> · sub</span></span>
+            <span class="who">{{ p.name }}<span v-if="p.sound" class="muted"> · sound</span><span v-else-if="p.sub" class="muted"> · sub</span></span>
             <span class="record">
               <button
                 v-for="d in gig.dateOptions"
@@ -359,7 +362,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
         <p class="muted small">Record an answer someone gave in WhatsApp or by phone.</p>
         <ul class="answers">
           <li v-for="p in everyone" :key="p.id">
-            <span class="who">{{ p.name }}<span v-if="p.sub" class="muted"> · sub</span></span>
+            <span class="who">{{ p.name }}<span v-if="p.sound" class="muted"> · sound</span><span v-else-if="p.sub" class="muted"> · sub</span></span>
             <span class="chip" :class="p.answer?.answer === 'yes' ? 'chip--ok' : p.answer?.answer === 'no' ? 'chip--bad' : ''">{{ answerLabel(p.answer) }}</span>
             <span class="record">
               <button type="button" class="mini" :aria-label="`${p.name} is in`" :aria-pressed="p.answer?.answer === 'yes'" :disabled="busy" @click="answer(p.id, 'yes')">In</button>
@@ -433,7 +436,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
                 <label>Sound tech
                   <select :value="gig.soundTech ?? ''" @change="save({ soundTech: ($event.target as HTMLSelectElement).value }, 'the sound tech')">
                     <option value="">Nobody yet</option>
-                    <option v-for="c in crew" :key="c.id" :value="c.id">{{ c.name }}</option>
+                    <option v-for="c in soundPeople" :key="c.id" :value="c.id">{{ c.name }}{{ c.status === 'sub' ? ' (sub)' : '' }}</option>
                   </select>
                 </label>
               </div>
@@ -459,7 +462,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
                 <li v-for="p in singers" :key="p.id">
                   <label class="check">
                     <input type="checkbox" :checked="gig.performers?.includes(p.id)" @change="togglePerformer(p.id, ($event.target as HTMLInputElement).checked)" />
-                    {{ p.name }} <span class="muted">{{ p.status === 'sub' ? 'sub' : p.part }}</span>
+                    {{ p.name }} <span class="muted">{{ [p.voice, p.status === 'sub' ? 'sub' : ''].filter(Boolean).join(' · ') }}</span>
                   </label>
                 </li>
               </ul>
@@ -716,6 +719,10 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
 
 .decide p {
   margin: 0;
+}
+
+.gap {
+  color: var(--color-warning);
 }
 
 .confirm span {

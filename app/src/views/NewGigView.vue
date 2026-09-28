@@ -5,13 +5,13 @@ import { doc, getDoc, orderBy, runTransaction, serverTimestamp } from 'firebase/
 import AppHeader from '@/components/AppHeader.vue'
 import SearchSelect from '@/components/SearchSelect.vue'
 import { db } from '@/lib/firebase'
-import { logEvent, money, useCollection } from '@/lib/db'
-import { LINEUP_SIZE, openCall } from '@/lib/call'
+import { logEvent, money, useCollection, usePeople } from '@/lib/db'
+import { openCall } from '@/lib/call'
 import { blankPresenter, mergeNames, presenterTask, slug, usualPartner, venueTask, type Presenter, type Venue } from '@/lib/directory'
 import { DEFAULT_TIME, gigId, newGig, presentersOf, timeOptions, venuesOf, type Gig } from '@/lib/gigs'
 import { MAX_DATE_OPTIONS, normalizeOptions } from '@/lib/options'
 import { gigDraft, type Inquiry } from '@/lib/inquiries'
-import type { PersonRecord } from '@/lib/people'
+import { askLine, pollAsked } from '@/lib/people'
 import { ROUND_TO, shareOf } from '@/lib/payout'
 import { useAuth } from '@/stores/auth'
 
@@ -19,8 +19,8 @@ const auth = useAuth()
 const router = useRouter()
 if (!auth.isManager) router.replace('/gigs')
 const { rows: gigs } = useCollection<Gig>('gigs', orderBy('date'))
-const { rows: people } = useCollection<PersonRecord>('people')
-const members = computed(() => people.value.filter((p) => p.status === 'active'))
+const { people } = usePeople()
+const asked = computed(() => pollAsked(people.value).ids)
 
 const draft = ref({ name: '', date: '', time: DEFAULT_TIME, venue: '', presenter: '', email: '', phone: '', fee: '', perSinger: '', sets: '', ask: true })
 const none = <T,>() => ({ rows: computed(() => [] as (T & { id: string })[]) })
@@ -87,7 +87,7 @@ async function addGig() {
   const fee = feeAmount.value
   const payManual = payByHand.value
   const perSinger = payManual ? Math.max(0, Math.round(Number(d.perSinger) || 0)) : calculatedPay.value
-  const call = d.ask ? { call: openCall(members.value.map((p) => p.id), auth.email, Date.now()) } : {}
+  const call = d.ask ? { call: openCall(asked.value, auth.email, Date.now()) } : {}
   const id = gigId(d.name, date)
   const gigRef = doc(db, 'gigs', id)
   const venueId = venueIsNew.value ? slug(fields.venue) : ''
@@ -187,7 +187,7 @@ async function addGig() {
         <legend>The band</legend>
         <label class="check">
           <input v-model="draft.ask" type="checkbox" />
-          Ask the {{ members.length }} members now. {{ LINEUP_SIZE }} yeses {{ options.length > 1 ? 'on one date fill it' : 'fill the lineup' }}.
+          Ask the band now. {{ askLine(people) }}{{ options.length > 1 ? ' They answer each date.' : '' }}
         </label>
       </fieldset>
 

@@ -12,7 +12,7 @@ The band's management app, replacing Notion. First priority: gigs, contracts and
 
 ## Access
 
-Sign-in is Google only. A person can use Backstage only if their email has a document in `users/` (keyed by lowercase email) with a role: admin, manager, director or member. brett@6minutewarning.com is the owner and becomes an admin on first sign-in; admins add everyone else on the Access page. A person can have several addresses (Gmail and firstname@6minutewarning.com); each address has its own `users/` record pointing at the same `people/` entry, and any of them signs in as that person with the same role. A person can also hold duties on top of their role; the only duty is `scheduler` (Books rehearsals), stored as `duties` on each of their `users/` records and ticked by an admin on the Access page. `node tools/notion-people.mjs` exports the Notion People list to `.local/people-import.json` (git-ignored), and admins import that file on the Access page: active members get their Notion address plus firstname@6minutewarning.com, subs join the roster without sign-in access, and existing roles are kept. Member emails live in Firestore, never in this public repo. `firestore/firestore.rules` enforces this, and `firestore/rules.test.ts` covers it.
+Sign-in is Google only. A person can use Backstage only if their email has a document in `users/` (keyed by lowercase email) with a role: admin, manager, director or member. brett@6minutewarning.com is the owner and becomes an admin on first sign-in; admins add everyone else on the Access page. A person can have several addresses (Gmail and firstname@6minutewarning.com); each address has its own `users/` record pointing at the same `people/` entry, and any of them signs in as that person with the same role. Whoever has the scheduler job on Roster books rehearsals; `users/` records given the older `scheduler` duty still count. `node tools/notion-people.mjs` exports the Notion People list to `.local/people-import.json` (git-ignored), and admins import that file on the Access page: active members and crew get their Notion address plus firstname@6minutewarning.com, subs join the roster without sign-in access, and existing roles are kept. Notion holds voice part, band jobs and who a sub covers in one free-text Role, so the import reads only what it can trust (status, "<name>'s sub", sound technician, bookkeeper, music director, scheduling, wardrobe or outfits) and lists every guess and everything it couldn't map for the admin to check before applying. It never replaces a voice part, jobs or covers already set in Backstage unless the admin ticks that person. Backstage is the source of truth for the roster from then on: change people on Roster, not in Notion. Member emails live in Firestore, never in this public repo. `firestore/firestore.rules` enforces this, and `firestore/rules.test.ts` covers it.
 
 ## Records
 
@@ -22,7 +22,7 @@ Sign-in is Google only. A person can use Backstage only if their email has a doc
 | `contracts` | gig, status, generated PDF, sent date and recipient, reminders, signed copy |
 | `payments` | gig, kind (deposit, balance, merch), amount, due date, received date |
 | `gigs/{id}/expenses` | kind (travel, meals, gear rental, hotel, other), description, amount; managers only |
-| `people` | members and subs, part, who a sub covers, contact |
+| `people` | name, status (member, sub, crew, alumni), voice part, band jobs, who a sub covers, phone, sign-in addresses, and the old Notion role text |
 | `venues` | name, address |
 | `presenters` | name, email, phone, and the tech contact's name, email and phone |
 | `tours` | name, leave and return dates, whether they're rough, places, a plan of show, travel and free days, what's covered, pay, commit-by date, poll and committed lineup; answers under `tours/{id}/answers` |
@@ -77,9 +77,9 @@ Next rehearsal and Next gig show the next of each, sooner one first; Coming up l
 
 The Rehearsals page lists what's coming. Each rehearsal shows time, place with a map link, notes, what it's for, and who's coming. Everyone expected is counted as coming until they tap Can't make it; I can come after all undoes it. A whole-band rehearsal expects every active member; a rehearsal for a gig expects the singers booked on that gig, subs included, or every active member while the gig has no lineup yet.
 
-Whoever Books rehearsals (Joseph) and managers book, edit and cancel them. The booking form suggests a week after the last rehearsal, at the same time and place. Ticking the calendar box puts the rehearsal on the band calendar (`6MW rehearsal: <gig>`) and invites the singers expected.
+Whoever has the scheduler job on Roster (Joseph) and managers book, edit and cancel them. The booking form suggests a week after the last rehearsal, at the same time and place. Ticking the calendar box puts the rehearsal on the band calendar (`6MW rehearsal: <gig>`) and invites the singers expected.
 
-Whoever Books rehearsals gets these to-dos on Home. They are derived from the records, not stored in `tasks`, so booking clears them:
+Whoever has the scheduler job gets these to-dos on Home. They are derived from the records, not stored in `tasks`, so booking clears them:
 
 - Book the next rehearsal, when nothing is booked from today on.
 - Book N more rehearsals before a gig, when the music director's `rehearsals.needed` on the gig is more than the rehearsals listing that gig on or before its date.
@@ -104,7 +104,7 @@ The answer is for the current lineup when `lineupKey` equals `lineupKey(gig.perf
 
 ## Gig page
 
-The top shows the date, name and the same decision facts, then the dial and the answer buttons. When someone can't make it, anyone chooses Find a sub or Drop the gig. Find a sub offers one sub at a time, same part first, with Call and Text buttons that fill in the ask, then They said yes or Said no. Everyone's answers sits in a closed section for recording answers given elsewhere. Managers get a Manage section: stage, contract, sets, call time, outfit, money, presenter, lineup, sound tech and the payout.
+The top shows the date, name and the same decision facts, then the dial and the answer buttons. When someone can't make it, anyone chooses Find a sub or Drop the gig. Find a sub offers one sub at a time: people who cover that member first, then the same voice part, then other subs, each with the reason, with Call and Text buttons that fill in the ask, then They said yes or Said no. Everyone's answers sits in a closed section for recording answers given elsewhere. Managers get a Manage section: stage, contract, sets, call time, outfit, money, presenter, lineup, sound tech and the payout.
 
 ## Payout
 
@@ -185,9 +185,13 @@ Managers turn on notifications from Home, once per phone. On iPhone that works o
 
 ## Band poll
 
-A manager adds the gig, then anyone opens the poll on its page, which asks every active member. Open polls show on Home, with the ones waiting on you under To do, answerable there. Members answer Yes or No themselves; anyone can record an answer given in WhatsApp or by phone. Six yes answers fill the lineup, in the order they came in, and tick "Who's on it".
+A manager adds the gig, then anyone opens the poll on its page, which asks every active singer and everyone with the sound tech job. Crew without it, such as the bookkeeper, are never asked. Open polls show on Home, with the ones waiting on you under To do, answerable there. Members answer Yes or No themselves; anyone can record an answer given in WhatsApp or by phone. The lineup is six singer seats plus a required sound seat: the first six singer yeses, in the order they came in, tick "Who's on it", and the first sound yes becomes the gig's sound tech. A sound yes never fills a singer seat. Lineup full needs both; an open sound seat shows as a gap on Home and the gig page, and the dial's centre dot fills when sound is in.
 
-When a member says no, anyone can choose to find a sub or abandon the gig. Finding a sub lists the subs who sing that part first, with their phone numbers; whoever calls records the answer. Abandoning cancels the gig.
+When someone says no, anyone can choose to find a sub or abandon the gig. Finding a sub for a singer offers the subs who cover them, then subs who sing that part; finding one for sound offers the people who cover the sound tech, then anyone else with the sound tech job. Whoever calls records the answer. Abandoning cancels the gig. Polls opened before sound had its own seat keep working: the sound tech in them now fills the sound seat, and non-performers in them are no longer waited on.
+
+## Roster
+
+Roster is grouped, not alphabetical: the band (the six singers in voice-part order, T1, T2, T3/VP, T4, Bari/VP, Bass, each with their subs nested beneath), Sound (the sound tech and their subs), subs not linked to anyone yet, others who aren't asked about gigs, and alumni, collapsed. Managers tap Edit on anyone to change their name, phone, status, voice part, band jobs (band leader, music director, scheduler, wardrobe, sound tech, bookkeeper) and who they cover. Jobs on Roster describe who does what; what someone can do in the app is still set under Access.
 
 "Share to WhatsApp" opens WhatsApp with the gig and its link filled in. Any member can put a hold on the 6 Minute Warning Google Calendar (`6MW HOLD: <gig>`), which invites every roster address of everyone not yet marked no, then confirm it (`6MW CONFIRMED GIG: <gig>`) once the lineup is full. The description follows the band's gig event layout. "Pull calendar replies" turns accepted and declined invites into answers. Google asks for calendar access each time, and the account needs "Make changes to events" on that calendar.
 
@@ -225,7 +229,7 @@ Merging to `main` deploys Backstage to https://six-minute-warning.web.app and re
 |---|---|
 | Singer | Read gigs and the roster, edit gig notes and the lineup, add to the event log |
 | Music director | Same as singer, plus set how many rehearsals each gig needs, with a to-do on Home when a lineup fills or changes |
-| Books rehearsals (a duty, on any role) | Book, edit and cancel rehearsals |
+| Scheduler (a job on Roster, on any role) | Book, edit and cancel rehearsals |
 | Manager | All of the above, plus create and delete gigs, edit money, contract state and presenter contacts, and manage the roster, venues and payments |
 | Admin | All of the above, plus grant and remove sign-in access |
 | Assistant | Reads everything. Adds gig requests with any new venue, presenter and to-dos. Can't edit, delete or answer polls |

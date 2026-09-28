@@ -120,6 +120,18 @@ describe('money and roster are manager work', () => {
     await assertFails(setDoc(doc(db, 'payments/p1'), { gig: 'g1', amount: 100 }))
   })
 
+  it('managers set voice part, jobs and covers from fixed lists', async () => {
+    const db = as('manager@example.com')
+    const base = { name: 'Sam Sub', status: 'sub', part: '', phone: '', emails: [] }
+    await assertSucceeds(setDoc(doc(db, 'people/sam'), { ...base, voice: 'T3/VP', jobs: ['sound'], covers: ['kim'] }))
+    await assertSucceeds(updateDoc(doc(db, 'people/sam'), { voice: '', jobs: ['leader', 'director', 'scheduler', 'wardrobe', 'bookkeeper'], covers: [] }))
+    await assertFails(updateDoc(doc(db, 'people/sam'), { voice: 'Tenor' }))
+    await assertFails(updateDoc(doc(db, 'people/sam'), { jobs: ['captain'] }))
+    await assertFails(updateDoc(doc(db, 'people/sam'), { jobs: 'sound' }))
+    await assertFails(updateDoc(doc(db, 'people/sam'), { covers: Array.from({ length: 21 }, (_, i) => `p${i}`) }))
+    await assertFails(updateDoc(doc(as('member@example.com'), 'people/sam'), { voice: 'T1' }))
+  })
+
   it('managers cannot hand out access', async () => {
     await assertFails(setDoc(doc(as('manager@example.com'), 'users/new@example.com'), { name: 'New', role: 'member' }))
   })
@@ -538,6 +550,19 @@ describe('rehearsals', () => {
     await assertSucceeds(updateDoc(doc(db, 'rehearsals/r1'), { start: '3:00pm', place: "Joseph's place" }))
     await assertSucceeds(deleteDoc(doc(db, 'rehearsals/r2')))
     await assertFails(updateDoc(doc(db, 'gigs/g1'), { money: { fee: 1 } }))
+  })
+
+  it('the scheduler job on Roster books rehearsals; other jobs do not', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore()
+      await setDoc(doc(db, 'users/pat@example.com'), { name: 'Pat', role: 'member', person: 'pat' })
+      await setDoc(doc(db, 'people/pat'), { name: 'Pat', status: 'active', part: '', phone: '', emails: [], jobs: ['scheduler'] })
+      await setDoc(doc(db, 'users/lou@example.com'), { name: 'Lou', role: 'member', person: 'lou' })
+      await setDoc(doc(db, 'people/lou'), { name: 'Lou', status: 'crew', part: '', phone: '', emails: [], jobs: ['bookkeeper'] })
+    })
+    await assertSucceeds(setDoc(doc(as('pat@example.com'), 'rehearsals/r4'), rehearsal))
+    await assertFails(setDoc(doc(as('lou@example.com'), 'rehearsals/r5'), rehearsal))
+    await assertFails(setDoc(doc(as('member@example.com'), 'rehearsals/r6'), rehearsal))
   })
 
   it('managers can book rehearsals too', async () => {

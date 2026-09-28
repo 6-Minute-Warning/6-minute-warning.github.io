@@ -5,9 +5,9 @@ import { doc, runTransaction, serverTimestamp } from 'firebase/firestore'
 import AppHeader from '@/components/AppHeader.vue'
 import TourForm from '@/components/TourForm.vue'
 import { db } from '@/lib/firebase'
-import { useCollection } from '@/lib/db'
+import { usePeople } from '@/lib/db'
 import { gigId } from '@/lib/gigs'
-import type { PersonRecord } from '@/lib/people'
+import { pollAsked } from '@/lib/people'
 import { blankDraft, fromDraft, newTour, openTourCall } from '@/lib/tour'
 import { logTourEvent } from '@/lib/tourPoll'
 import { useAuth } from '@/stores/auth'
@@ -15,8 +15,8 @@ import { useAuth } from '@/stores/auth'
 const auth = useAuth()
 const router = useRouter()
 if (!auth.isManager) router.replace('/gigs')
-const { rows: people } = useCollection<PersonRecord>('people')
-const members = computed(() => people.value.filter((p) => p.status === 'active'))
+const { people } = usePeople()
+const members = computed(() => pollAsked(people.value).singers)
 
 const draft = ref(blankDraft())
 const ask = ref(true)
@@ -58,7 +58,7 @@ async function addTour() {
         <legend>The band</legend>
         <label class="check">
           <input v-model="ask" type="checkbox" />
-          Ask the {{ members.length }} members now. They answer All of it, Part of it, Can't go or Not sure yet.
+          Ask the {{ members.length }} singers now. They answer All of it, Part of it, Can't go or Not sure yet.
         </label>
       </fieldset>
 

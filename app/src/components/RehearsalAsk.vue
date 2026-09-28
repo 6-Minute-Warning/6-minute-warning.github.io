@@ -14,7 +14,7 @@ const first = (id: string) => (byId.value.get(id)?.name ?? id).split(' ')[0]
 const singers = computed(() =>
   (props.gig.performers ?? []).map((id) => {
     const p = byId.value.get(id)
-    return { id, name: p?.name ?? id, sub: p?.status === 'sub', part: p?.part ?? '' }
+    return { id, name: p?.name ?? id, sub: p?.status === 'sub', part: p?.voice ?? '' }
   }),
 )
 const change = computed(() => (props.gig.rehearsals ? lineupChange(props.gig.rehearsals, props.gig.performers) : null))

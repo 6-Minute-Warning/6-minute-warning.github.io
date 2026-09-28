@@ -1,4 +1,4 @@
-import { LINEUP_SIZE, summarize, type Answer, type AnswerRecord, type Call, type CallSummary } from './call'
+import { LINEUP_SIZE, everyoneSings, summarize, type Answer, type AnswerRecord, type Call, type CallSummary, type SeatOf } from './call'
 import { clashes, type Gig } from './gigs'
 
 export const MAX_DATE_OPTIONS = 6
@@ -43,10 +43,10 @@ export function answersOn(stored: Record<string, StoredAnswer>, date: string): R
 
 const noCall: Call = { openedBy: '', openedAt: 0, asked: [], subbing: [], abandoned: false, calendarEventId: '' }
 
-export function race(call: Call | undefined, stored: Record<string, StoredAnswer>, dates: string[]): Standing[] {
+export function race(call: Call | undefined, stored: Record<string, StoredAnswer>, dates: string[], seat: SeatOf = everyoneSings): Standing[] {
   return dates.map((date) => {
     const on = answersOn(stored, date)
-    const summary = summarize(call ?? noCall, on)
+    const summary = summarize(call ?? noCall, on, seat)
     const sixth = summary.lineup[LINEUP_SIZE - 1]
     return { date, summary, filledAt: sixth ? on[sixth]!.at : null }
   })
