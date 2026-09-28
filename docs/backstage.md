@@ -21,6 +21,7 @@ Sign-in is Google only. A person can use Backstage only if their email has a doc
 | `gigs` | name, date, times, venue, presenter contact, stage, fee, deposit, format, outfit, performers, rehearsals needed (count, note, who set it) |
 | `contracts` | gig, status, generated PDF, sent date and recipient, reminders, signed copy |
 | `payments` | gig, kind (deposit, balance, merch), amount, due date, received date |
+| `gigs/{id}/expenses` | kind (travel, meals, gear rental, hotel, other), description, amount; managers only |
 | `people` | members and subs, part, who a sub covers, contact |
 | `venues` | name, address |
 | `presenters` | name, email, phone, and the tech contact's name, email and phone |
@@ -67,7 +68,13 @@ The answer is for the current lineup when `lineupKey` equals `lineupKey(gig.perf
 
 ## Gig page
 
-The top shows the date, name and the same decision facts, then the dial and the answer buttons. When someone can't make it, anyone chooses Find a sub or Drop the gig. Find a sub offers one sub at a time, same part first, with Call and Text buttons that fill in the ask, then They said yes or Said no. Everyone's answers sits in a closed section for recording answers given elsewhere. Managers get a Manage section: stage, contract, sets, pay per singer, call time, outfit, money, presenter, lineup and sound tech.
+The top shows the date, name and the same decision facts, then the dial and the answer buttons. When someone can't make it, anyone chooses Find a sub or Drop the gig. Find a sub offers one sub at a time, same part first, with Call and Text buttons that fill in the ask, then They said yes or Said no. Everyone's answers sits in a closed section for recording answers given elsewhere. Managers get a Manage section: stage, contract, sets, call time, outfit, money, presenter, lineup, sound tech and the payout.
+
+## Payout
+
+The fee less the gig's expenses is split eight ways: six singers, the sound tech and the group account. Each share is rounded down to the nearest $25 and the group account takes what's left, so a $3,100 fee with $600 of travel and meals pays $300 each and $400 to the group. A sub gets the same share as the member they replace. With no sound tech on the gig, that share goes to the group; an open singer seat keeps its share until someone fills it.
+
+The payout card on the gig's Manage section holds the fee, the expenses, the working, and one line per person with a Paid tick. Pay per singer is calculated unless a manager sets it by hand; set-by-hand pay shows a tag and can be reset, and the new gig form previews it from the fee. Singers and the sound tech see that figure as Your pay, with the date once they're marked paid. Only managers can read expenses.
 
 ## Adding a gig
 
