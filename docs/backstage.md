@@ -120,7 +120,7 @@ New gig is a button at the top of Gigs that opens its own page. Saving asks the 
 
 Brett's assistant, a person or an AI agent, adds gig requests without the web app. Each request lands like a gig made on New gig: tentative, the venue and presenter matched to ones used before (loose match, as in the search boxes) or added with a to-do, and the band asked only when the request says so. Every request also gets a manager to-do on Home, a card showing the dates, facts, contact, fee and any gig already on those days, with Open gig and Mark checked. The gig page shows a From the assistant chip, and the gig records who sent it in `createdBy`.
 
-There is no server to run, so it works on Firebase's free Spark plan. The assistant signs in as its own Backstage user and writes to Firestore directly; the security rules limit that user.
+There is no server to run, so it works on Firebase's free Spark plan. The assistant signs in as its own Backstage user and writes to Firestore directly; the security rules make it audit every write.
 
 ### One-time setup (Brett)
 
@@ -173,7 +173,53 @@ The script prints the new gig's id and link, whether it added a venue or present
 
 ### What the rules allow
 
-The Assistant role can create a gig only if it is tentative, has no contract, lineup or money received, carries `createdBy` equal to the assistant's address, and comes with its `tasks/request-<gig id>` to-do in the same write. It can add venues (without an address), presenters and their to-dos, and write to the event log. `firestore/rules.test.ts` covers this. Other clients can use the Firestore REST API the same way: sign in with `accounts:signInWithPassword`, then send every document the script sends in one `documents:commit`, as listed by `planRequest` in `app/src/lib/request.ts`.
+The request goes through the same audited path as every other assistant write (below): one commit holds the gig, any new venue and presenter, their to-dos, the event log entries and an audit record for each. The documents come from `planRequest` in `app/src/lib/request.ts`.
+
+## Assistant API
+
+The Assistant role reads and writes every band collection a manager can, with each collection's shape rules unchanged. It cannot touch `users/` (sign-in access), push tokens or the audit trail itself.
+
+Every assistant write must carry, in the same commit, an `audit/{id}` record and the pointer `auditHead/{assistant email}` = `{ at, paths: { "<doc path>": "<audit id>" } }`. The rules read both with `getAfter` and refuse the write unless the record's `path` is the written document, `before` equals the document before the write (`null` on create), `after` equals it after (`null` on delete), `by` is the signed-in address and `at` is the commit time. Records carry a `reason` (1 to 500 characters), are never changed or deleted, and only managers read them. `tools/assistant.mts` does all of this for you; `firestore/rules.test.ts` covers the rules.
+
+### Undo
+
+Managers see every record, newest first with a field diff, under Assistant activity in the account menu (`/activity`). Undo writes `before` back, or deletes a created document, in one commit with its own audit record marked `undoOf`. It refuses when the document has changed since the assistant's write, since that would lose the newer edit. Undo passes the same rules as a manager's own edit, so some restores are refused: an event log entry (nobody deletes those), an inquiry (its `handledBy` must be the manager), and a gig, expense or answer whose restored `rehearsals.by`, `by` or `at` names someone else.
+
+### Tool
+
+Uses the same `BACKSTAGE_EMAIL` and `BACKSTAGE_PASSWORD` as the gig request script. Paths are Firestore paths such as `gigs/2026-12-05-tree-gala` or `gigs/2026-12-05-tree-gala/answers/kyle`. Reads print JSON; writes print the audit id and the saved document. `--dry-run` shows `before` and `after` without saving.
+
+```
+node tools/assistant.mts get gigs/2026-12-05-tree-gala
+node tools/assistant.mts list venues
+node tools/assistant.mts query gigs --where "stage == tentative" --where "date >= 2026-10-01" --order date --limit 20
+node tools/assistant.mts update gigs/2026-12-05-tree-gala '{"time":"7:30pm","money.fee":3200}' --reason "Presenter moved the start and raised the fee"
+node tools/assistant.mts set gigs/2026-12-05-tree-gala/expenses/pizza '{"kind":"meals","description":"Pizza","amount":40,"by":"assistant@6minutewarning.com"}' --now at --reason "Receipt from Kyle"
+node tools/assistant.mts delete venues/old-hall --reason "Duplicate of Old Town Hall"
+```
+
+`update` merges top-level or dotted keys into the current document; `{"$delete": true}` removes a field. `set` replaces the whole document. `--now a,b` sets those fields to the commit time, which the rules demand for fields such as `at`, `createdAt` and `handledAt`. `{"$time": "2026-10-01T19:00:00Z"}` writes a timestamp. `--where` takes `==`, `!=`, `<`, `<=`, `>`, `>=`, `in` and `array-contains`; a value is read as JSON when it parses, otherwise as text. A write fails, and says so, if the document changed between the read and the commit.
+
+### Collections
+
+| Path | Fields | Assistant |
+|---|---|---|
+| `gigs/{id}` | name, date, dateOptions, time, venue, presenter, stage, notes, contact{name,email,phone}, money{fee,deposit,paid,merch,perSinger}, contract, performers, soundTech, sets, outfit, call{…}, rehearsals{needed,note,by,at,lineupKey}, createdAt, createdBy, via | create, update, delete; a changed `rehearsals` is signed by the assistant with `at` stamped |
+| `gigs/{id}/answers/{person}` | answer (yes, no, later), until, by, at; or dates{day: answer}, times | answer for a singer, `by` the assistant, `at` stamped |
+| `gigs/{id}/expenses/{id}` | kind, description, amount, by, at | create, update, delete; `by` the assistant, `at` stamped |
+| `tours/{id}` | name, start, end, rough, places, days, version, covered, notCovered, perSinger, commitBy, notes, stage, call, lineup, createdAt, createdBy | create, update, delete |
+| `tours/{id}/answers/{person}` | answer (all, some, no, later), days, until, note, version, by, at | as gig answers |
+| `rehearsals/{id}` | date, start, end, place, address, gigs, notes, calendarEventId, createdBy, createdAt | create, update, delete |
+| `rehearsals/{id}/replies/{person}` | answer (yes, no), by, at | as gig answers |
+| `people/{id}` | name, status, part, phone, emails, voice, jobs, covers | create, update, delete |
+| `venues/{id}` | name, address | create, update, delete |
+| `presenters/{id}` | name, email, phone, techName, techEmail, techPhone | create, update, delete |
+| `tasks/{id}` | kind, target, title, open, createdBy, createdAt; follow-ups add reason, name, email, due, snoozedUntil and more | create, update, delete |
+| `contracts/{id}`, `payments/{id}` | free-form | create, update, delete |
+| `inquiries/{id}` | name, email, message, status, handledBy, handledAt, gig | read; update status, `handledBy` the assistant, `handledAt` stamped |
+| `events/{id}` | gig, kind, detail, by, at | create |
+| `users/{email}`, `pushTokens/{id}` | | none |
+| `audit/{id}` | path, before, after, by, at, reason, undoOf | written with each change; never read, changed or deleted |
 
 ## On phones
 
@@ -232,7 +278,7 @@ Merging to `main` deploys Backstage to https://six-minute-warning.web.app and re
 | Scheduler (a job on Roster, on any role) | Book, edit and cancel rehearsals |
 | Manager | All of the above, plus create and delete gigs, edit money, contract state and presenter contacts, and manage the roster, venues and payments |
 | Admin | All of the above, plus grant and remove sign-in access |
-| Assistant | Reads everything. Adds gig requests with any new venue, presenter and to-dos. Can't edit, delete or answer polls |
+| Assistant | Everything a manager can do to band records, each change audited and undoable from Assistant activity. Can't grant or remove sign-in access |
 
 ## View as
 
