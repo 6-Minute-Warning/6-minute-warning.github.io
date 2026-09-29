@@ -28,4 +28,9 @@ describe('destination', () => {
     expect(destination('member', false, 'admin')).toBe('home')
     expect(destination('member', true, 'admin')).toBeNull()
   })
+
+  it('lets anyone open public pages', () => {
+    expect(destination('signed-out', false, 'public')).toBeNull()
+    expect(destination('member', false, 'public')).toBeNull()
+  })
 })

@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { connectAuthEmulator, getAuth } from 'firebase/auth'
-import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
+import { connectFirestoreEmulator, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'
 
 export const app = initializeApp({
   apiKey: 'AIzaSyDit_axJ1UnfGOkZmrZuNddBfRXPwuqIgY',
@@ -12,7 +12,7 @@ export const app = initializeApp({
 })
 
 export const auth = getAuth(app)
-export const db = getFirestore(app)
+export const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) })
 
 if (import.meta.env.VITE_EMULATORS === '1') {
   connectAuthEmulator(auth, `http://127.0.0.1:${import.meta.env.VITE_AUTH_PORT || 9099}`, { disableWarnings: true })
