@@ -610,92 +610,173 @@ describe('rehearsals', () => {
   })
 })
 
-describe('the assistant registers gig requests', () => {
+describe('the assistant works through the audit trail', () => {
   const ASSISTANT = 'assistant@example.com'
-  const directory = { gigs: [], venues: [], presenters: [], people: [{ id: 'kyle', name: 'Kyle', status: 'active' as const, part: 'Bass', phone: '', emails: [] }] }
-  const plan = (fields: Record<string, unknown> = {}, by = ASSISTANT) => {
-    const { request, errors } = readRequest({ name: 'Tree Gala', dates: ['2026-12-05', '2026-12-12'], venue: 'Glass Hall', presenter: { name: 'Pat Lee', email: 'pat@example.com' }, fee: 3000, perSinger: 300, ...fields })
-    if (!request) throw new Error(errors.join('; '))
-    return planRequest(request, directory, by, 1)
-  }
-  function commit(db: ReturnType<typeof as>, p: RequestPlan, change: (path: string, data: Record<string, unknown>) => Record<string, unknown> | null = (_, d) => d) {
+  const person = { name: 'Russell', status: 'crew', part: 'Sound tech', phone: '', emails: [] }
+  type Options = { stamps?: string[]; audit?: Record<string, unknown>; head?: boolean; auditDoc?: boolean; by?: string }
+
+  async function change(db: ReturnType<typeof as>, path: string, after: Record<string, unknown> | null, o: Options = {}) {
+    const snap = await getDoc(doc(db, path)).catch(() => null)
+    const before = snap?.exists() ? snap.data() : null
+    const full = after && { ...after, ...Object.fromEntries((o.stamps ?? []).map((k) => [k, serverTimestamp()])) }
     const batch = writeBatch(db as unknown as Firestore)
-    for (const w of p.writes) {
-      const data = change(w.path, w.data)
-      if (data) batch.set(doc(db, w.path), w.stamped ? { ...data, createdAt: serverTimestamp() } : data)
-    }
-    for (const e of p.events) batch.set(doc(collection(db, 'events')), { gig: p.id, ...e, by: ASSISTANT, at: serverTimestamp() })
-    return batch.commit()
+    const audit = doc(collection(db, 'audit'))
+    if (full) batch.set(doc(db, path), full)
+    else batch.delete(doc(db, path))
+    if (o.auditDoc !== false) batch.set(audit, { path, before, after: full, by: o.by ?? ASSISTANT, at: serverTimestamp(), reason: 'Brett asked', ...o.audit })
+    if (o.head !== false) batch.set(doc(db, `auditHead/${o.by ?? ASSISTANT}`), { at: serverTimestamp(), paths: { [path]: audit.id } })
+    await batch.commit()
+    return audit.id
   }
 
   beforeEach(async () => {
-    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), `users/${ASSISTANT}`), { name: 'Robin', role: 'assistant' }))
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore()
+      await setDoc(doc(db, `users/${ASSISTANT}`), { name: 'Robin', role: 'assistant' })
+      await setDoc(doc(db, 'payments/p1'), { gig: 'g1', amount: 100 })
+      await setDoc(doc(db, 'inquiries/i1'), { name: 'Jane Doe', status: 'new' })
+    })
   })
 
   it('admins can give an address the Assistant role', async () => {
     await assertSucceeds(setDoc(doc(as('admin@example.com'), 'users/helper@example.com'), { name: 'Helper', role: 'assistant' }))
   })
 
-  it('creates a tentative gig with its new venue, presenter and to-dos in one write', async () => {
+  it('creates, changes and deletes band records when each write carries its audit record', async () => {
     const db = as(ASSISTANT)
-    const p = plan()
-    await assertSucceeds(commit(db, p))
-    await assertSucceeds(getDoc(doc(db, `gigs/${p.id}`)))
-    await assertSucceeds(getDocs(collection(db, 'people')))
+    await assertSucceeds(change(db, 'gigs/g1', { name: 'Sample gig', notes: 'Changed', money: { fee: 3200 } }))
+    await assertSucceeds(change(db, 'gigs/g2', { name: 'New gig', stage: 'confirmed' }))
+    await assertSucceeds(change(db, 'people/russell', person))
+    await assertSucceeds(change(db, 'payments/p1', null))
+    await assertSucceeds(change(db, 'gigs/g1/answers/kyle', { answer: 'yes', by: ASSISTANT }, { stamps: ['at'] }))
+    await assertSucceeds(change(db, 'gigs/g1/expenses/x1', { kind: 'meals', description: 'Pizza', amount: 40, by: ASSISTANT }, { stamps: ['at'] }))
+    await assertSucceeds(change(db, 'venues/glass-hall', { name: 'Glass Hall', address: '1 Main St' }))
+    await assertSucceeds(change(db, 'events/e2', { gig: 'g1', kind: 'note', by: ASSISTANT }, { stamps: ['at'] }))
+    await assertSucceeds(getDoc(doc(db, 'inquiries/i1')))
+    await assertSucceeds(getDocs(collection(db, 'gigs/g1/expenses')))
   })
 
-  it('can ask the band when it creates the gig', async () => {
-    await assertSucceeds(commit(as(ASSISTANT), plan({ ask: true })))
-  })
-
-  it('must leave a to-do for the managers', async () => {
-    await assertFails(commit(as(ASSISTANT), plan(), (path, d) => (path.startsWith('tasks/request-') ? null : d)))
-  })
-
-  it('cannot skip past tentative, record money received or sign as someone else', async () => {
+  it('keeps each collection shape, as for managers', async () => {
     const db = as(ASSISTANT)
-    const gig = (edit: Record<string, unknown>) => (path: string, d: Record<string, unknown>) => (path.startsWith('gigs/') ? { ...d, ...edit } : d)
-    await assertFails(commit(db, plan(), gig({ stage: 'confirmed' })))
-    await assertFails(commit(db, plan(), gig({ contract: 'signed' })))
-    await assertFails(commit(db, plan(), gig({ money: { fee: 3000, deposit: 0, paid: 3000, merch: 0 } })))
-    await assertFails(commit(db, plan(), gig({ performers: ['kyle'] })))
-    await assertFails(commit(db, plan({}, 'manager@example.com')))
+    await assertFails(change(db, 'people/russell', { ...person, status: 'boss' }))
+    await assertFails(change(db, 'gigs/g1/expenses/x1', { kind: 'meals', description: 'Pizza', amount: 40, by: 'manager@example.com' }, { stamps: ['at'] }))
+    await assertFails(change(db, 'inquiries/i1', { name: 'Jane Doe', status: 'replied', handledBy: ASSISTANT, message: 'x' }, { stamps: ['handledAt'] }))
+    await assertSucceeds(change(db, 'inquiries/i1', { name: 'Jane Doe', status: 'replied', handledBy: ASSISTANT }, { stamps: ['handledAt'] }))
   })
 
-  it('cannot reuse an old to-do to skip a new one', async () => {
-    const db = as(ASSISTANT)
-    const p = plan()
-    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), `tasks/request-${p.id}`), { kind: 'request', target: p.id, open: false }))
-    await assertFails(commit(db, p, (path, d) => (path.startsWith('tasks/request-') ? null : d)))
-  })
-
-  it('cannot add malformed details or a to-do with nothing behind it', async () => {
-    const db = as(ASSISTANT)
-    const gig = (edit: Record<string, unknown>) => (path: string, d: Record<string, unknown>) => (path.startsWith('gigs/') ? { ...d, ...edit } : d)
-    await assertFails(commit(db, plan(), gig({ money: { fee: -5, deposit: 0, paid: 0, merch: 0, perSinger: 0 } })))
-    await assertFails(commit(db, plan(), gig({ notes: 'x'.repeat(2001) })))
-    await assertFails(commit(db, plan(), gig({ dateOptions: ['2026-12-05', 'soon'] })))
-    await assertFails(setDoc(doc(db, 'tasks/venue-nowhere'), { kind: 'venue', target: 'nowhere', title: 'x', open: true, createdBy: ASSISTANT, createdAt: serverTimestamp() }))
-    await assertFails(setDoc(doc(db, 'venues/Not A Slug'), { name: 'Hall', address: '' }))
-  })
-
-  it('cannot change or delete anything that already exists', async () => {
+  it('is refused without the audit record or the pointer to it', async () => {
     const db = as(ASSISTANT)
     await assertFails(updateDoc(doc(db, 'gigs/g1'), { notes: 'Changed' }))
     await assertFails(deleteDoc(doc(db, 'gigs/g1')))
-    await assertFails(setDoc(doc(db, 'gigs/g1/answers/kyle'), { answer: 'yes', by: ASSISTANT, at: serverTimestamp() }))
-    await assertFails(setDoc(doc(db, 'people/kyle'), { name: 'Kyle', status: 'active', part: 'Bass', phone: '', emails: [] }))
-    await assertFails(setDoc(doc(db, 'payments/p1'), { gig: 'g1', amount: 100 }))
-    await assertFails(setDoc(doc(db, 'users/new@example.com'), { name: 'New', role: 'admin' }))
-    await assertFails(setDoc(doc(db, 'tasks/request-g1'), { kind: 'request', target: 'g1', title: 'x', open: true, createdBy: ASSISTANT, createdAt: serverTimestamp() }))
+    await assertFails(setDoc(doc(db, 'people/russell'), person))
+    await assertFails(setDoc(doc(db, 'events/e2'), { gig: 'g1', kind: 'note' }))
+    await assertFails(change(db, 'gigs/g1', { name: 'Renamed' }, { auditDoc: false }))
+    await assertFails(change(db, 'gigs/g1', { name: 'Renamed' }, { head: false }))
   })
 
-  it('cannot fill in a venue address or close a to-do', async () => {
+  it('is refused when the record does not match the change', async () => {
     const db = as(ASSISTANT)
-    const p = plan()
-    await assertSucceeds(commit(db, p))
-    await assertFails(updateDoc(doc(db, 'venues/glass-hall'), { address: '1 Main St' }))
-    await assertFails(updateDoc(doc(db, `tasks/request-${p.id}`), { open: false }))
+    await assertFails(change(db, 'gigs/g1', { name: 'Renamed' }, { audit: { before: { name: 'Something else' } } }))
+    await assertFails(change(db, 'gigs/g1', { name: 'Renamed' }, { audit: { before: null } }))
+    await assertFails(change(db, 'gigs/g1', { name: 'Renamed' }, { audit: { after: { name: 'Not what was written' } } }))
+    await assertFails(change(db, 'payments/p1', null, { audit: { after: { gig: 'g1', amount: 100 } } }))
+    await assertFails(change(db, 'gigs/g1', { name: 'Renamed' }, { audit: { path: 'gigs/g9' } }))
+    await assertFails(change(db, 'gigs/g1', { name: 'Renamed' }, { audit: { reason: '' } }))
+    await assertFails(change(db, 'gigs/g1', { name: 'Renamed' }, { audit: { undoOf: 'a1' } }))
+  })
+
+  it('cannot reuse an earlier record for a later write', async () => {
+    const db = as(ASSISTANT)
+    await assertSucceeds(change(db, 'gigs/g1', { name: 'Renamed' }))
+    await assertFails(updateDoc(doc(db, 'gigs/g1'), { name: 'Renamed again' }))
+    await assertFails(setDoc(doc(db, 'gigs/g1'), { name: 'Renamed' }))
+  })
+
+  it('cannot sign the record as someone else', async () => {
+    await assertFails(change(as(ASSISTANT), 'gigs/g1', { name: 'Renamed' }, { audit: { by: 'manager@example.com' } }))
+    await assertFails(change(as(ASSISTANT), 'gigs/g1', { name: 'Renamed' }, { by: 'manager@example.com' }))
+  })
+
+  it('cannot touch sign-in access, even with a record', async () => {
+    const db = as(ASSISTANT)
+    await assertFails(change(db, 'users/new@example.com', { name: 'New', role: 'admin' }))
+    await assertFails(change(db, `users/${ASSISTANT}`, { name: 'Robin', role: 'admin' }))
+    await assertFails(change(db, 'users/member@example.com', null))
+    await assertFails(getDocs(collection(db, 'users')))
+  })
+
+  it('never edits or deletes an audit record, and only managers read them', async () => {
+    const id = await change(as(ASSISTANT), 'gigs/g1', { name: 'Renamed' })
+    await assertFails(updateDoc(doc(as(ASSISTANT), `audit/${id}`), { reason: 'Edited' }))
+    await assertFails(deleteDoc(doc(as(ASSISTANT), `audit/${id}`)))
+    await assertFails(deleteDoc(doc(as('admin@example.com'), `audit/${id}`)))
+    await assertFails(updateDoc(doc(as('admin@example.com'), `audit/${id}`), { reason: 'Edited' }))
+    await assertFails(getDoc(doc(as('member@example.com'), `audit/${id}`)))
+    await assertFails(getDocs(collection(as('member@example.com'), 'audit')))
+    await assertFails(getDoc(doc(as(ASSISTANT), `audit/${id}`)))
+    await assertSucceeds(getDocs(collection(as('manager@example.com'), 'audit')))
+    await assertFails(setDoc(doc(as('member@example.com'), 'audit/fake'), { path: 'gigs/g1', before: { name: 'Renamed' }, after: { name: 'Renamed' }, by: 'member@example.com', at: serverTimestamp(), reason: 'x' }))
+  })
+
+  it('a manager undoes a change with a record of its own', async () => {
+    const assistant = as(ASSISTANT)
+    const id = await change(assistant, 'gigs/g1', { name: 'Renamed' })
+    const manager = as('manager@example.com')
+    const undo = (before: unknown, after: Record<string, unknown>) => {
+      const batch = writeBatch(manager as unknown as Firestore)
+      batch.set(doc(manager, 'gigs/g1'), after)
+      batch.set(doc(collection(manager, 'audit')), { path: 'gigs/g1', before, after, by: 'manager@example.com', at: serverTimestamp(), reason: 'Undo', undoOf: id })
+      return batch.commit()
+    }
+    await assertFails(undo({ name: 'Wrong' }, { name: 'Sample gig' }))
+    await assertSucceeds(undo({ name: 'Renamed' }, { name: 'Sample gig' }))
+    const created = await change(assistant, 'people/russell', person)
+    const batch = writeBatch(manager as unknown as Firestore)
+    batch.delete(doc(manager, 'people/russell'))
+    batch.set(doc(collection(manager, 'audit')), { path: 'people/russell', before: person, after: null, by: 'manager@example.com', at: serverTimestamp(), reason: 'Undo', undoOf: created })
+    await assertSucceeds(batch.commit())
+  })
+
+  describe('gig requests', () => {
+    const directory = { gigs: [], venues: [], presenters: [], people: [{ id: 'kyle', name: 'Kyle', status: 'active' as const, part: 'Bass', phone: '', emails: [] }] }
+    const plan = (fields: Record<string, unknown> = {}) => {
+      const { request, errors } = readRequest({ name: 'Tree Gala', dates: ['2026-12-05', '2026-12-12'], venue: 'Glass Hall', presenter: { name: 'Pat Lee', email: 'pat@example.com' }, fee: 3000, perSinger: 300, ...fields })
+      if (!request) throw new Error(errors.join('; '))
+      return planRequest(request, directory, ASSISTANT, 1)
+    }
+    function commit(db: ReturnType<typeof as>, p: RequestPlan, audited = true) {
+      const batch = writeBatch(db as unknown as Firestore)
+      const paths: Record<string, string> = {}
+      const writes = [
+        ...p.writes.map((w) => ({ path: w.path, data: w.stamped ? { ...w.data, createdAt: serverTimestamp() } : w.data })),
+        ...p.events.map((e, i) => ({ path: `events/${p.id}-${i}`, data: { gig: p.id, ...e, by: ASSISTANT, at: serverTimestamp() } })),
+      ]
+      for (const w of writes) {
+        batch.set(doc(db, w.path), w.data)
+        if (!audited) continue
+        const audit = doc(collection(db, 'audit'))
+        paths[w.path] = audit.id
+        batch.set(audit, { path: w.path, before: null, after: w.data, by: ASSISTANT, at: serverTimestamp(), reason: 'Gig request' })
+      }
+      if (audited) batch.set(doc(db, `auditHead/${ASSISTANT}`), { at: serverTimestamp(), paths })
+      return batch.commit()
+    }
+
+    it('creates a tentative gig with its new venue, presenter, to-dos and band ask in one audited write', async () => {
+      const db = as(ASSISTANT)
+      const p = plan({ ask: true })
+      await assertSucceeds(commit(db, p))
+      await assertSucceeds(getDoc(doc(db, `gigs/${p.id}`)))
+      let audits = 0
+      await env.withSecurityRulesDisabled(async (ctx) => {
+        audits = (await getDocs(collection(ctx.firestore(), 'audit'))).size
+      })
+      expect(audits).toBe(p.writes.length + p.events.length)
+    })
+
+    it('is refused without the audit records', async () => {
+      await assertFails(commit(as(ASSISTANT), plan(), false))
+    })
   })
 })
 

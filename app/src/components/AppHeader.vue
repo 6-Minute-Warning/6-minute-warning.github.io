@@ -37,6 +37,7 @@ function close() {
           <div class="menu">
             <strong>{{ auth.realAccess?.name }}</strong>
             <span class="muted">{{ auth.realAccess ? roleLabels[auth.realAccess.role] : '' }} · {{ auth.realEmail }}</span>
+            <RouterLink v-if="auth.isManager" to="/activity" class="btn btn--ghost" @click="close">Assistant activity</RouterLink>
             <ViewAsPicker v-if="auth.canViewAs && open" @picked="close" />
             <button type="button" class="btn btn--ghost" @click="auth.signOut()">Sign out</button>
           </div>

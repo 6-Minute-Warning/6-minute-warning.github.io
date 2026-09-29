@@ -4,7 +4,7 @@ import { destination } from '@/lib/destination'
 
 declare module 'vue-router' {
   interface RouteMeta {
-    access?: 'public' | 'guest' | 'no-access' | 'member' | 'admin'
+    access?: 'public' | 'guest' | 'no-access' | 'member' | 'manager' | 'admin'
   }
 }
 
@@ -20,6 +20,7 @@ const router = createRouter({
     { path: '/tours/new', name: 'new-tour', component: () => import('@/views/NewTourView.vue'), meta: { access: 'member' } },
     { path: '/tours/:id', name: 'tour', component: () => import('@/views/TourView.vue'), meta: { access: 'member' } },
     { path: '/roster', name: 'roster', component: () => import('@/views/RosterView.vue'), meta: { access: 'member' } },
+    { path: '/activity', name: 'activity', component: () => import('@/views/ActivityView.vue'), meta: { access: 'manager' } },
     { path: '/access', name: 'access', component: () => import('@/views/AccessView.vue'), meta: { access: 'admin' } },
     { path: '/sign-in', name: 'sign-in', component: () => import('@/views/SignInView.vue'), meta: { access: 'guest' } },
     { path: '/no-access', name: 'no-access', component: () => import('@/views/NoAccessView.vue'), meta: { access: 'no-access' } },
@@ -31,7 +32,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuth()
   await auth.init()
-  const name = destination(auth.status, auth.isAdmin, to.meta.access)
+  const name = destination(auth.status, auth.isAdmin, to.meta.access, auth.isManager)
   return name && name !== to.name ? { name } : true
 })
 

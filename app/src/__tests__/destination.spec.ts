@@ -29,6 +29,12 @@ describe('destination', () => {
     expect(destination('member', true, 'admin')).toBeNull()
   })
 
+  it('lets only managers onto manager pages', () => {
+    expect(destination('member', false, 'manager')).toBe('home')
+    expect(destination('member', false, 'manager', true)).toBeNull()
+    expect(destination('member', true, 'manager')).toBeNull()
+  })
+
   it('lets anyone open public pages', () => {
     expect(destination('signed-out', false, 'public')).toBeNull()
     expect(destination('member', false, 'public')).toBeNull()
