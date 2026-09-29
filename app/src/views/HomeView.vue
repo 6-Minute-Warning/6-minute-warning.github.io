@@ -8,6 +8,7 @@ import FollowUps from '@/components/FollowUps.vue'
 import GigFacts from '@/components/GigFacts.vue'
 import InquiryCard from '@/components/InquiryCard.vue'
 import PollCard from '@/components/PollCard.vue'
+import InstallCard from '@/components/InstallCard.vue'
 import PushPrompt from '@/components/PushPrompt.vue'
 import RehearsalAsk from '@/components/RehearsalAsk.vue'
 import RehearsalCard from '@/components/RehearsalCard.vue'
@@ -92,6 +93,7 @@ function ago(g: { call?: { openedAt: number } }) {
   <main class="page home">
     <h1>Hi {{ auth.access?.name?.split(' ')[0] }}</h1>
     <p v-if="error" class="error" role="alert">✕ {{ error }}</p>
+    <InstallCard />
     <PushPrompt v-if="auth.isManager" :topics="['inquiries']" what="new booking inquiries" />
 
     <section class="block">
