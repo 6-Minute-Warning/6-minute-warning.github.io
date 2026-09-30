@@ -1,4 +1,5 @@
 import type { Gig } from './gigs'
+import { voiceParts } from './people'
 
 export const SHARES = 8
 export const SINGER_SEATS = 6
@@ -26,6 +27,7 @@ export interface PayoutLine {
   key: string
   role: 'singer' | 'sound' | 'group'
   person: string
+  voice: string
   amount: number
 }
 
@@ -33,6 +35,7 @@ export interface Payout {
   fee: number
   expenses: number
   net: number
+  divisor: number
   exact: number
   calculated: number
   share: number
@@ -40,7 +43,7 @@ export interface Payout {
   lines: PayoutLine[]
   group: number
   remainder: number
-  soundTechShareToGroup: boolean
+  openSeats: number
 }
 
 export interface PayoutInput {
@@ -49,49 +52,68 @@ export interface PayoutInput {
   performers: string[]
   soundTech: string
   manualShare?: number | null
+  voiceOf?: (person: string) => string
+  final?: boolean
 }
 
 const cents = (dollars: number) => Math.round((Number.isFinite(dollars) ? dollars : 0) * 100)
 const dollars = (c: number) => c / 100
 
-/** One share of the net: net / 8, rounded down to the nearest $25, never below zero. */
-export function shareOf(net: number): number {
+/** One share of the net: net / divisor (8 for six singers, sound and the group), rounded down to the nearest $25, never below zero. */
+export function shareOf(net: number, divisor = SHARES): number {
   const step = ROUND_TO * 100
   const c = cents(net)
-  return c <= 0 ? 0 : dollars(Math.floor(c / SHARES / step) * step)
+  return c <= 0 ? 0 : dollars(Math.floor(c / divisor / step) * step)
 }
 
-/** Splits fee minus expenses into six singer lines, a sound tech line and the group account, which takes whatever is left. */
+/** Voice parts still missing from the booked singers, in seat order. */
+export function openVoices(filled: string[]): string[] {
+  const left = [...voiceParts] as string[]
+  for (const v of filled) {
+    const i = left.indexOf(v)
+    if (i >= 0) left.splice(i, 1)
+  }
+  return left
+}
+
+/** Six singer seats, a sound seat and the group. Open seats hold their share until the gig is done; after that the split is by who played. */
 export function payout(input: PayoutInput): Payout {
+  const voiceOf = input.voiceOf ?? (() => '')
   const fee = cents(input.fee)
   const spent = input.expenses.reduce((sum, e) => sum + Math.max(0, cents(e.amount)), 0)
   const net = fee - spent
-  const calculated = cents(shareOf(dollars(net)))
+  const singers = input.performers
+  const people = singers.length + (input.soundTech ? 1 : 0)
+  const divisor = input.final ? Math.max(1, people) + 1 : Math.max(SINGER_SEATS, singers.length) + 2
+  const calculated = cents(shareOf(dollars(net), divisor))
   const manual = input.manualShare != null && Number.isFinite(input.manualShare) && input.manualShare >= 0
   const share = manual ? cents(input.manualShare as number) : calculated
 
-  const seats = Math.max(SINGER_SEATS, input.performers.length)
-  const lines: PayoutLine[] = Array.from({ length: seats }, (_, i) => {
-    const person = input.performers[i] ?? ''
-    return { key: person || `seat-${i + 1}`, role: 'singer', person, amount: dollars(share) }
-  })
-  if (input.soundTech) lines.push({ key: input.soundTech, role: 'sound', person: input.soundTech, amount: dollars(share) })
+  const missing = openVoices(singers.map(voiceOf))
+  const openSinger = input.final ? 0 : Math.max(0, SINGER_SEATS - singers.length)
+  const lines: PayoutLine[] = [
+    ...singers.map((person) => ({ key: person, role: 'singer' as const, person, voice: voiceOf(person), amount: dollars(share) })),
+    ...Array.from({ length: openSinger }, (_, i) => ({ key: `seat-${i + 1}`, role: 'singer' as const, person: '', voice: missing[i] ?? '', amount: dollars(share) })),
+  ]
+  if (input.soundTech) lines.push({ key: input.soundTech, role: 'sound', person: input.soundTech, voice: 'Sound', amount: dollars(share) })
+  else if (!input.final) lines.push({ key: 'seat-sound', role: 'sound', person: '', voice: 'Sound', amount: dollars(share) })
 
   const group = net - lines.reduce((sum, l) => sum + cents(l.amount), 0)
-  lines.push({ key: GROUP, role: 'group', person: '', amount: dollars(group) })
+  lines.push({ key: GROUP, role: 'group', person: '', voice: '', amount: dollars(group) })
 
   return {
     fee: dollars(fee),
     expenses: dollars(spent),
     net: dollars(net),
-    exact: dollars(Math.max(0, Math.floor(net / SHARES))),
+    divisor,
+    exact: dollars(Math.max(0, Math.floor(net / divisor))),
     calculated: dollars(calculated),
     share: dollars(share),
     manual,
     lines,
     group: dollars(group),
-    remainder: dollars(group - (input.soundTech ? share : 2 * share)),
-    soundTechShareToGroup: !input.soundTech,
+    remainder: dollars(group - share),
+    openSeats: lines.filter((l) => l.role !== 'group' && !l.person).length,
   }
 }
 

@@ -3,12 +3,12 @@ import { computed, ref, watch } from 'vue'
 import { addDoc, collection, deleteDoc, deleteField, doc, FieldPath, getDocsFromServer, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { day, logEvent, money, today, useCollection } from '@/lib/db'
-import { SHARES, SINGER_SEATS, expenseKinds, expenseLabels, isManualPay, payout, shareOf, type Expense, type ExpenseKind, type PayoutLine } from '@/lib/payout'
+import { expenseKinds, expenseLabels, isManualPay, payout, shareOf, type Expense, type ExpenseKind, type PayoutLine } from '@/lib/payout'
 import type { Gig } from '@/lib/gigs'
 import { useAuth } from '@/stores/auth'
 import { useToast } from '@/stores/toast'
 
-const props = defineProps<{ id: string; gig: Gig; nameOf: (pid: string) => string }>()
+const props = defineProps<{ id: string; gig: Gig; nameOf: (pid: string) => string; voiceOf?: (pid: string) => string }>()
 
 const auth = useAuth()
 const toast = useToast()
@@ -24,13 +24,13 @@ const result = computed(() =>
     performers: props.gig.performers ?? [],
     soundTech: props.gig.soundTech ?? '',
     manualShare: manual.value ? (props.gig.money?.perSinger ?? 0) : null,
+    voiceOf: props.voiceOf,
+    final: props.gig.stage === 'done',
   }),
 )
 const paidOut = computed(() => props.gig.money?.paidOut ?? {})
 const payable = computed(() => result.value.lines.filter((l) => l.amount > 0 && (l.person || l.role === 'group')))
 const paidCount = computed(() => payable.value.filter((l) => paidOut.value[l.key]).length)
-const openSeats = computed(() => result.value.lines.filter((l) => l.role === 'singer' && !l.person).length)
-const singerCount = computed(() => result.value.lines.filter((l) => l.role === 'singer').length)
 
 async function syncPay() {
   const spent = await getDocsFromServer(collection(db, 'gigs', props.id, 'expenses'))
@@ -39,7 +39,7 @@ async function syncPay() {
     const money = (snap.data() as Gig | undefined)?.money
     if (!snap.exists() || isManualPay(money)) return
     const net = (money?.fee ?? 0) - spent.docs.reduce((sum, d) => sum + Math.max(0, Number(d.data().amount) || 0), 0)
-    const share = shareOf(net)
+    const share = shareOf(net, result.value.divisor)
     if ((money?.perSinger ?? 0) !== share || money?.payManual !== false) tx.update(snap.ref, { 'money.perSinger': share, 'money.payManual': false })
   })
 }
@@ -122,14 +122,10 @@ function lineName(line: PayoutLine) {
 
 function lineNote(line: PayoutLine) {
   const r = result.value
-  if (line.role === 'sound') return 'Sound tech'
-  if (line.role === 'singer') return line.person ? '' : 'Not filled yet'
+  if (line.role !== 'group') return [line.voice, line.person ? '' : 'not filled yet'].filter(Boolean).join(' · ')
   if (r.group < 0) return `Shares exceed what's left of the fee by ${money(-r.group)}`
-  if (r.manual || singerCount.value > SINGER_SEATS) return "What's left after the shares"
-  const parts = [`${money(r.share)} group share`]
-  if (r.soundTechShareToGroup && r.share) parts.push(`${money(r.share)} sound tech's share`)
-  if (r.remainder) parts.push(`${money(r.remainder)} rounding`)
-  return parts.join(' + ')
+  if (r.manual) return "What's left after the shares"
+  return r.remainder ? `${money(r.share)} group share + ${money(r.remainder)} rounding` : `${money(r.share)} group share`
 }
 </script>
 
@@ -166,7 +162,7 @@ function lineNote(line: PayoutLine) {
 
     <div class="rule small">
       <p v-if="result.net > 0" class="muted">
-        {{ money(result.net) }} ÷ {{ SHARES }} = {{ money(result.exact) }}<template v-if="result.exact !== result.calculated">, rounded down to {{ money(result.calculated) }}</template>
+        {{ money(result.net) }} ÷ {{ result.divisor }} = {{ money(result.exact) }}<template v-if="result.exact !== result.calculated">, rounded down to {{ money(result.calculated) }}</template>
       </p>
       <p v-else-if="result.fee" class="warn">Expenses cover the whole fee. Nothing to split.</p>
       <p v-if="manual">
@@ -228,9 +224,7 @@ function lineNote(line: PayoutLine) {
         </li>
       </ul>
     </div>
-    <p v-if="result.soundTechShareToGroup" class="muted small">No sound tech yet: their share goes to the group.</p>
-    <p v-if="openSeats" class="muted small">{{ openSeats }} of {{ singerCount }} singer seats open. Their shares are held.</p>
-    <p v-if="singerCount > SINGER_SEATS" class="warn small">{{ singerCount }} singers, but the split assumes {{ SINGER_SEATS }}. The extra pay comes from the group account.</p>
+    <p v-if="result.openSeats" class="muted small">{{ result.openSeats }} {{ result.openSeats === 1 ? 'seat is' : 'seats are' }} open. Their shares are held until someone fills them.</p>
   </section>
 </template>
 

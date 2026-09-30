@@ -67,13 +67,27 @@ describe('payout', () => {
     expect(loss.group).toBe(-150)
   })
 
-  it('gives the group the sound tech share when nobody is on sound', () => {
+  it('holds an open sound seat instead of giving its share to the group', () => {
     const p = payout({ fee: 3100, expenses: [{ amount: 600 }], performers: six, soundTech: '' })
-    expect(p.lines.some((l) => l.role === 'sound')).toBe(false)
-    expect(p.soundTechShareToGroup).toBe(true)
-    expect(p.share).toBe(300)
-    expect(p.group).toBe(700)
-    expect(p.remainder).toBe(100)
+    const sound = p.lines.find((l) => l.role === 'sound')
+    expect(sound).toMatchObject({ person: '', voice: 'Sound', amount: 300 })
+    expect(p.openSeats).toBe(1)
+    expect(p.group).toBe(400)
+  })
+
+  it('names the voice part each open seat still needs', () => {
+    const voices: Record<string, string> = { ana: 'T1', ben: 'Bass' }
+    const p = payout({ fee: 3100, expenses: [], performers: ['ana', 'ben'], soundTech: 'russ', voiceOf: (id) => voices[id] ?? '' })
+    expect(p.lines.filter((l) => l.role === 'singer').map((l) => l.voice)).toEqual(['T1', 'Bass', 'T2', 'T3/VP', 'T4', 'Bari/VP'])
+  })
+
+  it('splits among who played once the gig is done', () => {
+    const p = payout({ fee: 3100, expenses: [{ amount: 600 }], performers: ['ana', 'ben', 'cal', 'dee', 'eli'], soundTech: 'russ', final: true })
+    expect(p.divisor).toBe(7)
+    expect(p.share).toBe(350)
+    expect(p.lines.filter((l) => l.role !== 'group')).toHaveLength(6)
+    expect(p.group).toBe(400)
+    expect(total(p)).toBe(2500)
   })
 
   it('keeps a share for each empty seat until the lineup is full', () => {
@@ -111,11 +125,12 @@ describe('payout', () => {
     expect(payout({ fee: 3200, expenses: [], performers: six, soundTech: 'russ', manualShare: null }).manual).toBe(false)
   })
 
-  it('pays a seventh singer from the group rather than shrinking everyone', () => {
+  it('divides by one more when a seventh singer performs', () => {
     const p = payout({ fee: 3200, expenses: [], performers: [...six, 'gus'], soundTech: 'russ' })
     expect(p.lines.filter((l) => l.role === 'singer')).toHaveLength(7)
-    expect(p.share).toBe(400)
-    expect(p.group).toBe(0)
+    expect(p.divisor).toBe(9)
+    expect(p.share).toBe(350)
+    expect(p.group).toBe(400)
   })
 
   it('ends with the group line', () => {

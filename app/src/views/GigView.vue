@@ -19,6 +19,7 @@ import { DEFAULT_OUTFIT, clashes, contractLabels, contractStates, outfitLabel, o
 import { dateSaid, hasOptions, optionClashes, optionsText } from '@/lib/options'
 import { askLine, pollAsked } from '@/lib/people'
 import { myPersonId, usePoll } from '@/lib/poll'
+import { openVoices } from '@/lib/payout'
 import { useAuth } from '@/stores/auth'
 import { useToast } from '@/stores/toast'
 
@@ -60,6 +61,8 @@ const clashNames = computed(() => (gig.value && !options.value ? clashes(sameWee
 const showShare = computed(() => route.query.share === '1')
 const asked = computed(() => !!gig.value?.call?.asked.includes(me.value))
 const lineupNames = computed(() => summary.value?.lineup.map(nameOf) ?? [])
+const voiceOf = (pid: string) => (byId.value.get(pid) as { voice?: string } | undefined)?.voice ?? ''
+const openParts = computed(() => (summary.value && summary.value.state !== 'full' ? openVoices((summary.value.lineup ?? []).map(voiceOf)) : []))
 const waitingText = computed(() => {
   const s = summary.value
   if (!s) return ''
@@ -266,6 +269,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
             <strong class="display">{{ summary.lineup.length }} of {{ LINEUP_SIZE }} in</strong>
             <span v-if="lineupNames.length">{{ lineupNames.map((n) => (n === nameOf(me) ? 'You' : n.split(' ')[0])).join(', ') }}</span>
             <span :class="{ gap: !summary.sound }">{{ summary.sound ? `Sound: ${summary.sound === me ? 'you' : firstName(summary.sound)}` : 'Sound: nobody yet' }}</span>
+            <span v-if="openParts.length" class="open">Still open: {{ openParts.join(', ') }}</span>
             <span v-if="waitingText && summary.state !== 'full'" class="muted">{{ waitingText }}</span>
           </div>
         </div>
@@ -469,7 +473,7 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
             </details>
           </div>
 
-          <PayoutCard :id="id" :gig="gig" :name-of="nameOf" />
+          <PayoutCard :id="id" :gig="gig" :name-of="nameOf" :voice-of="voiceOf" />
         </div>
       </section>
     </template>
@@ -703,6 +707,11 @@ const answerLabel = (a: { answer: Answer; until?: string } | undefined) =>
 .count {
   display: grid;
   gap: 2px;
+}
+
+.count .open {
+  color: var(--color-warning);
+  font-weight: 600;
 }
 
 .count .display {
