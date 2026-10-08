@@ -1,0 +1,23 @@
+{
+  "name": "@6mw/functions",
+  "private": true,
+  "version": "0.0.0",
+  "type": "commonjs",
+  "main": "lib/index.js",
+  "engines": { "node": "22" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "type-check": "tsc --noEmit",
+    "test": "firebase emulators:exec --only firestore --project demo-6mw \"vitest run\""
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.4",
+    "firebase-tools": "^15.30.2",
+    "typescript": "~5.9.0",
+    "vitest": "^4.1.11"
+  }
+}

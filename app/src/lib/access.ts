@@ -1,6 +1,6 @@
 export const OWNER_EMAIL = 'brett@6minutewarning.com'
 
-export const roles = ['admin', 'manager', 'director', 'member', 'assistant'] as const
+export const roles = ['admin', 'manager', 'director', 'member'] as const
 export type Role = (typeof roles)[number]
 
 export const roleLabels: Record<Role, string> = {
@@ -8,7 +8,6 @@ export const roleLabels: Record<Role, string> = {
   manager: 'Manager',
   director: 'Music director',
   member: 'Singer',
-  assistant: 'Assistant',
 }
 
 export const duties = ['scheduler'] as const

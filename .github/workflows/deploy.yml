@@ -77,7 +77,7 @@ jobs:
           service_account: github-deploy@six-minute-warning.iam.gserviceaccount.com
       - run: npx -y npm@11.19.1 ci
       - run: npx -y npm@11.19.1 run build -w @6mw/app
-      - run: npx -y firebase-tools@15 deploy --only hosting,firestore:rules --project six-minute-warning --non-interactive
+      - run: npx -y firebase-tools@15 deploy --only hosting,firestore:rules,functions --project six-minute-warning --non-interactive
 
   backstage-preview:
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
