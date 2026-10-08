@@ -1,7 +1,7 @@
 import { duties, normalizeEmail, roleLabels, roles, type AccessRecord, type Duty, type Role } from './access'
 import { strongestRole } from './people'
 
-export const viewRoles: Role[] = ['member', 'director', 'manager', 'assistant']
+export const viewRoles: Role[] = ['member', 'director', 'manager']
 
 export interface ViewAs {
   role: Role

@@ -5,15 +5,16 @@
     "theme",
     "site",
     "app",
-    "firestore"
+    "firestore",
+    "functions"
   ],
   "scripts": {
     "dev:site": "npm run dev -w @6mw/site",
     "dev:app": "npm run dev -w @6mw/app",
     "build": "npm run build --workspaces --if-present",
-    "check": "npm run check -w @6mw/site && npm run type-check -w @6mw/app",
+    "check": "npm run check -w @6mw/site && npm run type-check -w @6mw/app && npm run type-check -w @6mw/functions",
     "test": "npm run test:unit -w @6mw/app -- --run",
-    "test:rules": "npm test -w @6mw/firestore"
+    "test:rules": "npm test -w @6mw/firestore && npm test -w @6mw/functions"
   },
   "engines": {
     "node": ">=22.18.0"

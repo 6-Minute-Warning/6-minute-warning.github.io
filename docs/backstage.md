@@ -7,7 +7,7 @@ The band's management app, replacing Notion. First priority: gigs, contracts and
 - Vue 3 + Vite single-page app in `app/`, served at app.6minutewarning.com from Firebase Hosting.
 - Firebase Authentication with Google sign-in, limited to band members.
 - Firestore for records. Files (contracts, photos) stay in the band's shared Google Drive; Firestore holds the links.
-- Cloud Functions for work the browser can't do: filling the contract template, sending email as manager@6minutewarning.com, and creating Google Calendar events.
+- Cloud Functions (`functions/`, Node 22, region northamerica-northeast1, Blaze plan) for work the browser can't do. Today that is the assistant API; contract filling, email as manager@6minutewarning.com and calendar sync are planned.
 - Colours come from `theme/theme.css`, shared with the site.
 
 ## Access
@@ -120,23 +120,24 @@ New gig is a button at the top of Gigs that opens its own page. Saving asks the 
 
 Brett's assistant, a person or an AI agent, adds gig requests without the web app. Each request lands like a gig made on New gig: tentative, the venue and presenter matched to ones used before (loose match, as in the search boxes) or added with a to-do, and the band asked only when the request says so. Every request also gets a manager to-do on Home, a card showing the dates, facts, contact, fee and any gig already on those days, with Open gig and Mark checked. The gig page shows a From the assistant chip, and the gig records who sent it in `createdBy`.
 
-There is no server to run, so it works on Firebase's free Spark plan. The assistant signs in as its own Backstage user and writes to Firestore directly; the security rules make it audit every write.
+The assistant calls the assistant API, a Cloud Function, with an API key. It does not sign in to Backstage and has no `users/` record.
 
-### One-time setup (Brett)
+### Getting the key
 
-1. Firebase console, Authentication, Sign-in method: add Email/Password.
-2. Pick an address only you control, such as assistant@6minutewarning.com, and a long random password. Give both to the assistant as `BACKSTAGE_EMAIL` and `BACKSTAGE_PASSWORD`.
-3. Run `BACKSTAGE_EMAIL=… BACKSTAGE_PASSWORD=… node tools/gig-request.mts --setup`, then open the verification link it sends to that inbox.
-4. On the Access page, add the address with the Assistant role.
+The key lives in Secret Manager as `ASSISTANT_API_KEY`. Whoever has Firebase access to the project prints it with:
 
-To cut the assistant off, remove the address on the Access page. To change the password, use Authentication, Users in the Firebase console.
+```
+npx firebase functions:secrets:access ASSISTANT_API_KEY --project six-minute-warning
+```
+
+Give it to the assistant as `BACKSTAGE_API_KEY`. To rotate it, run `npx firebase functions:secrets:set ASSISTANT_API_KEY --project six-minute-warning` and redeploy (merge to `main`, or `firebase deploy --only functions`); the old key stops working once the new revision serves. To cut the assistant off, disable the secret version or delete the function.
 
 ### Sending a request
 
 Node 22.18 or later, from a checkout of this repo:
 
 ```
-export BACKSTAGE_EMAIL=assistant@6minutewarning.com BACKSTAGE_PASSWORD=…
+export BACKSTAGE_API_KEY=…
 node tools/gig-request.mts --dry-run request.json   # prints the plan; saves nothing
 node tools/gig-request.mts request.json             # use - for stdin
 ```
@@ -171,42 +172,70 @@ node tools/gig-request.mts request.json             # use - for stdin
 
 The script prints the new gig's id and link, whether it added a venue or presenter, and how many members it asked. Unknown fields, bad dates and negative amounts are refused with every problem listed. A gig with the same name and earliest date is refused with a link to the existing one.
 
-### What the rules allow
+### What the API does
 
-The request goes through the same audited path as every other assistant write (below): one commit holds the gig, any new venue and presenter, their to-dos, the event log entries and an audit record for each. The documents come from `planRequest` in `app/src/lib/request.ts`.
+`tools/gig-request.mts` plans the documents and `commit`s them. The documents come from `planRequest` in `app/src/lib/request.ts`.
 
 ## Assistant API
 
-The Assistant role reads and writes every band collection a manager can, with each collection's shape rules unchanged. It cannot touch `users/` (sign-in access), push tokens or the audit trail itself.
+One HTTPS function, `assistant`, in `functions/src/`. Every call is `POST` with a JSON body and the header `Authorization: Bearer <key>`:
 
-Every assistant write must carry, in the same commit, an `audit/{id}` record and the pointer `auditHead/{assistant email}` = `{ at, paths: { "<doc path>": "<audit id>" } }`. The rules read both with `getAfter` and refuse the write unless the record's `path` is the written document, `before` equals the document before the write (`null` on create), `after` equals it after (`null` on delete), `by` is the signed-in address and `at` is the commit time. Records carry a `reason` (1 to 500 characters), are never changed or deleted, and only managers read them. `tools/assistant.mts` does all of this for you; `firestore/rules.test.ts` covers the rules.
+```
+https://northamerica-northeast1-six-minute-warning.cloudfunctions.net/assistant
+```
+
+The function runs with the Admin SDK, so Firestore rules do not apply to it. It enforces its own limits instead. It reads and writes the collections in the table below, never `users/`, `pushTokens/` or `audit/`. Each write runs in a transaction that reads the document, applies the change and writes an `audit/{id}` record in the same commit, so the audit does not depend on the caller. The record is `{ path, before, after, by: "assistant", at, reason }`; `at` is the commit time, `reason` is required (1 to 500 characters) and the Assistant activity page and Undo read it unchanged. A change that leaves the document as it was writes no record. A request that fails writes nothing.
+
+The function refuses a gig without a name and a `YYYY-MM-DD` date, a tour without a name, `start` and `end` in order and a `days` list, and any change to an existing `events/` entry. Other shapes are the caller's to keep; the app's own rules still apply when a manager later edits the record.
+
+| `action` | Body (besides `action`) | Reply |
+|---|---|---|
+| `get` | `path` | `doc` |
+| `list` | `collection` (up to 2000 documents) | `docs` |
+| `query` | `collection`, `where: [{field, op, value}]`, `orderBy: [{field, desc?}]`, `limit` (default 500) | `docs` |
+| `set`, `update`, `delete` | `path`, `data` (not for delete), `now`, `reason`, `dryRun` | `audit` (path to audit id), `docs` (path to the saved document) |
+| `commit` | `changes: [{op, path, data, now}]` (up to 200), `reason`, `dryRun` | as above; all or nothing |
+
+`update` merges top-level or dotted keys into the document (`"money.fee": 3200`); `{"$delete": true}` removes a field. `set` replaces the whole document. `now` lists fields set to the commit time (`at`, `createdAt`, `handledAt`); the audit copy gets the same value. `{"$time": "2026-10-01T19:00:00Z"}` writes a timestamp, and timestamps come back in that form. `where` ops are `==`, `!=`, `<`, `<=`, `>`, `>=`, `in` and `array-contains`. `dryRun: true` returns each change's `before` and `after` and saves nothing. Errors are `{ "error": "..." }` with 400 for a bad request, 401 for a missing or wrong key, 404 for a missing document and 409 for an event log entry.
+
+Cloud Functions logs hold the server side. `functions/test/assistant.test.ts` covers the API against the Firestore emulator, including a check that its collection list matches the audit path rule in `firestore/firestore.rules`.
 
 ### Undo
 
-Managers see every record, newest first with a field diff, under Assistant activity in the account menu (`/activity`). Undo writes `before` back, or deletes a created document, in one commit with its own audit record marked `undoOf`. It refuses when the document has changed since the assistant's write, since that would lose the newer edit. Undo passes the same rules as a manager's own edit, so some restores are refused: an event log entry (nobody deletes those), an inquiry (its `handledBy` must be the manager), and a gig, expense or answer whose restored `rehearsals.by`, `by` or `at` names someone else.
+Managers see every record, newest first with a field diff, under Assistant activity in the account menu (`/activity`). Undo writes `before` back, or deletes a created document, in one commit with its own audit record marked `undoOf`, written by the manager's browser under the rules. It refuses when the document has changed since the assistant's write, since that would lose the newer edit. Undo passes the same rules as a manager's own edit, so some restores are refused: an event log entry (nobody deletes those), an inquiry (its `handledBy` must be the manager), and a gig, expense or answer whose restored `by` or `at` names someone else.
 
 ### Tool
 
-Uses the same `BACKSTAGE_EMAIL` and `BACKSTAGE_PASSWORD` as the gig request script. Paths are Firestore paths such as `gigs/2026-12-05-tree-gala` or `gigs/2026-12-05-tree-gala/answers/kyle`. Reads print JSON; writes print the audit id and the saved document. `--dry-run` shows `before` and `after` without saving.
+`tools/assistant.mts` wraps the API for a shell. It needs `BACKSTAGE_API_KEY`; `BACKSTAGE_API_URL` overrides the endpoint. Paths are Firestore paths such as `gigs/2026-12-05-tree-gala` or `gigs/2026-12-05-tree-gala/answers/kyle`. Reads print JSON; writes print the audit ids and the saved documents. `--dry-run` shows `before` and `after` without saving.
 
 ```
 node tools/assistant.mts get gigs/2026-12-05-tree-gala
 node tools/assistant.mts list venues
 node tools/assistant.mts query gigs --where "stage == tentative" --where "date >= 2026-10-01" --order date --limit 20
 node tools/assistant.mts update gigs/2026-12-05-tree-gala '{"time":"7:30pm","money.fee":3200}' --reason "Presenter moved the start and raised the fee"
-node tools/assistant.mts set gigs/2026-12-05-tree-gala/expenses/pizza '{"kind":"meals","description":"Pizza","amount":40,"by":"assistant@6minutewarning.com"}' --now at --reason "Receipt from Kyle"
+node tools/assistant.mts set gigs/2026-12-05-tree-gala/expenses/pizza '{"kind":"meals","description":"Pizza","amount":40,"by":"assistant"}' --now at --reason "Receipt from Kyle"
 node tools/assistant.mts delete venues/old-hall --reason "Duplicate of Old Town Hall"
 ```
 
-`update` merges top-level or dotted keys into the current document; `{"$delete": true}` removes a field. `set` replaces the whole document. `--now a,b` sets those fields to the commit time, which the rules demand for fields such as `at`, `createdAt` and `handledAt`. `{"$time": "2026-10-01T19:00:00Z"}` writes a timestamp. `--where` takes `==`, `!=`, `<`, `<=`, `>`, `>=`, `in` and `array-contains`; a value is read as JSON when it parses, otherwise as text. A write fails, and says so, if the document changed between the read and the commit.
+### Calendar import
+
+`tools/calendar-import.mts` brings the band calendar's future events into Backstage, once or whenever the calendar has grown. Give it the calendar's events as JSON, and it writes a plan file before anything is saved:
+
+```
+node tools/calendar-import.mts plan events.json plan.json
+node tools/calendar-import.mts apply plan.json --dry-run
+node tools/calendar-import.mts apply plan.json
+```
+
+`planImport` in `app/src/lib/calendarImport.ts` does the matching. Past events are ignored. Expense notes, recordings and rehearsals are skipped. A tour event (a title with "tour") becomes a tour, with the events inside its dates as its days, unless a tour already overlaps those dates. Any other event becomes a gig: the stage comes from the title ("tentative", "contracting", "confirmed"; no word means confirmed) and the description goes in the notes. An event whose day already has a gig is matched to it instead of duplicated; where several gigs share the day it picks the one with matching words in the name and otherwise skips the event for a person to settle. Matched records only gain what they lack: `calendarEventId`, notes when empty, a start time when empty. Nothing in Backstage is overwritten, and a disagreement about stage is listed in the plan's notes. `apply` sends the whole plan as one `commit`, so each record gets an audit row and Undo works.
 
 ### Collections
 
-| Path | Fields | Assistant |
+| Path | Fields | Through the API |
 |---|---|---|
-| `gigs/{id}` | name, date, dateOptions, time, venue, presenter, stage, notes, contact{name,email,phone}, money{fee,deposit,paid,merch,perSinger}, contract, performers, soundTech, sets, outfit, call{…}, rehearsals{needed,note,by,at,lineupKey}, createdAt, createdBy, via | create, update, delete; a changed `rehearsals` is signed by the assistant with `at` stamped |
-| `gigs/{id}/answers/{person}` | answer (yes, no, later), until, by, at; or dates{day: answer}, times | answer for a singer, `by` the assistant, `at` stamped |
-| `gigs/{id}/expenses/{id}` | kind, description, amount, by, at | create, update, delete; `by` the assistant, `at` stamped |
+| `gigs/{id}` | name, date, dateOptions, time, venue, presenter, stage, notes, contact{name,email,phone}, money{fee,deposit,paid,merch,perSinger}, contract, performers, soundTech, sets, outfit, call{…}, rehearsals{needed,note,by,at,lineupKey}, createdAt, createdBy, via | create, update, delete; send `rehearsals.at` in `now` |
+| `gigs/{id}/answers/{person}` | answer (yes, no, later), until, by, at; or dates{day: answer}, times | answer for a singer; name them in `by` and send `at` in `now` |
+| `gigs/{id}/expenses/{id}` | kind, description, amount, by, at | create, update, delete; send `at` in `now` |
 | `tours/{id}` | name, start, end, rough, places, days, version, covered, notCovered, perSinger, commitBy, notes, stage, call, lineup, createdAt, createdBy | create, update, delete |
 | `tours/{id}/answers/{person}` | answer (all, some, no, later), days, until, note, version, by, at | as gig answers |
 | `rehearsals/{id}` | date, start, end, place, address, gigs, notes, calendarEventId, createdBy, createdAt | create, update, delete |
@@ -216,10 +245,9 @@ node tools/assistant.mts delete venues/old-hall --reason "Duplicate of Old Town 
 | `presenters/{id}` | name, email, phone, techName, techEmail, techPhone | create, update, delete |
 | `tasks/{id}` | kind, target, title, open, createdBy, createdAt; follow-ups add reason, name, email, due, snoozedUntil and more | create, update, delete |
 | `contracts/{id}`, `payments/{id}` | free-form | create, update, delete |
-| `inquiries/{id}` | name, email, message, status, handledBy, handledAt, gig | read; update status, `handledBy` the assistant, `handledAt` stamped |
-| `events/{id}` | gig, kind, detail, by, at | create |
-| `users/{email}`, `pushTokens/{id}` | | none |
-| `audit/{id}` | path, before, after, by, at, reason, undoOf | written with each change; never read, changed or deleted |
+| `inquiries/{id}` | name, email, message, status, handledBy, handledAt, gig | read; update status, `handledBy` and `handledAt` (in `now`) |
+| `events/{id}` | gig, kind, detail, by, at | create; never changed after |
+| `users/{email}`, `pushTokens/{id}`, `audit/{id}` | | refused; the server writes `audit/` itself |
 
 ## On phones
 
@@ -227,7 +255,7 @@ Backstage installs to the home screen: on Android, Chrome's menu, Install app; o
 
 ## Notifications
 
-Managers turn on notifications from Home, once per phone. On iPhone that works only after Add to Home Screen. Each device saves a token to `pushTokens`; the booking form's Apps Script reads the tokens for a topic and sends through the Firebase Cloud Messaging HTTP API, with no Cloud Functions, so the Spark plan is enough. `app/public/sw.js` shows the notification and opens the link it carries. Setup is in `site/apps-script/README.md`.
+Managers turn on notifications from Home, once per phone. On iPhone that works only after Add to Home Screen. Each device saves a token to `pushTokens`; the booking form's Apps Script reads the tokens for a topic and sends through the Firebase Cloud Messaging HTTP API, and does not use Cloud Functions; moving that to functions is ticketed separately (6MW-48). `app/public/sw.js` shows the notification and opens the link it carries. Setup is in `site/apps-script/README.md`. Moving these to Cloud Functions is ticketed separately (6MW-48).
 
 ## Band poll
 
@@ -267,7 +295,7 @@ The tour page shows a strip of days, each with the lineup dial filling toward si
 
 ## Deploys
 
-Merging to `main` deploys Backstage to https://six-minute-warning.web.app and releases the Firestore rules. Pull requests get their own preview URL, and CI adds that URL to the Firebase sign-in domains so people can log in on it. CI authenticates through workload identity federation, so no service account key exists.
+Merging to `main` deploys Backstage to https://six-minute-warning.web.app, releases the Firestore rules and deploys the Cloud Functions. Pull requests get their own preview URL, and CI adds that URL to the Firebase sign-in domains so people can log in on it. CI authenticates through workload identity federation, so no service account key exists. The `github-deploy` service account holds the roles a functions deploy needs: Cloud Functions Admin, Cloud Run Admin, Service Account User, Secret Manager Admin, Artifact Registry Admin and Cloud Scheduler Admin. `npm test` runs the functions tests against the Firestore emulator along with the rules tests.
 
 ## Roles
 
@@ -278,7 +306,6 @@ Merging to `main` deploys Backstage to https://six-minute-warning.web.app and re
 | Scheduler (a job on Roster, on any role) | Book, edit and cancel rehearsals |
 | Manager | All of the above, plus create and delete gigs, edit money, contract state and presenter contacts, and manage the roster, venues and payments |
 | Admin | All of the above, plus grant and remove sign-in access |
-| Assistant | Everything a manager can do to band records, each change audited and undoable from Assistant activity. Can't grant or remove sign-in access |
 
 ## View as
 

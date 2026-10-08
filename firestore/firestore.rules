@@ -44,40 +44,12 @@ service cloud.firestore {
       return person != '' && exists(path) && 'scheduler' in get(path).data.get('jobs', []);
     }
 
-    function isAssistant() {
-      return signedIn() && !isOwner() && exists(userDoc()) && get(userDoc()).data.role == 'assistant';
-    }
-
-    function isSinger() {
-      return isMember() && !isAssistant();
-    }
-
-    function isStaff() {
-      return isManager() || isAssistant();
-    }
-
-    function audited(p) {
-      let id = getAfter(/databases/$(database)/documents/auditHead/$(email())).data.paths.get(p, '');
-      let a = getAfter(/databases/$(database)/documents/audit/$(id)).data;
-      return a.path == p && a.by == email() && a.at == request.time
-        && ((resource == null && a.before == null) || (resource != null && a.before == resource.data))
-        && ((request.method == 'delete' && a.after == null) || (request.method != 'delete' && a.after == request.resource.data));
-    }
-
-    function assisted(p) {
-      return isAssistant() && audited(p);
-    }
-
-    function manages(p) {
-      return isManager() || assisted(p);
-    }
-
     function validUser() {
       let d = request.resource.data;
       return d.keys().hasOnly(['name', 'role', 'person', 'duties', 'addedAt', 'addedBy'])
         && (!('person' in d) || (d.person is string && d.person.size() <= 80))
         && (!('duties' in d) || (d.duties is list && d.duties.hasOnly(['scheduler'])))
-        && d.role in ['admin', 'manager', 'director', 'member', 'assistant']
+        && d.role in ['admin', 'manager', 'director', 'member']
         && d.name is string && d.name.size() <= 120;
     }
 
@@ -124,7 +96,7 @@ service cloud.firestore {
 
     function rehearsalsOk() {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['rehearsals'])
-        || ((isManager() || isDirector() || isAssistant()) && 'rehearsals' in request.resource.data && validRehearsals());
+        || ((isManager() || isDirector()) && 'rehearsals' in request.resource.data && validRehearsals());
     }
 
     function isDay(value) {
@@ -144,10 +116,10 @@ service cloud.firestore {
 
     match /gigs/{id} {
       allow read: if isMember();
-      allow create: if manages('gigs/' + id) && validCall() && validRehearsals() && validDateOptions();
-      allow delete: if manages('gigs/' + id);
-      allow update: if validCall() && rehearsalsOk() && validDateOptions() && (manages('gigs/' + id)
-        || (isSinger()
+      allow create: if isManager() && validCall() && validRehearsals() && validDateOptions();
+      allow delete: if isManager();
+      allow update: if validCall() && rehearsalsOk() && validDateOptions() && (isManager()
+        || (isMember()
           && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['money', 'contract', 'contact', 'dateOptions'])
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['stage']) || abandons())
           && (wasAbandoned() || request.resource.data.get('call', {}).get('abandoned', false) != true || abandons())));
@@ -202,8 +174,8 @@ service cloud.firestore {
 
       match /answers/{person} {
         allow read: if isMember();
-        allow delete: if isSinger() || assisted('gigs/' + id + '/answers/' + person);
-        allow create, update: if (isSinger() || assisted('gigs/' + id + '/answers/' + person)) && (validAnswer() || validDateAnswer());
+        allow delete: if isMember();
+        allow create, update: if isMember() && (validAnswer() || validDateAnswer());
       }
 
       function validExpense() {
@@ -217,9 +189,9 @@ service cloud.firestore {
       }
 
       match /expenses/{expense} {
-        allow read: if isStaff();
-        allow delete: if manages('gigs/' + id + '/expenses/' + expense);
-        allow create, update: if manages('gigs/' + id + '/expenses/' + expense) && validExpense();
+        allow read: if isManager();
+        allow delete: if isManager();
+        allow create, update: if isManager() && validExpense();
       }
     }
 
@@ -236,7 +208,7 @@ service cloud.firestore {
 
     function validTour() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['name', 'start', 'end', 'rough', 'places', 'days', 'version', 'covered', 'notCovered', 'perSinger', 'commitBy', 'notes', 'stage', 'call', 'lineup', 'createdAt', 'createdBy'])
+      return d.keys().hasOnly(['name', 'start', 'end', 'rough', 'places', 'days', 'version', 'covered', 'notCovered', 'perSinger', 'commitBy', 'notes', 'stage', 'call', 'lineup', 'createdAt', 'createdBy', 'calendarEventId'])
         && d.name is string && d.name.size() > 0 && d.name.size() <= 120
         && isDate(d.start) && isDate(d.end) && d.start <= d.end
         && d.rough is bool
@@ -246,7 +218,8 @@ service cloud.firestore {
         && (d.commitBy == '' || isDate(d.commitBy))
         && d.stage in ['planning', 'committed', 'cancelled']
         && (!('call' in d) || validTourCall(d.call))
-        && (!('lineup' in d) || d.lineup is map);
+        && (!('lineup' in d) || d.lineup is map)
+        && (!('calendarEventId' in d) || d.calendarEventId is string);
     }
 
     function validTourAnswer() {
@@ -265,27 +238,27 @@ service cloud.firestore {
 
     match /tours/{id} {
       allow read: if isMember();
-      allow create, update: if manages('tours/' + id) && validTour();
-      allow update: if isSinger() && validTour()
+      allow create, update: if isManager() && validTour();
+      allow update: if isMember() && validTour()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['call'])
         && request.resource.data.call.diff(resource.data.call).affectedKeys().hasOnly(['subbing']);
-      allow delete: if manages('tours/' + id);
+      allow delete: if isManager();
 
       match /answers/{person} {
         allow read: if isMember();
-        allow delete: if isSinger() || assisted('tours/' + id + '/answers/' + person);
-        allow create, update: if (isSinger() || assisted('tours/' + id + '/answers/' + person)) && validTourAnswer();
+        allow delete: if isMember();
+        allow create, update: if isMember() && validTourAnswer();
       }
     }
 
     match /contracts/{id} {
       allow read: if isMember();
-      allow write: if manages('contracts/' + id);
+      allow write: if isManager();
     }
 
     match /payments/{id} {
       allow read: if isMember();
-      allow write: if manages('payments/' + id);
+      allow write: if isManager();
     }
 
     function validPerson() {
@@ -303,13 +276,13 @@ service cloud.firestore {
 
     match /people/{id} {
       allow read: if isMember();
-      allow delete: if manages('people/' + id);
-      allow create, update: if manages('people/' + id) && validPerson();
+      allow delete: if isManager();
+      allow create, update: if isManager() && validPerson();
     }
 
     match /presenters/{id} {
       allow read: if isMember();
-      allow write: if manages('presenters/' + id);
+      allow write: if isManager();
     }
 
     function validTask() {
@@ -336,13 +309,13 @@ service cloud.firestore {
 
     match /tasks/{id} {
       allow read: if isMember();
-      allow delete: if manages('tasks/' + id);
-      allow create, update: if manages('tasks/' + id) && validTask();
+      allow delete: if isManager();
+      allow create, update: if isManager() && validTask();
     }
 
     match /venues/{id} {
       allow read: if isMember();
-      allow write: if manages('venues/' + id);
+      allow write: if isManager();
     }
 
     function validRehearsal() {
@@ -361,8 +334,8 @@ service cloud.firestore {
 
     match /rehearsals/{id} {
       allow read: if isMember();
-      allow create, update: if (isScheduler() || assisted('rehearsals/' + id)) && validRehearsal();
-      allow delete: if isScheduler() || assisted('rehearsals/' + id);
+      allow create, update: if isScheduler() && validRehearsal();
+      allow delete: if isScheduler();
 
       function validReply() {
         let d = request.resource.data;
@@ -374,19 +347,19 @@ service cloud.firestore {
 
       match /replies/{person} {
         allow read: if isMember();
-        allow delete: if isSinger() || assisted('rehearsals/' + id + '/replies/' + person);
-        allow create, update: if (isSinger() || assisted('rehearsals/' + id + '/replies/' + person)) && validReply();
+        allow delete: if isMember();
+        allow create, update: if isMember() && validReply();
       }
     }
 
     match /events/{id} {
       allow read: if isMember();
-      allow create: if isSinger() || assisted('events/' + id);
+      allow create: if isMember();
     }
 
     match /inquiries/{id} {
-      allow read: if isStaff();
-      allow update: if manages('inquiries/' + id)
+      allow read: if isManager();
+      allow update: if isManager()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'handledBy', 'handledAt', 'gig'])
         && request.resource.data.status in ['new', 'replied', 'booked', 'declined', 'spam']
         && request.resource.data.handledBy == email()
@@ -418,11 +391,6 @@ service cloud.firestore {
         && (!('undoOf' in d) || d.undoOf is string);
     }
 
-    function pointedAt(id) {
-      let head = getAfter(/databases/$(database)/documents/auditHead/$(email())).data;
-      return head.at == request.time && head.paths.get(request.resource.data.path, '') == id;
-    }
-
     function matchesChange() {
       let d = request.resource.data;
       let p = path('/databases/' + database + '/documents/' + d.path);
@@ -432,16 +400,7 @@ service cloud.firestore {
 
     match /audit/{id} {
       allow read: if isManager();
-      allow create: if validAudit()
-        && ((isAssistant() && !('undoOf' in request.resource.data) && pointedAt(id)) || (isManager() && matchesChange()));
-    }
-
-    match /auditHead/{who} {
-      allow read: if isManager() || (isAssistant() && who == email());
-      allow create, update: if isAssistant() && who == email()
-        && request.resource.data.keys().hasOnly(['at', 'paths'])
-        && request.resource.data.at == request.time
-        && request.resource.data.paths is map;
+      allow create: if isManager() && validAudit() && matchesChange();
     }
 
     match /pushTokens/{id} {

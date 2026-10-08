@@ -104,7 +104,7 @@ send a real inquiry through `/book/` to confirm it arrives.
 
 The script writes to Firestore and sends notifications with its own OAuth
 token (`ScriptApp.getOAuthToken()`), so there is no service account key and
-no Cloud Functions; the Firebase project stays on the free Spark plan. Firestore
+no Cloud Functions. Firestore
 calls made with a Google account's token skip the security rules and use that
 account's IAM access instead, so the account set under Execute as (the one that deployed the web app) needs:
 
