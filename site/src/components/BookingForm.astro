@@ -93,12 +93,13 @@ const { eventType = "", heading = "Check your date" } = Astro.props;
       status.dataset.state = "";
       status.textContent = "Sending…";
       try {
+        // Apps Script redirects only after doPost has run; following it to the echo URL fails intermittently.
         const response = await fetch(endpoint, {
           method: "POST",
           body: new URLSearchParams(data as unknown as Record<string, string>),
+          redirect: "manual",
         });
-        const result = await response.json();
-        if (!result.ok) throw new Error(result.error);
+        if (response.type !== "opaqueredirect") throw new Error(String(response.status));
         form.reset();
         loadedAt = Date.now();
         status.dataset.state = "ok";
