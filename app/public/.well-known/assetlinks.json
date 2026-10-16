@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.sixminutewarning.backstage",
+      "sha256_cert_fingerprints": [
+        "BF:37:79:73:11:1D:3F:C4:98:14:F9:DB:E3:AD:5A:1E:1A:1E:A1:52:E7:B2:3A:30:C4:9D:8E:78:30:D7:6A:1D"
+      ]
+    }
+  }
+]
