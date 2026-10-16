@@ -30,7 +30,7 @@ export const assistant = onRequest({ region: REGION, secrets: [apiKey], cors: fa
   }
 })
 
-export const broadcast = onCall({ region: REGION, memory: '256MiB', maxInstances: 5 }, async (req) => {
+export const broadcast = onCall({ region: REGION, invoker: 'public', memory: '256MiB', maxInstances: 5 }, async (req) => {
   try {
     const db = getFirestore()
     const email = req.auth?.token.email_verified ? req.auth.token.email : undefined
