@@ -94,7 +94,7 @@ function ago(g: { call?: { openedAt: number } }) {
     <h1>Hi {{ auth.access?.name?.split(' ')[0] }}</h1>
     <p v-if="error" class="error" role="alert">✕ {{ error }}</p>
     <InstallCard />
-    <PushPrompt v-if="auth.isManager" :topics="['inquiries']" what="new booking inquiries" />
+    <PushPrompt :topics="auth.isManager ? ['inquiries', 'broadcast'] : ['broadcast']" :what="auth.isManager ? 'new booking inquiries and band announcements' : 'band announcements'" />
 
     <section class="block">
       <h2 class="eyebrow" :class="{ hot: count }">Needs you{{ count ? ` · ${count}` : '' }}</h2>

@@ -21,6 +21,7 @@ const router = createRouter({
     { path: '/tours/:id', name: 'tour', component: () => import('@/views/TourView.vue'), meta: { access: 'member' } },
     { path: '/roster', name: 'roster', component: () => import('@/views/RosterView.vue'), meta: { access: 'member' } },
     { path: '/activity', name: 'activity', component: () => import('@/views/ActivityView.vue'), meta: { access: 'manager' } },
+    { path: '/broadcast', name: 'broadcast', component: () => import('@/views/BroadcastView.vue'), meta: { access: 'manager' } },
     { path: '/access', name: 'access', component: () => import('@/views/AccessView.vue'), meta: { access: 'admin' } },
     { path: '/sign-in', name: 'sign-in', component: () => import('@/views/SignInView.vue'), meta: { access: 'guest' } },
     { path: '/no-access', name: 'no-access', component: () => import('@/views/NoAccessView.vue'), meta: { access: 'no-access' } },

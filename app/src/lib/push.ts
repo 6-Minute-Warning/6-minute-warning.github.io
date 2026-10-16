@@ -1,7 +1,7 @@
 import { deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { app, db } from './firebase'
 
-export const pushTopics = ['inquiries'] as const
+export const pushTopics = ['inquiries', 'broadcast'] as const
 export type PushTopic = (typeof pushTopics)[number]
 
 export type PushState = 'unsupported' | 'install-first' | 'default' | 'granted' | 'denied'
