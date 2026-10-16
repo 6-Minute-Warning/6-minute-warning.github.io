@@ -22,5 +22,11 @@
   "allowScripts": {
     "esbuild": true
   },
-  "packageManager": "npm@11.19.1"
+  "packageManager": "npm@11.19.1",
+  "devDependencies": {
+    "@types/node": "^24.13.4",
+    "firebase-tools": "^15.30.2",
+    "typescript": "~5.9.0",
+    "vitest": "^4.1.11"
+  }
 }
