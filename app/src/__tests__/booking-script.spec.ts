@@ -174,4 +174,61 @@ describe('booking form script', () => {
     expect(p.date).toBe('')
     expect(p.message).toHaveLength(4000)
   })
+
+  describe('broadcast', () => {
+    const LOOKUP = 'https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=AIzaSyDit_axJ1UnfGOkZmrZuNddBfRXPwuqIgY'
+    const send = (parameter: Record<string, string>) => JSON.parse(load().doPost({ parameter: { action: 'broadcast', idToken: 'good', title: 'Update', body: 'Load-in at 4', ...parameter } }))
+
+    function signedInAs(email: string, emailVerified = true) {
+      const base = replies
+      replies = (call) => (call.url === LOOKUP ? { code: 200, body: { users: [{ email, emailVerified }] } } : base(call))
+    }
+
+    it('sends to every broadcast phone, not only managers', () => {
+      signedInAs('Manager@Example.com')
+      expect(send({})).toEqual({ ok: true, sent: 2, devices: 3 })
+      const pushes = calls.filter((c) => c.url.includes('fcm.googleapis.com'))
+      expect(pushes.map((c) => (c.body as { message: { token: string } }).message.token)).toEqual(['fcm-t1', 'fcm-t2', 'fcm-t3'])
+      const data = (pushes[0]!.body as { message: { data: Record<string, string> } }).message.data
+      expect(data).toMatchObject({ title: 'Update', body: 'Load-in at 4', link: '/' })
+      expect(calls.filter((c) => c.url.endsWith('/users/member%40example.com'))).toHaveLength(0)
+    })
+
+    it('defaults the title', () => {
+      signedInAs('manager@example.com')
+      send({ title: '  ' })
+      const data = (calls.find((c) => c.url.includes('fcm.googleapis.com'))!.body as { message: { data: Record<string, string> } }).message.data
+      expect(data.title).toBe('6MW Backstage')
+    })
+
+    it('refuses a token Firebase does not accept', () => {
+      replies = (call) => (call.url === LOOKUP ? { code: 400 } : { code: 200 })
+      expect(send({})).toEqual({ ok: false, error: 'Sign in again, then retry.' })
+      expect(calls.some((c) => c.url.includes('fcm.googleapis.com'))).toBe(false)
+    })
+
+    it('refuses an unverified email', () => {
+      signedInAs('manager@example.com', false)
+      expect(send({}).ok).toBe(false)
+    })
+
+    it('refuses a member who is not a manager', () => {
+      signedInAs('member@example.com')
+      expect(send({})).toEqual({ ok: false, error: 'Only managers can send a broadcast.' })
+      expect(calls.some((c) => c.url.includes('fcm.googleapis.com'))).toBe(false)
+    })
+
+    it('refuses an empty or oversized message', () => {
+      signedInAs('manager@example.com')
+      expect(send({ body: '   ' }).ok).toBe(false)
+      expect(send({ body: 'x'.repeat(501) }).ok).toBe(false)
+      expect(calls.some((c) => c.url.includes('fcm.googleapis.com'))).toBe(false)
+    })
+
+    it('stops after twenty broadcasts in an hour', () => {
+      signedInAs('manager@example.com')
+      for (let i = 0; i < 20; i++) expect(send({}).ok).toBe(true)
+      expect(send({}).ok).toBe(false)
+    })
+  })
 })

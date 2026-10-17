@@ -100,6 +100,15 @@ Message, Budget`. Without the property the form still works; only the email goes
 Put the `/exec` URL in `bookingEndpoint` in `../src/data/site.ts`, rebuild, and
 send a real inquiry through `/book/` to confirm it arrives.
 
+## Broadcasts
+
+A manager's message from Backstage's Send a broadcast page posts `action=broadcast`
+with `idToken` (the manager's Firebase ID token), `title` (optional) and `body`.
+The script verifies the token with Identity Toolkit, checks the sender is an admin
+or manager, then pushes to every device subscribed to the `broadcast` topic. It
+replies `{"ok": true, "sent": n, "devices": n}` or `{"ok": false, "error": "…"}`.
+Broadcasts are capped at 20 an hour.
+
 ## Backstage and phone notifications
 
 The script writes to Firestore and sends notifications with its own OAuth
