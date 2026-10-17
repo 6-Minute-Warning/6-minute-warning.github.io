@@ -3,14 +3,21 @@ const OWNER = "brett@6minutewarning.com";
 const PROJECT = "six-minute-warning";
 const FIRESTORE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
 const FCM = `https://fcm.googleapis.com/v1/projects/${PROJECT}/messages:send`;
+const WEB_API_KEY = "AIzaSyDit_axJ1UnfGOkZmrZuNddBfRXPwuqIgY";
+const LOOKUP = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${WEB_API_KEY}`;
 const MIN_FILL_MS = 3000;
 const PUSHES_PER_HOUR = 10;
+const BROADCASTS_PER_HOUR = 20;
+const MANAGER_TOPICS = ["inquiries"];
+const BROADCAST_LIMITS = { title: 60, body: 500 };
+const BROADCAST_TITLE = "6MW Backstage";
 const FIELDS = ["name", "email", "phone", "eventType", "date", "location", "message", "budget"];
 const LIMITS = { name: 120, email: 160, phone: 40, eventType: 60, date: 10, location: 160, message: 4000, budget: 60 };
 const SPAM_WORDS =
   /\b(seo|backlinks?|crypto|bitcoin|casino|viagra|cialis|forex|payday loans?|guest posts?|link building|web design services|first page of google|increase (your )?(traffic|sales|ranking))\b/i;
 
 function doPost(e) {
+  if (e.parameter.action === "broadcast") return json(broadcast(e.parameter));
   const raw = e.parameter;
   const p = clean(raw);
   const verdict = judge(raw, p);
@@ -71,11 +78,11 @@ function judge(raw, p) {
 }
 
 /** Caps notifications per hour so a flood of forged submissions can't keep buzzing phones. */
-function underPushCap() {
+function underPushCap(key = "pushes", max = PUSHES_PER_HOUR) {
   const cache = CacheService.getScriptCache();
-  const sent = Number(cache.get("pushes") || 0);
-  if (sent >= PUSHES_PER_HOUR) return false;
-  cache.put("pushes", String(sent + 1), 3600);
+  const sent = Number(cache.get(key) || 0);
+  if (sent >= max) return false;
+  cache.put(key, String(sent + 1), 3600);
   return true;
 }
 
@@ -98,20 +105,51 @@ function saveInquiry(p) {
   return firestore("post", "/inquiries", { fields }).name.split("/").pop();
 }
 
-/** Sends a notification to every manager device subscribed to the topic; returns how many it reached. */
+/** Sends a notification to every device subscribed to the topic (managers only for manager topics); returns how many it reached. */
 function sendPush(topic, note) {
+  return deliver(topic, note).sent;
+}
+
+function deliver(topic, note) {
   const roles = {};
+  const managersOnly = MANAGER_TOPICS.includes(topic);
   let sent = 0;
+  let devices = 0;
   for (const doc of subscribers(topic)) {
     const f = doc.fields;
     const email = f.email.stringValue;
-    if (!(email in roles)) roles[email] = attempt("role check", () => isManager(email)) === true;
-    if (!roles[email]) continue;
+    if (managersOnly) {
+      if (!(email in roles)) roles[email] = attempt("role check", () => isManager(email)) === true;
+      if (!roles[email]) continue;
+    }
+    devices++;
     const code = fcm(f.token.stringValue, note);
     if (code === 404) firestore("delete", `/pushTokens/${doc.name.split("/").pop()}`);
     else if (code < 300) sent++;
   }
-  return sent;
+  return { sent, devices };
+}
+
+/** Sends a manager's message to every phone subscribed to broadcasts. */
+function broadcast(params) {
+  const email = attempt("token check", () => verifiedEmail(params.idToken));
+  if (!email) return { ok: false, error: "Sign in again, then retry." };
+  if (attempt("role check", () => isManager(email)) !== true) return { ok: false, error: "Only managers can send a broadcast." };
+  const title = String(params.title || "").trim().slice(0, BROADCAST_LIMITS.title) || BROADCAST_TITLE;
+  const body = String(params.body || "").trim();
+  if (!body) return { ok: false, error: "Write a message to send." };
+  if (body.length > BROADCAST_LIMITS.body) return { ok: false, error: `Keep the message under ${BROADCAST_LIMITS.body} characters.` };
+  if (!underPushCap("broadcasts", BROADCASTS_PER_HOUR)) return { ok: false, error: "Too many broadcasts this hour. Try again later." };
+  const result = attempt("broadcast", () => deliver("broadcast", { title, body, link: "/", tag: `broadcast-${Date.now()}` }));
+  return result ? { ok: true, ...result } : { ok: false, error: "The broadcast could not be sent. Try again." };
+}
+
+function verifiedEmail(idToken) {
+  if (!idToken) return null;
+  const res = UrlFetchApp.fetch(LOOKUP, { method: "post", contentType: "application/json", payload: JSON.stringify({ idToken }), muteHttpExceptions: true });
+  if (res.getResponseCode() !== 200) return null;
+  const user = (JSON.parse(res.getContentText()).users || [])[0];
+  return user && user.emailVerified && user.email ? user.email.toLowerCase() : null;
 }
 
 function subscribers(topic) {
