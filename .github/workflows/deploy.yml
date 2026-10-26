@@ -60,7 +60,7 @@ jobs:
 
   backstage:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    needs: test
+    needs: [test, apk]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -77,10 +77,15 @@ jobs:
           service_account: github-deploy@six-minute-warning.iam.gserviceaccount.com
       - run: npx -y npm@11.19.1 ci
       - run: npx -y npm@11.19.1 run build -w @6mw/app
+      - uses: actions/download-artifact@v4
+        with:
+          name: 6mw-backstage-apk
+          path: app/dist
+      - run: mv app/dist/6mw-backstage.apk app/dist/6mw.apk
       - run: npx -y firebase-tools@15 deploy --only hosting,firestore:rules,functions --project six-minute-warning --non-interactive
 
   apk:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event.action != 'closed' && github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
