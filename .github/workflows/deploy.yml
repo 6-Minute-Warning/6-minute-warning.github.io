@@ -82,6 +82,7 @@ jobs:
           name: 6mw-backstage-apk
           path: app/dist
       - run: mv app/dist/6mw-backstage.apk app/dist/6mw.apk
+      - run: npx -y firebase-tools@15 functions:artifacts:setpolicy --location northamerica-northeast1 --days 1 --force --project six-minute-warning --non-interactive
       - run: npx -y firebase-tools@15 deploy --only hosting,firestore:rules,functions --project six-minute-warning --non-interactive
 
   apk:

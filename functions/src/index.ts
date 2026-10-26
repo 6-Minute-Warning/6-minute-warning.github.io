@@ -1,10 +1,9 @@
 import { initializeApp } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 import { defineSecret } from 'firebase-functions/params'
-import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https'
+import { onRequest } from 'firebase-functions/v2/https'
 import { ApiError, handle } from './assistant'
 import { keyMatches } from './auth'
-import { BroadcastError, parseMessage, requireManager, send } from './broadcast'
 import { API_KEY_SECRET, REGION } from './constants'
 
 initializeApp()
@@ -27,18 +26,5 @@ export const assistant = onRequest({ region: REGION, secrets: [apiKey], cors: fa
       console.error(e)
       res.status(500).json({ error: 'The server could not finish that. Try again.' })
     }
-  }
-})
-
-export const broadcast = onCall({ region: REGION, memory: '256MiB', maxInstances: 5 }, async (req) => {
-  try {
-    const db = getFirestore()
-    const email = req.auth?.token.email_verified ? req.auth.token.email : undefined
-    await requireManager(db, email)
-    return await send(db, parseMessage(req.data))
-  } catch (e) {
-    if (e instanceof BroadcastError) throw new HttpsError(e.code, e.message)
-    console.error(e)
-    throw new HttpsError('internal', 'The broadcast could not be sent. Try again.')
   }
 })

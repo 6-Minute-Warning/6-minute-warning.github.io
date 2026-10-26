@@ -32,10 +32,3 @@ const group = (names: readonly string[]) => names.join('|')
 export const DOC_PATH = new RegExp(`^(${group(COLLECTIONS)})/[^/]+(/(${group(SUBCOLLECTIONS)})/[^/]+)?$`)
 export const COLLECTION_PATH = new RegExp(`^(${group(COLLECTIONS)})(/[^/]+/(${group(SUBCOLLECTIONS)}))?$`)
 export const DAY = /^\d{4}-\d{2}-\d{2}$/
-
-export const OWNER_EMAIL = 'brett@6minutewarning.com'
-export const BROADCAST_TOPIC = 'broadcast'
-export const PUSH_TOKENS = 'pushTokens'
-export const BROADCAST_LIMITS = { title: 60, body: 500 } as const
-export const BROADCAST_TITLE = '6MW Backstage'
-export const MANAGER_ROLES = ['admin', 'manager'] as const
