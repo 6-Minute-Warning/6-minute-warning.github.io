@@ -17,8 +17,8 @@
   "maskableIconUrl": "https://six-minute-warning.web.app/icon-maskable-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
-    "path": "/home/brett/.cache/claude-tmp/claude-1000/-home-brett-Documents-dev-6mw-6minutewarning-com/9bda91d1-575f-4a95-a8b1-7b823b9eaa19/scratchpad/android.keystore",
-    "alias": "android"
+    "path": "/home/brett/.local/share/6mw/android-release.keystore",
+    "alias": "backstage"
   },
   "appVersionName": "1",
   "appVersionCode": 1,
@@ -36,7 +36,12 @@
   "fullScopeUrl": "https://six-minute-warning.web.app/",
   "minSdkVersion": 24,
   "orientation": "default",
-  "fingerprints": [],
+  "fingerprints": [
+    {
+      "name": "release",
+      "value": "31:8B:A0:74:36:C0:E9:4B:48:C1:87:B7:AC:B5:09:AD:09:80:76:1B:62:C9:DD:0F:79:CE:C1:0A:2C:BE:DB:5C"
+    }
+  ],
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "protocolHandlers": [],
