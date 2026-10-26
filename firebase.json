@@ -14,7 +14,7 @@
   "hosting": {
     "site": "six-minute-warning",
     "public": "app/dist",
-    "ignore": ["firebase.json", "**/.*"],
+    "ignore": ["firebase.json", "**/.DS_Store", "**/.git*"],
     "rewrites": [{ "source": "**", "destination": "/index.html" }],
     "headers": [
       { "source": "**", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] },

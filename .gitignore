@@ -34,3 +34,11 @@ firebase-debug.log
 
 # clasp project config (holds the Apps Script scriptId)
 .clasp.json
+
+# android TWA build
+*.keystore
+*.jks
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
